@@ -71,7 +71,7 @@ function buildModalAvatar(scene, crianca, r, frameHint) {
 
 
 
-  wrap.add([shadow, base, face, ring]);
+  wrap.add([shadow, base, ring, face]);
 
   return wrap;
 

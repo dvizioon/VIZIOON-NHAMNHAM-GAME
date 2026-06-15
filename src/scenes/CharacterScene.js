@@ -17,6 +17,8 @@ import { createCharacterFace } from '../ui/characterAvatar.js';
 import { openCharacterDetailModal } from '../ui/characterModal.js';
 
 const NAV_GREEN = '#1E6A30';
+const SEARCH_BORDER_COLOR = 0x1E6A30;
+const SEARCH_BORDER_WIDTH = 3;
 const HOME_GREEN = Theme.botaoVerde;
 
 const NAV_ICONS = {
@@ -168,15 +170,24 @@ export class CharacterScene extends Phaser.Scene {
       searchH,
       searchH / 2,
     );
+    this.searchBarGfx.lineStyle(SEARCH_BORDER_WIDTH, SEARCH_BORDER_COLOR, 1);
+    this.searchBarGfx.strokeRoundedRect(
+      barX - searchW / 2,
+      searchY - searchH / 2,
+      searchW,
+      searchH,
+      searchH / 2,
+    );
 
     createIconCircleButton(this, barX + searchW / 2 - searchBtnSize * 0.52, searchY, NAV_ICONS.search, {
       onClick: () => this.domSearch?.focus(),
       size: searchBtnSize,
       iconSize: 24,
       fillColor: Theme.sol,
-      borderScale: 1,
-      showBorder: true,
-      borderTint: Theme.folhaEscura,
+      showBorder: false,
+      simpleBorder: true,
+      borderColor: SEARCH_BORDER_COLOR,
+      borderWidth: SEARCH_BORDER_WIDTH,
       depth: 18,
       absoluteSize: true,
     });
@@ -439,7 +450,7 @@ export class CharacterScene extends Phaser.Scene {
 
     let avatar = createCharacterFace(this, crianca, r, frameHint);
 
-    container.add([shadow, base, avatar, ring, divider, name]);
+    container.add([shadow, base, ring, avatar, divider, name]);
 
     const hitTop = nameY - 10;
     const hitBottom = r + 14;

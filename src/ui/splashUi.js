@@ -58,6 +58,9 @@ export function createIconCircleButton(
     absoluteSize = false,
     showBorder = true,
     borderTint = null,
+    simpleBorder = false,
+    borderColor = 0x1E6A30,
+    borderWidth = 3,
   } = {},
 ) {
   const textureKey = icon instanceof Icon ? icon.textureKey : icon;
@@ -78,6 +81,10 @@ export function createIconCircleButton(
   const bg = scene.add.graphics();
   bg.fillStyle(fillColor, 1);
   bg.fillCircle(0, 0, fillR);
+  if (simpleBorder) {
+    bg.lineStyle(borderWidth, borderColor, 1);
+    bg.strokeCircle(0, 0, fillR);
+  }
 
   const iconImg = scene.add
     .image(0, 0, textureKey)
@@ -90,7 +97,7 @@ export function createIconCircleButton(
 
   content.add([bg, iconImg]);
 
-  if (showBorder && scene.textures.exists(UI_BUTTON_BORDER_KEY)) {
+  if (showBorder && !simpleBorder && scene.textures.exists(UI_BUTTON_BORDER_KEY)) {
     const border = scene.add
       .image(0, 0, UI_BUTTON_BORDER_KEY)
       .setDisplaySize(borderW, borderH)
