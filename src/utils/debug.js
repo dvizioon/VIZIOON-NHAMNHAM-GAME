@@ -9,10 +9,10 @@ export function isDebugHitboxes(scene) {
 
 export function initDebugFlags(game) {
   const q = new URLSearchParams(window.location.search);
-  if (q.get('debug') === '1' || q.get('debug') === 'true') {
-    game.registry.set('debugHitboxes', true);
-  } else {
+  if (q.get('debug') === '0' || q.get('debug') === 'false') {
     game.registry.set('debugHitboxes', false);
+  } else {
+    game.registry.set('debugHitboxes', true);
   }
 }
 

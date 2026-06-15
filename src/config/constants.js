@@ -23,6 +23,7 @@ export const SceneKeys = {
   SETTINGS: 'SettingsScene',
   EGG: 'EggScene',
   GAME: 'GameScene',
+  TRUNK_INTRO: 'TrunkIntroScene',
   COCOON: 'CocoonScene',
   VICTORY: 'VictoryScene',
 };

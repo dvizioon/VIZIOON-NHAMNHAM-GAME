@@ -9,9 +9,7 @@ import {
   createSettingsSaveButton,
   createModoRow,
   getSettingsPanelSize,
-  settingsButtonSize,
 } from '../ui/settingsUi.js';
-import { getIconButtonSize } from '../ui/splashUi.js';
 import { playSound } from '../systems/ProceduralAudio.js';
 import { GameState } from '../utils/GameState.js';
 import { applyMusicVolume } from '../systems/MusicManager.js';
@@ -35,30 +33,22 @@ export class SettingsScene extends Phaser.Scene {
 
     drawSkyBackground(this);
 
-    const { size: backSize } = settingsButtonSize(this);
-    const { btnH: backH } = getIconButtonSize(this, backSize, { absolute: portrait });
-    const titleY = layoutY(this, portrait ? 0.15 : 0.10);
-    const backY = titleY - backH / 2 - Math.round(14 * scale);
-    const panelCy = layoutY(this, portrait ? 0.52 : 0.48);
-
-    createSettingsBackButton(this, () => this.goBack(), {
-      x: width / 2,
-      y: backY,
-    });
+    createSettingsBackButton(this, () => this.goBack());
 
     const title = createTitle(
       this,
       width / 2,
-      titleY,
+      layoutY(this, portrait ? 0.095 : 0.085),
       'Configurações',
-      Math.round((portrait ? 34 : 42) * (portrait ? 1 : scale)),
+      Math.round((portrait ? 36 : 42) * (portrait ? 1 : scale)),
     );
     title.setDepth(150);
 
+    const panelCy = layoutY(this, portrait ? 0.53 : 0.48);
     const panel = createSettingsPanel(this, width / 2, panelCy, panelW, panelH, { depth: 10 });
     createSettingsDecorations(this, width / 2, panelCy, panelW, panelH);
 
-    createSettingsSlider(panel, 0, -panelH * 0.28, 'Volume', this.settings.volumeMusica, {
+    createSettingsSlider(panel, 0, -panelH * 0.30, 'Volume', this.settings.volumeMusica, {
       volumeIcon: true,
       contentW,
       onChange: (v) => {
@@ -68,7 +58,7 @@ export class SettingsScene extends Phaser.Scene {
       },
     });
 
-    createSettingsSlider(panel, 0, -panelH * 0.06, 'Efeitos', this.settings.volumeEfeitos, {
+    createSettingsSlider(panel, 0, -panelH * 0.02, 'Efeitos', this.settings.volumeEfeitos, {
       volumeIcon: true,
       contentW,
       onChange: (v) => {
@@ -77,7 +67,7 @@ export class SettingsScene extends Phaser.Scene {
       },
     });
 
-    this.modoRow = createModoRow(panel, 0, panelH * 0.1, {
+    this.modoRow = createModoRow(panel, 0, panelH * 0.26, {
       activeMode: this.settings.modo,
       contentW,
       onChange: (modo) => {
@@ -90,7 +80,7 @@ export class SettingsScene extends Phaser.Scene {
     createSettingsSaveButton(
       this,
       width / 2,
-      panelCy + panelH / 2 + Math.round(10 * scale),
+      panelCy + panelH / 2 + Math.round(12 * scale),
       () => this.goBack(),
     );
   }

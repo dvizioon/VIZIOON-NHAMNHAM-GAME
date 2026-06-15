@@ -19,7 +19,6 @@ export class CharacterScene extends Phaser.Scene {
 
   create() {
     const { width, height } = this.scale;
-    const parentName = GameState.getParentName(this);
     this.criancas = GameState.getCriancas(this);
     this.index = 0;
 
@@ -30,11 +29,15 @@ export class CharacterScene extends Phaser.Scene {
     }
 
     drawSkyBackground(this);
-    createTitle(this, width / 2, 52, `${parentName}, quem vai\nvirar borboleta? 🦋`, 32);
+    const parentName = GameState.getParentName(this);
+    const titleText = parentName
+      ? `${parentName}, quem vai\nvirar borboleta? 🦋`
+      : 'Quem vai virar borboleta? 🦋';
+    createTitle(this, width / 2, 52, titleText, 32);
 
     createBackButton(this, () => {
       playSound(this, 'clique');
-      this.scene.start(SceneKeys.NAME);
+      this.scene.start(SceneKeys.SPLASH);
     });
 
     createSettingsButton(this, () => {
@@ -240,6 +243,6 @@ export class CharacterScene extends Phaser.Scene {
     GameState.setChild(this, child);
     GameState.setCustom(this, defaultCustom(child));
     GameState.initRun(this);
-    this.scene.start(SceneKeys.EGG);
+    this.scene.start(SceneKeys.TRUNK_INTRO);
   }
 }

@@ -65,22 +65,29 @@ export function getSettingsPanelSize(scene) {
   const { width } = scene.scale;
 
   if (isPortrait(scene)) {
-    const w = Math.round(Math.min(width * 0.88, PANEL_DESIGN_WIDTH * scale));
-    const h = Math.round(w * (PANEL_DESIGN_HEIGHT / PANEL_DESIGN_WIDTH));
-    return { w, h, contentW: Math.round(w * 0.72) };
+    const w = Math.round(width * 0.94);
+    const h = Math.round(w * (PANEL_DESIGN_HEIGHT / PANEL_DESIGN_WIDTH) * 1.12);
+    const panelScale = w / PANEL_DESIGN_WIDTH;
+    return {
+      w,
+      h,
+      contentW: Math.round(300 * panelScale),
+      panelScale,
+    };
   }
 
   return {
     w: Math.round(PANEL_DESIGN_WIDTH * scale),
     h: Math.round(PANEL_DESIGN_HEIGHT * scale),
     contentW: Math.round(300 * scale),
+    panelScale: scale,
   };
 }
 
 export function createSettingsPanel(scene, cx, cy, w, h, { depth = 10, shadowOffset = PANEL_SHADOW_OFFSET } = {}) {
-  const scale = uiScale(scene);
-  const r = Math.round(PANEL_CORNER_RADIUS * scale);
-  const off = Math.round(shadowOffset * scale);
+  const panelScale = w / PANEL_DESIGN_WIDTH;
+  const r = Math.round(PANEL_CORNER_RADIUS * panelScale);
+  const off = Math.round(shadowOffset * panelScale);
 
   const panel = attach(scene, scene.add.container(cx, cy), cx, cy).setDepth(depth);
 
@@ -100,12 +107,12 @@ export function createSettingsPanel(scene, cx, cy, w, h, { depth = 10, shadowOff
 
 /** Folhas — atrás do creme (depth 8) */
 export function createSettingsDecorations(scene, cx, cy, w, h) {
-  const scale = uiScale(scene);
+  const panelScale = w / PANEL_DESIGN_WIDTH;
   const decoDepth = 8;
 
   if (scene.textures.exists(UI_DECO_3FOLHAS_KEY)) {
-    const leafW = Math.round(105 * scale);
-    const leafH = Math.round(166 * scale);
+    const leafW = Math.round(105 * panelScale);
+    const leafH = Math.round(166 * panelScale);
     scene.add
       .image(cx - w / 2 - leafW * 0.06, cy + h * 0.12, UI_DECO_3FOLHAS_KEY)
       .setDisplaySize(leafW, leafH)
@@ -114,8 +121,8 @@ export function createSettingsDecorations(scene, cx, cy, w, h) {
   }
 
   if (scene.textures.exists(UI_DECO_FOLHAS_RAIZES_KEY)) {
-    const rightW = Math.round(125 * scale);
-    const rightH = Math.round(186 * scale);
+    const rightW = Math.round(125 * panelScale);
+    const rightH = Math.round(186 * panelScale);
     scene.add
       .image(cx + w / 2 + rightW * 0.06, cy - h * 0.02, UI_DECO_FOLHAS_RAIZES_KEY)
       .setDisplaySize(rightW, rightH)
@@ -135,7 +142,7 @@ export function createSettingsSlider(
   { onChange, volumeIcon = false, percentOnAdjust = true, contentW } = {},
 ) {
   const scene = sceneOf(parent);
-  const scale = uiScale(scene);
+  const scale = contentW ? contentW / 300 : uiScale(scene);
   const innerW = contentW ?? Math.round(300 * scale);
   const trackH = Math.round(18 * scale);
   const knobR = Math.round(14 * scale);
@@ -277,8 +284,8 @@ export function createSettingsSlider(
   return row;
 }
 
-export function createModoToggle(scene, x, y, icon, { active = false, onClick } = {}) {
-  const scale = uiScale(scene);
+export function createModoToggle(scene, x, y, icon, { active = false, onClick, layoutScale } = {}) {
+  const scale = layoutScale ?? uiScale(scene);
   const size = Math.round(58 * scale);
   const iconPx = Math.round(32 * scale);
   const container = scene.add.container(x, y);
@@ -309,8 +316,8 @@ export function createModoToggle(scene, x, y, icon, { active = false, onClick } 
   return container;
 }
 
-export function createModoArrowsToggle(scene, x, y, { active = false, onClick } = {}) {
-  const scale = uiScale(scene);
+export function createModoArrowsToggle(scene, x, y, { active = false, onClick, layoutScale } = {}) {
+  const scale = layoutScale ?? uiScale(scene);
   const size = Math.round(58 * scale);
   const iconPx = Math.round(22 * scale);
   const spread = Math.round(11 * scale);
@@ -372,9 +379,11 @@ export function createSettingsBackButton(scene, onClick, { x, y, absoluteSize } 
   const abs = absoluteSize ?? portrait;
   const { size, icon } = settingsButtonSize(scene);
   const { btnW, btnH } = getIconButtonSize(scene, size, { absolute: abs });
+  const { width } = scene.scale;
+  const m = portrait ? Math.max(12, Math.round(width * 0.04)) : Math.round(36 * scale);
 
-  const px = x ?? Math.round(36 * scale) + btnW / 2;
-  const py = y ?? Math.round(36 * scale) + btnH / 2;
+  const px = x ?? m + btnW / 2;
+  const py = y ?? m + btnH / 2;
 
   return createIconCircleButton(scene, px, py, SETTINGS_ICONS.back, {
     size,
@@ -404,7 +413,7 @@ export function createSettingsSaveButton(scene, x, y, onClick) {
 /** Linha Modo — título + controller centralizados; toggles abaixo */
 export function createModoRow(parent, x, y, { activeMode = 'toque', onChange, contentW } = {}) {
   const scene = sceneOf(parent);
-  const scale = uiScale(scene);
+  const scale = contentW ? contentW / 300 : uiScale(scene);
   const iconPx = Math.round(28 * scale);
   const labelY = -Math.round(32 * scale);
 
@@ -427,7 +436,7 @@ export function createModoRow(parent, x, y, { activeMode = 'toque', onChange, co
 
   label.setX(headerStartX + iconPx + Math.round(8 * scale) + label.width / 2);
 
-  const toggleY = Math.round(24 * scale);
+  const toggleY = Math.round(30 * scale);
   const btnSize = Math.round(58 * scale);
   const toggleGap = Math.round(20 * scale);
   const pairW = btnSize * 2 + toggleGap;
@@ -435,11 +444,13 @@ export function createModoRow(parent, x, y, { activeMode = 'toque', onChange, co
 
   const btnToque = createModoToggle(scene, leftX, toggleY, SETTINGS_ICONS.touch, {
     active: activeMode === 'toque',
+    layoutScale: scale,
     onClick: () => onChange?.('toque'),
   });
 
   const btnSetas = createModoArrowsToggle(scene, leftX + btnSize + toggleGap, toggleY, {
     active: activeMode === 'setas',
+    layoutScale: scale,
     onClick: () => onChange?.('setas'),
   });
 

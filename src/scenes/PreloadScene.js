@@ -9,6 +9,8 @@ import { capImageTexture, capSpritesheet } from '../systems/TextureScaler.js';
 import { startBgm } from '../systems/MusicManager.js';
 import { preloadSplashIcons } from '../ui/splashUi.js';
 import { preloadSettingsIcons } from '../ui/settingsUi.js';
+import { FOOD_FRUTAS } from '../config/foodConfig.js';
+import { GAME_BG_KEY, GAME_TRUNK_KEY, INTRO_TRUNK_KEY } from '../config/gameWorldConfig.js';
 import criancasData from '../../public/assets/data/criancas.json';
 
 export class PreloadScene extends Phaser.Scene {
@@ -60,10 +62,13 @@ export class PreloadScene extends Phaser.Scene {
       'ui_deco_folhas_raizes',
       'assets/textures/ui/2folhas%20+%20raizes.svg',
     );
-    this.load.spritesheet('food_frutas', 'assets/textures/food/frutas.png', {
-      frameWidth: 898,
-      frameHeight: 643,
+    this.load.spritesheet(FOOD_FRUTAS.key, 'assets/textures/food/frutas.png', {
+      frameWidth: FOOD_FRUTAS.frameWidth,
+      frameHeight: FOOD_FRUTAS.frameHeight,
     });
+    this.load.image(GAME_BG_KEY, 'assets/textures/environment/backgroundgame.png');
+    this.load.image(GAME_TRUNK_KEY, 'assets/textures/ui/tronco_game.png');
+    this.load.image(INTRO_TRUNK_KEY, 'assets/textures/ui/tronco_intro.png');
     for (const [key, url] of Object.entries(REQUIRED_SOUNDS)) {
       this.load.audio(key, url);
     }
@@ -76,7 +81,10 @@ export class PreloadScene extends Phaser.Scene {
     // PNGs do Figma passam de 4096px — reduz p/ GPU exibir
     capImageTexture(this, 'env_background');
     capImageTexture(this, 'env_ground');
-    capSpritesheet(this, 'food_frutas', 898, 643);
+    capImageTexture(this, GAME_BG_KEY);
+    capImageTexture(this, GAME_TRUNK_KEY);
+    capImageTexture(this, INTRO_TRUNK_KEY);
+    capSpritesheet(this, FOOD_FRUTAS.key, FOOD_FRUTAS.frameWidth, FOOD_FRUTAS.frameHeight);
 
     const criancas = this.cache.json.exists('criancas')
       ? this.cache.json.get('criancas')
@@ -90,11 +98,8 @@ export class PreloadScene extends Phaser.Scene {
           cliquesOvo: 3,
           cliquesCasulo: 2,
           intervaloSapo: 12000,
-          intervaloAranha: 15000,
           delayInicioSapo: 25000,
-          delayInicioAranha: 35000,
-          intervaloComida: 1800,
-          tempoPreso: 90,
+          minComidaAntesSapo: 4,
           invulneravelFrames: 120,
         };
 

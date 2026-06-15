@@ -41,6 +41,7 @@ export class CaterpillarSprite {
       setPosition() {},
       setMoving() {},
       playEat() {},
+      playClimb() {},
       playHurt() {},
       setAlpha(a) { g.setAlpha(a); },
       destroy() { g.destroy(); },
@@ -48,13 +49,19 @@ export class CaterpillarSprite {
   }
 
   static createFilament(scene, x, y, texKeys, cfg, depth, opts) {
+    const layout = opts.layout ?? 'vertical';
+    const useClimb = opts.preferClimb && layout === 'vertical'
+      && scene.textures.exists(texKeys.climb);
+    const hideHead = opts.hideHead ?? useClimb;
     const scale = opts.displayScale ?? cfg?.displayScale ?? 1;
-    const frameH = cfg?.sheets?.idle?.frameHeight ?? cfg?.frameHeight ?? 128;
+    const climbFrameH = cfg?.sheets?.climb?.frameHeight ?? 201;
+    const frameH = useClimb
+      ? climbFrameH
+      : (cfg?.sheets?.idle?.frameHeight ?? cfg?.frameHeight ?? 128);
     const segCount = Math.max(6, opts.segmentCount ?? cfg?.segmentCount ?? 6);
     const spacing = frameH * scale * (cfg?.segmentSpacing ?? 0.46);
     const originX = cfg?.origin?.x ?? 0.5;
-    const originY = cfg?.origin?.y ?? 0.5;
-    const layout = opts.layout ?? 'vertical';
+    const originY = useClimb ? 0.92 : (cfg?.origin?.y ?? 0.5);
     const headOffsetY = layout === 'vertical' ? (segCount - 1) * spacing : 0;
     const headOffsetX = layout === 'horizontal' ? (segCount - 1) * spacing : 0;
 
@@ -62,12 +69,14 @@ export class CaterpillarSprite {
     const idleAnimKey = `${texKeys.base}_idle`;
     const eatAnimKey = `${texKeys.base}_eat`;
     const riseAnimKey = `${texKeys.base}_rising`;
+    const climbAnimKey = `${texKeys.base}_climb`;
     const headWalkAnimKey = `${texKeys.base}_headWalk`;
     const headRiseAnimKey = `${texKeys.base}_headRise`;
     const riseFrontCount = cfg?.riseFrontCount ?? 2;
-    const defaultTex = scene.textures.exists(texKeys.defaultTex)
+    let defaultTex = scene.textures.exists(texKeys.defaultTex)
       ? texKeys.defaultTex
       : texKeys.walk;
+    if (useClimb) defaultTex = texKeys.climb;
 
     const container = scene.add.container(x, y).setDepth(depth);
     const segments = [];
@@ -100,6 +109,8 @@ export class CaterpillarSprite {
 
       if (scene.anims.exists(idleAnimKey)) {
         seg.play(idleAnimKey);
+      } else if (useClimb && scene.anims.exists(climbAnimKey)) {
+        seg.play(climbAnimKey);
       } else {
         seg.setFrame(cfg?.animations?.idle?.start ?? 0);
       }
@@ -117,7 +128,7 @@ export class CaterpillarSprite {
     let headIsMoving = false;
     let headSprite = null;
 
-    if (scene.textures.exists(texKeys.headWalk)) {
+    if (!hideHead && scene.textures.exists(texKeys.headWalk)) {
       headSprite = scene.add.sprite(0, 0, texKeys.headWalk, headIdleFrame);
       headSprite.setOrigin(headOriginX, headOriginY);
       headSprite.setScale(scale);
@@ -346,6 +357,19 @@ export class CaterpillarSprite {
       },
 
       setMoving(moving) {
+        if (useClimb) {
+          api.isMoving = moving;
+          segments.forEach(({ sprite }) => {
+            if (moving && scene.anims.exists(climbAnimKey)) {
+              sprite.setTexture(texKeys.climb);
+              sprite.play(climbAnimKey);
+            } else {
+              sprite.anims?.stop();
+              sprite.setTexture(texKeys.climb, 0);
+            }
+          });
+          return;
+        }
         api.isRising = false;
         if (!moving && api.isMoving === moving) return;
         api.isMoving = moving;
@@ -430,6 +454,19 @@ export class CaterpillarSprite {
       },
 
       playEat() {
+        if (useClimb) {
+          segments.forEach(({ sprite }) => {
+            sprite.setTexture(texKeys.climb);
+            if (scene.anims.exists(climbAnimKey)) sprite.play(climbAnimKey);
+          });
+          scene.time.delayedCall(320, () => {
+            segments.forEach(({ sprite }) => {
+              sprite.anims?.stop();
+              sprite.setTexture(texKeys.climb, 0);
+            });
+          });
+          return;
+        }
         if (scene.anims.exists(eatAnimKey)) {
           segments.forEach(({ sprite }) => sprite.play(eatAnimKey));
           return;
@@ -440,6 +477,19 @@ export class CaterpillarSprite {
         scene.time.delayedCall(250, () => {
           segments.forEach(({ sprite }) => sprite.setScale(scale));
         });
+      },
+
+      playClimb() {
+        if (useClimb) {
+          api.isRising = true;
+          segments.forEach(({ sprite }) => {
+            sprite.setTexture(texKeys.climb);
+            if (scene.anims.exists(climbAnimKey)) sprite.play(climbAnimKey);
+          });
+          scene.time.delayedCall(480, () => { api.isRising = false; });
+          return;
+        }
+        api.playRise();
       },
 
       playHurt() {

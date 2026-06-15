@@ -9,6 +9,7 @@ import { CustomizeScene } from '../scenes/CustomizeScene.js';
 import { SettingsScene } from '../scenes/SettingsScene.js';
 import { EggScene } from '../scenes/EggScene.js';
 import { GameScene } from '../scenes/GameScene.js';
+import { TrunkIntroScene } from '../scenes/TrunkIntroScene.js';
 import { CocoonScene } from '../scenes/CocoonScene.js';
 import { VictoryScene } from '../scenes/VictoryScene.js';
 
@@ -54,6 +55,7 @@ export function createGameConfig() {
       CustomizeScene,
       SettingsScene,
       EggScene,
+      TrunkIntroScene,
       GameScene,
       CocoonScene,
       VictoryScene,

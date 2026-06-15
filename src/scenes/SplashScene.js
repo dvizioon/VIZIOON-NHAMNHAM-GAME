@@ -22,19 +22,21 @@ import {
   isDebugHitboxes,
 } from '../utils/debug.js';
 
-const FOOD_KEY = 'food_frutas';
+import { FOOD_FRUTAS } from '../config/foodConfig.js';
+
+const FOOD_KEY = FOOD_FRUTAS.key;
 const SPLASH_BTN_SIZE = 142;
 const SPLASH_ICON_SIZE = 60;
 const SPLASH_LAYOUT = {
-  portrait: { buttonsY: 0.58, sideMargin: 0.05, playBtn: 0.19, configBtn: 0.10, btnGap: 0.05, topPad: 0.10 },
+  portrait: { buttonsY: 0.58, sideMargin: 0.05, playBtn: 0.22, configBtn: 0.10, btnGap: 0.05, topPad: 0.10 },
   landscape: { logoY: 0.28, buttonsY: 0.62, logoWidth: 0.38, playBtn: null, configBtn: null, btnGap: 0.022 },
 };
 const LOGO_MAX_WIDTH = 400;
-const FOOD_FRAMES = 14;
-const FOOD_FRAME_W = 898;
-const FOOD_FRAME_H = 643;
+const FOOD_FRAMES = FOOD_FRUTAS.frames;
+const FOOD_FRAME_W = FOOD_FRUTAS.frameWidth;
+const FOOD_FRAME_H = FOOD_FRUTAS.frameHeight;
 const FOOD_ASPECT = FOOD_FRAME_H / FOOD_FRAME_W;
-const FOOD_BASE_W = 92;
+const FOOD_BASE_W = FOOD_FRUTAS.baseDisplayW;
 const FRUIT_HIT_R = 0.34;
 const FRUIT_HIT_CY = 0.56;
 const SEG_HIT_R = 0.42;
@@ -356,7 +358,7 @@ export class SplashScene extends Phaser.Scene {
       onClick: () => {
         playSound(this, 'clique');
         this.caterpillar?.destroy?.();
-        this.scene.start(SceneKeys.NAME);
+        this.scene.start(SceneKeys.CHARACTER);
       },
     });
 

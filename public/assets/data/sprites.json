@@ -29,6 +29,11 @@
           "spritesheet": "sprites/characters/cabeça_erguendo.png",
           "frameWidth": 641,
           "frameHeight": 804
+        },
+        "climb": {
+          "spritesheet": "sprites/characters/subindo.png",
+          "frameWidth": 244,
+          "frameHeight": 201
         }
       },
       "displayScale": 0.16,
@@ -51,6 +56,13 @@
           "start": 0,
           "end": 3,
           "frameRate": 6,
+          "repeat": -1
+        },
+        "climb": {
+          "sheet": "climb",
+          "start": 0,
+          "end": 1,
+          "frameRate": 8,
           "repeat": -1
         }
       },

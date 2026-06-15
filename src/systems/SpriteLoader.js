@@ -147,6 +147,7 @@ export function getCharacterTextureKeys(childId) {
       walk: `${base}_walk`,
       idle: `${base}_idle`,
       rise: `${base}_rise`,
+      climb: `${base}_climb`,
       headWalk: `${base}_headWalk`,
       headRise: `${base}_headRise`,
       defaultTex: `${base}_idle`,
