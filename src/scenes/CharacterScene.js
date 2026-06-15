@@ -12,6 +12,7 @@ import {
   UI_LOGO_PERSONAGENS_KEY,
   CHAR_PER_PAGE,
   CHAR_GRID_COLS,
+  filterCriancasAtivas,
 } from '../config/characterUiConfig.js';
 import { createCharacterFace } from '../ui/characterAvatar.js';
 import { openCharacterDetailModal } from '../ui/characterModal.js';
@@ -24,8 +25,8 @@ const HOME_GREEN = Theme.botaoVerde;
 function getSearchBarMetrics(searchW, searchH) {
   const searchBtnSize = Math.round(searchH * 1.06);
   const padLeft = 18;
-  const padRight = Math.round(searchBtnSize * 0.58 + 16);
-  const btnInset = searchBtnSize * 0.5;
+  const btnInset = searchBtnSize * 0.46;
+  const padRight = Math.round(searchBtnSize * 0.54 + 10);
   return {
     searchBtnSize,
     searchIconSize: Math.max(26, Math.round(searchBtnSize * 0.52)),
@@ -76,7 +77,7 @@ export class CharacterScene extends Phaser.Scene {
 
   async create() {
     const { width, height } = this.scale;
-    this.criancas = GameState.getCriancas(this);
+    this.criancas = filterCriancasAtivas(GameState.getCriancas(this));
     this.filtered = [...this.criancas];
 
     const saved = GameState.getChild(this);
@@ -125,11 +126,13 @@ export class CharacterScene extends Phaser.Scene {
 
     const topPad = Math.max(6, height * 0.01);
     const logoY = topPad + logoH / 2;
-    const gapLogoSearch = Math.max(18, height * 0.024);
+    const gapLogoSearch = Math.max(14, height * 0.02);
     const searchH = Math.max(44, width * 0.105);
-    const searchY = logoY + logoH / 2 + gapLogoSearch + searchH / 2 - 14;
-    const gapSearchGrid = Math.max(28, height * 0.036);
-    const gridTop = searchY + searchH / 2 + gapSearchGrid;
+    const searchOffsetY = Math.max(14, height * 0.018);
+    const gridOffsetY = Math.max(12, height * 0.015);
+    const searchY = logoY + logoH / 2 + gapLogoSearch + searchH / 2 - 6 + searchOffsetY;
+    const gapSearchGrid = Math.max(22, height * 0.028);
+    const gridTop = searchY + searchH / 2 + gapSearchGrid + gridOffsetY;
 
     return {
       s,

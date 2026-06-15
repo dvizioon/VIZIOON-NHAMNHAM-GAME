@@ -4,7 +4,8 @@ import { Theme } from '../config/theme.js';
 import { playSound } from '../systems/ProceduralAudio.js';
 import { GameState } from '../utils/GameState.js';
 import { drawEnvironmentLayers, getGroundY, DEPTH_TRUNK } from '../ui/createUI.js';
-import { getCharacterTextureKeys, getSpritesManifest } from '../systems/SpriteLoader.js';
+import { attachCharacterCabecaToClimb, syncCabecaToClimbBody } from '../ui/characterAvatar.js';
+import { getSpritesManifest } from '../systems/SpriteLoader.js';
 import {
   INTRO_TRUNK_KEY,
   CLIMB_TEX,
@@ -53,7 +54,7 @@ export class TrunkIntroScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(20);
 
     this.climbScale = (width * TRUNK_PLAY_WIDTH_RATIO * 1.1) / CLIMB_FRAME_WIDTH;
-    this.buildClimber(width, height + 60, child?.id);
+    this.buildClimber(width / 2, height + 60, child);
 
     this.time.delayedCall(600, () => playSound(this, 'hut'));
 
@@ -75,7 +76,7 @@ export class TrunkIntroScene extends Phaser.Scene {
     this.cameras.main.fadeIn(400, 0, 0, 0);
   }
 
-  buildClimber(startX, startY, childId) {
+  buildClimber(startX, startY, child) {
     this.climberContainer = this.add.container(startX, startY).setDepth(25);
 
     if (this.textures.exists(CLIMB_TEX)) {
@@ -88,7 +89,15 @@ export class TrunkIntroScene extends Phaser.Scene {
       }
 
       this.climberContainer.add(this.bodySprite);
-      this.attachHead(childId);
+      const headCfg = getSpritesManifest().characters?.default?.head ?? {};
+      this.headSprite = attachCharacterCabecaToClimb(
+        this,
+        this.climberContainer,
+        this.bodySprite,
+        child,
+        this.climbScale,
+        headCfg,
+      );
     } else {
       const fallback = this.add.circle(0, 0, 24, Theme.folha);
       this.climberContainer.add(fallback);
@@ -103,37 +112,6 @@ export class TrunkIntroScene extends Phaser.Scene {
       Phaser.Geom.Rectangle.Contains,
     );
     this.climberContainer.on('pointerdown', () => this.closeEyes());
-  }
-
-  attachHead(childId) {
-    const texKeys = getCharacterTextureKeys(childId);
-    const headCfg = getSpritesManifest().characters?.default?.head ?? {};
-    const headKey = texKeys.headWalk;
-
-    if (!this.textures.exists(headKey) || !this.bodySprite?.displayHeight) return;
-
-    const idleFrame = headCfg.idleFrame ?? 1;
-    const headOriginX = headCfg.origin?.x ?? 0.5;
-    const headOriginY = headCfg.origin?.y ?? 0.84;
-    const ballTop = headCfg.ballTopRatio ?? 0.54;
-    const oy = (headCfg.offsetY ?? 0.12) * this.bodySprite.displayHeight;
-
-    this.headSprite = this.add.sprite(
-      0,
-      -this.bodySprite.displayHeight * ballTop + oy,
-      headKey,
-      idleFrame,
-    );
-    this.headSprite.setOrigin(headOriginX, headOriginY);
-    this.headSprite.setScale(this.climbScale);
-
-    const headWalkAnim = `${texKeys.base}_headWalk`;
-    if (this.anims.exists(headWalkAnim)) {
-      this.headSprite.anims.play(headWalkAnim);
-    }
-
-    this.climberContainer.add(this.headSprite);
-    this.climberContainer.bringToTop(this.headSprite);
   }
 
   closeEyes() {
@@ -168,7 +146,12 @@ export class TrunkIntroScene extends Phaser.Scene {
 
         if (this.headSprite) {
           this.headSprite.setFrame(closedHeadFrame);
-          this.headSprite.setScale(this.climbScale);
+          syncCabecaToClimbBody(
+            this.headSprite,
+            this.bodySprite,
+            this.climbScale,
+            headCfg,
+          );
         }
       },
     });

@@ -5,6 +5,7 @@ import { playSound } from '../systems/ProceduralAudio.js';
 import { GameState, defaultCustom } from '../utils/GameState.js';
 import { createButton, drawEnvironmentLayers, getGroundY, DEPTH_TRUNK } from '../ui/createUI.js';
 import { FOOD_FRUTAS } from '../config/foodConfig.js';
+import { GAME_AVISO_ICONS } from '../ui/gameUi.js';
 import { CaterpillarSprite } from '../entities/CaterpillarSprite.js';
 import {
   GAME_TRUNK_KEY,
@@ -16,6 +17,8 @@ import {
   DEPTH_FRUIT,
   FRUIT_FALL_INTERVAL_MIN,
   FRUIT_FALL_INTERVAL_MAX,
+  MAX_FALLING_FRUITS,
+  FRUIT_SPAWN_COOLDOWN_MS,
   FRUIT_TRUNK_INSET,
 } from '../config/gameWorldConfig.js';
 import {
@@ -55,10 +58,14 @@ export class GameScene extends Phaser.Scene {
     this.caterpillarApi = null;
     this.lagarta = null;
     this.avisoContainer = null;
+    this.avisoRow = null;
+    this.avisoIcon = null;
     this.avisoText = null;
     this.tutorialGroup = null;
     this.fruitSpawnTimer = null;
     this._fruitFrameBag = [];
+    this._lastFruitSpawnAt = 0;
+    this.ready = false;
   }
 
   create() {
@@ -95,8 +102,8 @@ export class GameScene extends Phaser.Scene {
       this.tentarComerNoToque(p.x, p.y);
     });
     this.input.on('pointermove', (p) => { if (p.isDown) this.moverPara(p.x); });
-    this.input.keyboard.on('keydown-LEFT', () => { this.lagarta.alvoX -= 48; });
-    this.input.keyboard.on('keydown-RIGHT', () => { this.lagarta.alvoX += 48; });
+    this.input.keyboard.on('keydown-LEFT', () => { if (this.lagarta) this.lagarta.alvoX -= 48; });
+    this.input.keyboard.on('keydown-RIGHT', () => { if (this.lagarta) this.lagarta.alvoX += 48; });
 
     this.jogoAtivo = true;
 
@@ -119,6 +126,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.cameras.main.fadeIn(350, 0, 0, 0);
+    this.ready = true;
   }
 
   pinHud(...objects) {
@@ -180,7 +188,7 @@ export class GameScene extends Phaser.Scene {
     if (this.caterpillarApi?.getHeadPosition) {
       return this.caterpillarApi.getHeadPosition();
     }
-    return { x: this.lagarta.x, y: this.motion.climberY };
+    return { x: this.lagarta?.x ?? this.trunkCX, y: this.motion.climberY };
   }
 
   getClimberY() {
@@ -199,15 +207,13 @@ export class GameScene extends Phaser.Scene {
   setupFallingFruits(width, height) {
     if (!this.textures.exists(FOOD_FRUTAS.key)) return;
 
-    for (let i = 0; i < 3; i++) {
-      this.time.delayedCall(i * 600, () => this.spawnFallingFruit());
-    }
+    this.time.delayedCall(900, () => this.spawnFruitWave());
 
     this.fruitSpawnTimer = this.time.addEvent({
       delay: Phaser.Math.Between(FRUIT_FALL_INTERVAL_MIN, FRUIT_FALL_INTERVAL_MAX),
       loop: true,
       callback: () => {
-        this.spawnFallingFruit();
+        this.spawnFruitWave();
         this.fruitSpawnTimer.delay = Phaser.Math.Between(
           FRUIT_FALL_INTERVAL_MIN,
           FRUIT_FALL_INTERVAL_MAX,
@@ -216,14 +222,66 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  spawnFallingFruit() {
-    if (!this.jogoAtivo || this.comidas.length >= 8) return;
+  countFallingFruits() {
+    return this.comidas.filter((c) => c.falling && c.sprite?.active).length;
+  }
+
+  fruitMinSeparation() {
+    return Math.round(this.trunkW * 0.21);
+  }
+
+  pickFruitSpawnX(blockedExtra = []) {
+    const inner = this.trunkPlayW * FRUIT_TRUNK_INSET;
+    const minX = Math.round(this.trunkCX - inner);
+    const maxX = Math.round(this.trunkCX + inner);
+    const minSep = this.fruitMinSeparation();
+
+    const blocked = [
+      ...blockedExtra,
+      ...this.comidas
+        .filter((c) => c.falling && c.sprite?.active)
+        .map((c) => c.sprite.x),
+    ];
+
+    for (let attempt = 0; attempt < 24; attempt++) {
+      const x = Phaser.Math.Between(minX, maxX);
+      if (!blocked.some((bx) => Math.abs(bx - x) < minSep)) return x;
+    }
+
+    return null;
+  }
+
+  spawnFruitWave() {
+    if (!this.jogoAtivo) return;
+
+    const now = this.time.now;
+    if (now - this._lastFruitSpawnAt < FRUIT_SPAWN_COOLDOWN_MS) return;
+
+    const room = MAX_FALLING_FRUITS - this.countFallingFruits();
+    if (room <= 0) return;
+
+    const batch = Phaser.Math.Between(1, room);
+    const usedXs = [];
+    let spawned = 0;
+
+    for (let i = 0; i < batch; i++) {
+      const x = this.pickFruitSpawnX(usedXs);
+      if (x == null) break;
+      usedXs.push(x);
+      this.time.delayedCall(i * 220, () => this.dropFruitAt(x, i));
+      spawned += 1;
+    }
+
+    if (spawned > 0) this._lastFruitSpawnAt = now;
+  }
+
+  dropFruitAt(x, staggerIndex = 0) {
+    if (!this.jogoAtivo || !this.textures.exists(FOOD_FRUTAS.key)) return;
 
     const { height } = this.scale;
-    const x = this.pickFruitX();
     const frame = this.pickFruitFrame();
-    const size = Math.round(this.trunkW * 0.19 + Math.random() * 10);
-    const startY = Phaser.Math.Between(-180, -40);
+    const size = Math.round(this.trunkW * 0.17 + Phaser.Math.Between(0, 12));
+    const startY = Phaser.Math.Between(-220, -50) - staggerIndex * 55;
 
     const sprite = this.add.image(x, startY, FOOD_FRUTAS.key, frame)
       .setDisplaySize(size, size)
@@ -242,6 +300,10 @@ export class GameScene extends Phaser.Scene {
       rotation: Phaser.Math.FloatBetween(-0.2, 0.2),
       onComplete: () => this.removeFruit(entry),
     });
+  }
+
+  spawnFallingFruit() {
+    this.spawnFruitWave();
   }
 
   removeFruit(entry) {
@@ -263,7 +325,7 @@ export class GameScene extends Phaser.Scene {
     this.tutorialGroup = this.add.container(0, 0).setDepth(200);
     this.pinHud(this.tutorialGroup);
 
-    const hint = this.add.text(width / 2, 100, `🍎 ${this.child.nome}, toque nas frutas!`, {
+    const hint = this.add.text(width / 2, 100, `${this.child.nome}, toque nas frutas!`, {
       fontFamily: Theme.fontFamily,
       fontSize: '16px',
       color: '#3B3024',
@@ -295,23 +357,56 @@ export class GameScene extends Phaser.Scene {
   }
 
   buildAvisoPanel(width, height) {
-    this.avisoContainer = this.add.container(width / 2, height - 72).setDepth(150).setAlpha(0);
+    const padX = 14;
+    const padBottom = 18;
+    const panelW = Math.min(width - padX * 2, 340);
+    const panelH = 52;
+    const iconSize = 22;
+
+    this.avisoPanelW = panelW;
+    this.avisoContainer = this.add.container(
+      padX + panelW / 2,
+      height - padBottom - panelH / 2,
+    ).setDepth(150).setAlpha(0);
     this.pinHud(this.avisoContainer);
 
     const bg = this.add.graphics();
     bg.fillStyle(Theme.papel, 0.96);
-    bg.lineStyle(4, Theme.folhaEscura, 1);
-    bg.fillRoundedRect(-240, -28, 480, 56, 28);
-    bg.strokeRoundedRect(-240, -28, 480, 56, 28);
+    bg.lineStyle(3, Theme.folhaEscura, 1);
+    bg.fillRoundedRect(-panelW / 2, -panelH / 2, panelW, panelH, panelH / 2);
+    bg.strokeRoundedRect(-panelW / 2, -panelH / 2, panelW, panelH, panelH / 2);
+
+    this.avisoRow = this.add.container(0, 0);
+    this.avisoIcon = this.add.image(0, 0, GAME_AVISO_ICONS.comeu.textureKey)
+      .setDisplaySize(iconSize, iconSize)
+      .setOrigin(0.5);
     this.avisoText = this.add.text(0, 0, '', {
       fontFamily: Theme.fontFamily,
-      fontSize: '17px',
+      fontSize: '16px',
       color: '#3B3024',
       fontStyle: 'bold',
-      align: 'center',
-      wordWrap: { width: 440 },
-    }).setOrigin(0.5);
-    this.avisoContainer.add([bg, this.avisoText]);
+      align: 'left',
+    }).setOrigin(0, 0.5);
+
+    this.avisoRow.add([this.avisoIcon, this.avisoText]);
+    this.avisoContainer.add([bg, this.avisoRow]);
+  }
+
+  layoutAvisoContent(tipo, msg) {
+    const iconDef = GAME_AVISO_ICONS[tipo] ?? GAME_AVISO_ICONS.comeu;
+    const iconSize = 22;
+    const gap = 10;
+    const maxTextW = this.avisoPanelW - iconSize - gap - 36;
+
+    this.avisoIcon.setTexture(iconDef.textureKey).setDisplaySize(iconSize, iconSize);
+    this.avisoText.setText(msg);
+    this.avisoText.setWordWrapWidth(maxTextW, true);
+
+    const textW = Math.min(this.avisoText.width, maxTextW);
+    const totalW = iconSize + gap + textW;
+
+    this.avisoIcon.setX(-totalW / 2 + iconSize / 2);
+    this.avisoText.setX(-totalW / 2 + iconSize + gap);
   }
 
   moverPara(screenX) {
@@ -335,7 +430,7 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    if (melhor) {
+    if (melhor && this.lagarta) {
       this.lagarta.alvoX = melhor.x;
       this.comer(melhor);
     }
@@ -350,6 +445,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   crescerLagarta() {
+    if (!this.lagarta) return;
     const segs = Math.min(MAX_BODY_SEGMENTS, this.pontos + 1);
     this.caterpillarApi?.setActiveSegmentCount(segs);
     this.lagarta.segmentos = segs;
@@ -371,13 +467,13 @@ export class GameScene extends Phaser.Scene {
   avisar(tipo) {
     const nome = this.child.nome;
     const msgs = {
-      sapo: `🐸 ${nome}, cuidado! O sapo tá chegando!`,
-      cresceu: `✨ Uau ${nome}! A lagartinha cresceu!`,
-      comeu: `😋 ${nome} comeu! Nhoc-nhoc!`,
-      sapoHit: `😵 ${nome} levou uma lambida do sapo!`,
+      sapo: `${nome}, cuidado! O sapo tá chegando!`,
+      cresceu: `Uau, ${nome}! A lagartinha cresceu!`,
+      comeu: `${nome} comeu! Nhoc-nhoc!`,
+      sapoHit: `${nome} levou uma lambida do sapo!`,
     };
 
-    this.avisoText.setText(msgs[tipo] || tipo);
+    this.layoutAvisoContent(tipo, msgs[tipo] || tipo);
     this.avisoContainer.setAlpha(1);
     this.tweens.killTweensOf(this.avisoContainer);
     this.tweens.add({
@@ -421,7 +517,7 @@ export class GameScene extends Phaser.Scene {
       this.avisar('comeu');
     }
 
-    this.spawnFallingFruit();
+    this.time.delayedCall(FRUIT_SPAWN_COOLDOWN_MS, () => this.spawnFallingFruit());
 
     if (this.pontos >= this.config.metaComida) {
       this.jogoAtivo = false;
@@ -459,7 +555,7 @@ export class GameScene extends Phaser.Scene {
     panel.strokeRoundedRect(width / 2 - 280, height / 2 - 120, 560, 240, 28);
     this.pinHud(panel);
 
-    const title = this.add.text(width / 2, height / 2 - 70, `Ops, ${this.child.nome}! 💔`, {
+    const title = this.add.text(width / 2, height / 2 - 70, `Ops, ${this.child.nome}!`, {
       fontFamily: Theme.fontFamily,
       fontSize: '38px',
       color: Theme.fruta,
@@ -475,7 +571,7 @@ export class GameScene extends Phaser.Scene {
 
     this.pinHud(title, body);
 
-    createButton(this, width / 2, height / 2 + 70, 'Tentar de novo 🥚', {
+    createButton(this, width / 2, height / 2 + 70, 'Tentar de novo', {
       width: 300,
       fontSize: 24,
       onClick: () => {
@@ -489,7 +585,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   update() {
-    if (this.gameOverActive) return;
+    if (!this.ready || !this.lagarta || this.gameOverActive) return;
 
     if (this.tonta > 0) this.tonta--;
     if (this.invulneravel > 0) this.invulneravel--;
@@ -622,6 +718,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   shutdown() {
+    this.ready = false;
     this.timerSapo?.remove();
     this.fruitSpawnTimer?.remove();
     if (this.debugDraw) this.events.off('update', this.debugDraw);
@@ -633,5 +730,6 @@ export class GameScene extends Phaser.Scene {
     this.comidas = [];
     this.caterpillarApi?.destroy?.();
     this.caterpillarApi = null;
+    this.lagarta = null;
   }
 }

@@ -44,7 +44,10 @@ export const MAX_BODY_SEGMENTS = 6;
 export const DEPTH_LAGARTA = 8;
 export const DEPTH_FRUIT = 22;
 /** Intervalo entre frutas caindo (ms) */
-export const FRUIT_FALL_INTERVAL_MIN = 2200;
-export const FRUIT_FALL_INTERVAL_MAX = 3800;
+export const FRUIT_FALL_INTERVAL_MIN = 3200;
+export const FRUIT_FALL_INTERVAL_MAX = 4800;
+/** Máximo de frutas caindo ao mesmo tempo */
+export const MAX_FALLING_FRUITS = 3;
+export const FRUIT_SPAWN_COOLDOWN_MS = 1600;
 /** Frutas nascem dentro da largura útil do tronco (0–1) */
 export const FRUIT_TRUNK_INSET = 0.32;

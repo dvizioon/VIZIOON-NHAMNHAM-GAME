@@ -43,3 +43,50 @@ export function createCharacterFace(scene, crianca, r, frameHint = 0, options = 
 
   return wrap;
 }
+
+/** Cabeça da criança (cabeca) sobre o sprite de subindo/climb */
+export function attachCharacterCabecaToClimb(scene, container, bodySprite, crianca, scale, headCfg = {}) {
+  const textureKey = getCharacterHeadTextureKey(crianca);
+  const animKey = getCharacterHeadAnimKey(crianca);
+  if (!hasTexture(scene, textureKey) || !bodySprite?.displayHeight) return null;
+
+  const headScaleMul = headCfg.scaleMul ?? 1.48;
+  const headScale = scale * headScaleMul;
+  const ballTop = headCfg.ballTopRatio ?? 0.54;
+  const oy = (headCfg.offsetY ?? 0.12) * bodySprite.displayHeight;
+  const ox = (headCfg.offsetX ?? 0) * (bodySprite.displayWidth ?? 0);
+  const originX = headCfg.origin?.x ?? 0.5;
+  const originY = headCfg.origin?.y ?? 0.84;
+
+  const head = scene.add.sprite(
+    ox,
+    bodySprite.y - bodySprite.displayHeight * ballTop + oy,
+    textureKey,
+    headCfg.idleFrame ?? 0,
+  );
+  head.setOrigin(originX, originY);
+  head.setScale(headScale);
+
+  if (scene.anims.exists(animKey)) {
+    head.anims.play(animKey);
+  }
+
+  container.add(head);
+  container.bringToTop(head);
+  head.setData('cabecaScaleMul', headScaleMul);
+  return head;
+}
+
+export function syncCabecaToClimbBody(headSprite, bodySprite, scale, headCfg = {}) {
+  if (!headSprite?.active || !bodySprite?.active) return;
+  const headScaleMul = headSprite.getData('cabecaScaleMul') ?? headCfg.scaleMul ?? 1.48;
+  const headScale = scale * headScaleMul;
+  const ballTop = headCfg.ballTopRatio ?? 0.54;
+  const oy = (headCfg.offsetY ?? 0.12) * bodySprite.displayHeight;
+  const ox = (headCfg.offsetX ?? 0) * (bodySprite.displayWidth ?? 0);
+  headSprite.setPosition(
+    ox,
+    bodySprite.y - bodySprite.displayHeight * ballTop + oy,
+  );
+  headSprite.setScale(headScale);
+}

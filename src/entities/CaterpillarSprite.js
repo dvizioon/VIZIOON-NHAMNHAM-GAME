@@ -5,6 +5,10 @@ import {
   getSpritesManifest,
   hasCharacterSprite,
 } from '../systems/SpriteLoader.js';
+import {
+  attachCharacterCabecaToClimb,
+  syncCabecaToClimbBody,
+} from '../ui/characterAvatar.js';
 
 /**
  * Lagarta em filamento — várias bolinhas empilhadas (sprites Figma).
@@ -15,7 +19,7 @@ export class CaterpillarSprite {
 
     if (hasCharacterSprite(scene, child?.id)) {
       const texKeys = getCharacterTextureKeys(child?.id);
-      return CaterpillarSprite.createFilament(scene, x, y, texKeys, cfg, depth, opts);
+      return CaterpillarSprite.createFilament(scene, x, y, texKeys, cfg, depth, opts, child);
     }
 
     const g = scene.add.graphics().setDepth(depth);
@@ -48,7 +52,7 @@ export class CaterpillarSprite {
     };
   }
 
-  static createFilament(scene, x, y, texKeys, cfg, depth, opts) {
+  static createFilament(scene, x, y, texKeys, cfg, depth, opts, child = null) {
     const layout = opts.layout ?? 'vertical';
     const useClimb = opts.preferClimb && layout === 'vertical'
       && scene.textures.exists(texKeys.climb);
@@ -304,6 +308,29 @@ export class CaterpillarSprite {
       scheduleHeadBlink();
     }
 
+    let childHeadSprite = null;
+    const syncChildHead = () => {
+      if (!childHeadSprite?.active) return;
+      const seg = frontSegment();
+      if (!seg) return;
+      syncCabecaToClimbBody(childHeadSprite, seg, scale, headCfg);
+      container.bringToTop(childHeadSprite);
+    };
+
+    if (useClimb && child) {
+      const topSeg = frontSegment();
+      if (topSeg) {
+        childHeadSprite = attachCharacterCabecaToClimb(
+          scene,
+          container,
+          topSeg,
+          child,
+          scale,
+          headCfg,
+        );
+      }
+    }
+
     function playSegIdle(sprite) {
       if (scene.textures.exists(texKeys.idle)) {
         sprite.setTexture(texKeys.idle);
@@ -471,6 +498,10 @@ export class CaterpillarSprite {
       updateWave(fase, moving) {
         if (api.isRising) return;
         segments.forEach(({ sprite, index }) => {
+          if (useClimb && layout === 'vertical') {
+            sprite.x = 0;
+            return;
+          }
           const wave = moving ? Math.sin(fase * 0.55 + index * 0.65) * 4 : 0;
           if (layout === 'horizontal') {
             const base = basePos(index);
@@ -481,6 +512,7 @@ export class CaterpillarSprite {
           }
         });
         syncHeadToFront();
+        syncChildHead();
       },
 
       playEat() {
@@ -496,13 +528,23 @@ export class CaterpillarSprite {
             scene.tweens.killTweensOf(headSprite);
             headSprite.setScale(scale * 1.1);
           }
+          if (childHeadSprite?.active) {
+            scene.tweens.killTweensOf(childHeadSprite);
+            const mul = childHeadSprite.getData('cabecaScaleMul') ?? 1.48;
+            childHeadSprite.setScale(scale * mul * 1.1);
+          }
           scene.time.delayedCall(220, () => {
             munch.forEach((sprite) => {
               if (sprite?.active) sprite.setScale(scale);
             });
             if (headSprite?.active) headSprite.setScale(scale);
+            if (childHeadSprite?.active) {
+              const mul = childHeadSprite.getData('cabecaScaleMul') ?? 1.48;
+              childHeadSprite.setScale(scale * mul);
+            }
             playClimbOnVisibleSegments(80);
             syncHeadToFront();
+            syncChildHead();
           });
           return;
         }
@@ -696,6 +738,7 @@ export class CaterpillarSprite {
         });
         playClimbOnVisibleSegments(80);
         syncHeadToFront();
+        syncChildHead();
         bringHeadToFront();
       },
 

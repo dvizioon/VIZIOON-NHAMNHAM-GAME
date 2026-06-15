@@ -169,6 +169,12 @@ const CLOUD_SCALE_MAX = 1.65;
 
 const CLOUD_LANE_COUNT = 5;
 const CLOUD_MIN_GAP_MS = 2800;
+const CLOUD_MIN_VERTICAL_GAP = 28;
+
+function cloudsOverlap(spec, other) {
+  const yGap = (spec.displayH + other.displayH) * 0.5 + CLOUD_MIN_VERTICAL_GAP;
+  return Math.abs(spec.y - other.y) < yGap;
+}
 
 function cloudLaneY(height, laneIndex) {
   const t = (laneIndex + 0.5) / CLOUD_LANE_COUNT;
@@ -181,35 +187,30 @@ function randomCloudSpec(scene, laneIndex = null) {
   const displayW = Math.round(CLOUD_BASE_W * scale * uiScale(scene));
   const displayH = Math.round(displayW * CLOUD_ASPECT);
   const lane = laneIndex ?? Phaser.Math.Between(0, CLOUD_LANE_COUNT - 1);
-  const y = cloudLaneY(height, lane) + Phaser.Math.FloatBetween(-8, 8);
 
   return {
     displayW,
     displayH,
     lane,
     x: -displayW - Phaser.Math.Between(30, 90),
-    y,
+    y: cloudLaneY(height, lane),
     duration: Phaser.Math.Between(16000, 34000),
     alpha: Phaser.Math.FloatBetween(0.65, 0.93),
     depth: DEPTH_CLOUD + lane,
   };
 }
 
-function pickCloudSpec(scene) {
+function findCloudSpec(scene) {
   const tracker = scene._cloudTracker ?? { active: [] };
-  const usedLanes = new Set(tracker.active.map((c) => c.lane));
+  const lanes = Phaser.Utils.Array.Shuffle([...Array(CLOUD_LANE_COUNT).keys()]);
 
-  const freeLanes = [];
-  for (let i = 0; i < CLOUD_LANE_COUNT; i++) {
-    if (!usedLanes.has(i)) freeLanes.push(i);
+  for (const lane of lanes) {
+    const spec = randomCloudSpec(scene, lane);
+    const blocked = tracker.active.some((c) => cloudsOverlap(spec, c));
+    if (!blocked) return spec;
   }
 
-  if (freeLanes.length) {
-    const lane = Phaser.Utils.Array.GetRandom(freeLanes);
-    return randomCloudSpec(scene, lane);
-  }
-
-  return randomCloudSpec(scene);
+  return null;
 }
 
 function trackCloud(scene, spec) {
@@ -313,7 +314,12 @@ function spawnCloudLoop(scene, delayMs = 0) {
   const spawn = () => {
     if (!scene.sys?.isActive()) return;
 
-    const spec = pickCloudSpec(scene);
+    const spec = findCloudSpec(scene);
+    if (!spec) {
+      scene.time.delayedCall(Phaser.Math.Between(1800, 3200), () => spawnCloudLoop(scene));
+      return;
+    }
+
     const entry = trackCloud(scene, spec);
     const cloud = createDriftingCloud(scene, spec);
 
@@ -335,10 +341,10 @@ function spawnCloudLoop(scene, delayMs = 0) {
   else spawn();
 }
 
-/** Nuvens — entram pela esquerda, uma de cada vez em faixas separadas */
+/** Nuvens — entram pela esquerda, sem sobrepor outra */
 export function spawnEnvironmentClouds(scene) {
   scene._cloudTracker = { active: [], lastSpawn: 0 };
-  const initial = Phaser.Math.Between(2, 3);
+  const initial = Phaser.Math.Between(1, 2);
 
   for (let i = 0; i < initial; i++) {
     spawnCloudLoop(scene, i * Phaser.Math.Between(CLOUD_MIN_GAP_MS, CLOUD_MIN_GAP_MS + 4200));

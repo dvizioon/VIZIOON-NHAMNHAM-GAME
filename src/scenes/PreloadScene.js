@@ -9,6 +9,7 @@ import { capImageTexture, capSpritesheet } from '../systems/TextureScaler.js';
 import { startBgm } from '../systems/MusicManager.js';
 import { preloadSplashIcons } from '../ui/splashUi.js';
 import { preloadSettingsIcons } from '../ui/settingsUi.js';
+import { preloadGameIcons } from '../ui/gameUi.js';
 import { FOOD_FRUTAS } from '../config/foodConfig.js';
 import {
   CHAR_HEADS_KEY,
@@ -176,7 +177,11 @@ export class PreloadScene extends Phaser.Scene {
     this.registry.set(RegistryKeys.LIVES, gameConfig.maxVidas ?? 3);
     this.registry.set(RegistryKeys.SETTINGS, { ...defaultSettings });
 
-    await Promise.all([preloadSplashIcons(this), preloadSettingsIcons(this)]);
+    await Promise.all([
+      preloadSplashIcons(this),
+      preloadSettingsIcons(this),
+      preloadGameIcons(this),
+    ]);
     startBgm(this);
     this.scene.start(SceneKeys.SPLASH);
   }

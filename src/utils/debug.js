@@ -9,11 +9,19 @@ export function isDebugHitboxes(scene) {
 
 export function initDebugFlags(game) {
   const q = new URLSearchParams(window.location.search);
+
   if (q.get('debug') === '0' || q.get('debug') === 'false') {
     game.registry.set('debugHitboxes', false);
-  } else {
-    game.registry.set('debugHitboxes', true);
+    return;
   }
+
+  if (q.get('debug') === '1' || q.get('debug') === 'true') {
+    game.registry.set('debugHitboxes', true);
+    return;
+  }
+
+  const prodBuild = import.meta.env.VITE_DEBUG === 'false' || import.meta.env.PROD;
+  game.registry.set('debugHitboxes', !prodBuild && import.meta.env.DEV);
 }
 
 export function drawCircleHit(g, { x, y, r }, color, alpha = 0.35) {

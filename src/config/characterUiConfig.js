@@ -25,7 +25,13 @@ export const CHAR_PER_PAGE = CHAR_GRID_COLS * CHAR_GRID_ROWS;
 
 export const MOBILE_UI_WIDTH = 390;
 
+export function isCriancaAtiva(crianca) {
+  return crianca?.ativo !== false;
+}
 
+export function filterCriancasAtivas(criancas = []) {
+  return criancas.filter(isCriancaAtiva);
+}
 
 /** Spritesheet animada da cabeça (4 frames) — padrão ou por criança em criancas.json */
 
