@@ -107,6 +107,30 @@ export function createIconCircleButton(
   return container;
 }
 
+/** Canto superior esquerdo — celular (config longe da logo central) */
+export function placeTopLeftButton(scene, icon, {
+  margin = 24,
+  marginRatio = null,
+  absoluteSize = false,
+  onClick,
+  ...opts
+} = {}) {
+  const { width } = scene.scale;
+  const abs = absoluteSize || isPortrait(scene);
+  const { btnW, btnH, scale } = getIconButtonSize(scene, opts.size ?? 142, { absolute: abs });
+  const m = marginRatio != null
+    ? Math.max(12, Math.round(width * marginRatio))
+    : Math.round(margin * (abs ? 1 : scale));
+
+  return createIconCircleButton(
+    scene,
+    m + btnW / 2,
+    m + btnH / 2,
+    icon,
+    { onClick, absoluteSize: abs, ...opts },
+  );
+}
+
 /** Canto superior direito — encaixa a caixa do botão na margem */
 export function placeTopRightButton(scene, icon, {
   margin = 24,

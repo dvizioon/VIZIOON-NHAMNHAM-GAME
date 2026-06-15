@@ -62,6 +62,14 @@ export const PANEL_DESIGN_HEIGHT = 420;
 
 export function getSettingsPanelSize(scene) {
   const scale = uiScale(scene);
+  const { width } = scene.scale;
+
+  if (isPortrait(scene)) {
+    const w = Math.round(Math.min(width * 0.88, PANEL_DESIGN_WIDTH * scale));
+    const h = Math.round(w * (PANEL_DESIGN_HEIGHT / PANEL_DESIGN_WIDTH));
+    return { w, h, contentW: Math.round(w * 0.72) };
+  }
+
   return {
     w: Math.round(PANEL_DESIGN_WIDTH * scale),
     h: Math.round(PANEL_DESIGN_HEIGHT * scale),
@@ -137,7 +145,7 @@ export function createSettingsSlider(
 
   const row = attach(parent, scene.add.container(0, 0), x, y);
   let value = normalizeVolumeValue(initial);
-  let isAdjusting = false;
+  let isDragging = false;
 
   const labelText = scene.add.text(0, -Math.round(32 * scale), label, {
     fontFamily: Theme.fontFamily,
@@ -169,12 +177,12 @@ export function createSettingsSlider(
       .setDisplaySize(iconPx, iconPx)
       .setOrigin(0.5);
 
-    percentText = scene.add.text(indicatorX + iconPx / 2 + iconGap, indicatorY, '', {
+    percentText = scene.add.text(indicatorX, indicatorY - Math.round(28 * scale), '', {
       fontFamily: Theme.fontFamily,
       fontSize: `${Math.max(14, Math.round(18 * scale))}px`,
       color: LABEL_COLOR,
       fontStyle: 'bold',
-    }).setOrigin(0, 0.5).setVisible(false);
+    }).setOrigin(0.5, 1).setVisible(false);
   }
 
   const trackBg = scene.add.graphics();
@@ -189,11 +197,12 @@ export function createSettingsSlider(
     iconImg.setTexture(muted ? SETTINGS_ICONS.volumeOff.textureKey : SETTINGS_ICONS.volumeHigh.textureKey);
 
     if (percentText) {
-      if (percentOnAdjust && isAdjusting && !muted) {
+      if (percentOnAdjust && isDragging && !muted) {
         percentText.setVisible(true);
         percentText.setText(`${volumePercent(value)}%`);
       } else {
         percentText.setVisible(false);
+        percentText.setText('');
       }
     }
   };
@@ -234,19 +243,21 @@ export function createSettingsSlider(
   };
 
   const stopAdjusting = () => {
-    if (!isAdjusting) return;
-    isAdjusting = false;
+    if (!isDragging) return;
+    isDragging = false;
     redraw();
   };
 
   const localX = (pointer) => row.getLocalPoint(pointer.x, pointer.y).x;
 
   zone.on('pointerdown', (pointer) => {
-    isAdjusting = percentOnAdjust;
     update(localX(pointer));
+    scene.input.once('pointerup', stopAdjusting);
   });
   zone.on('pointermove', (pointer) => {
-    if (pointer.isDown) update(localX(pointer));
+    if (!pointer.isDown) return;
+    isDragging = true;
+    update(localX(pointer));
   });
   zone.on('pointerup', stopAdjusting);
   zone.on('pointerout', (pointer) => {
@@ -339,11 +350,11 @@ export function createModoArrowsToggle(scene, x, y, { active = false, onClick } 
 export const SETTINGS_BTN_SIZE = 108;
 export const SETTINGS_BTN_ICON_SIZE = 46;
 
-function settingsButtonSize(scene) {
+export function settingsButtonSize(scene) {
   if (isPortrait(scene)) {
     return {
-      size: Math.round(SETTINGS_BTN_SIZE * 1.15),
-      icon: Math.round(SETTINGS_BTN_ICON_SIZE * 1.12),
+      size: Math.max(72, Math.round(scene.scale.width * 0.17)),
+      icon: Math.max(30, Math.round(scene.scale.width * 0.07)),
     };
   }
   return { size: SETTINGS_BTN_SIZE, icon: SETTINGS_BTN_ICON_SIZE };
@@ -355,15 +366,20 @@ const settingsCircleBtnOpts = {
   contentOffsetY: SETTINGS_BTN_CONTENT_OFFSET_Y,
 };
 
-export function createSettingsBackButton(scene, onClick) {
+export function createSettingsBackButton(scene, onClick, { x, y, absoluteSize } = {}) {
   const scale = uiScale(scene);
-  const m = Math.round(36 * scale);
+  const portrait = isPortrait(scene);
+  const abs = absoluteSize ?? portrait;
   const { size, icon } = settingsButtonSize(scene);
-  const { btnW, btnH } = getIconButtonSize(scene, size);
+  const { btnW, btnH } = getIconButtonSize(scene, size, { absolute: abs });
 
-  return createIconCircleButton(scene, m + btnW / 2, m + btnH / 2, SETTINGS_ICONS.back, {
+  const px = x ?? Math.round(36 * scale) + btnW / 2;
+  const py = y ?? Math.round(36 * scale) + btnH / 2;
+
+  return createIconCircleButton(scene, px, py, SETTINGS_ICONS.back, {
     size,
     iconSize: icon,
+    absoluteSize: abs,
     depth: 200,
     fillColor: Theme.botaoVerde,
     ...settingsCircleBtnOpts,
@@ -372,10 +388,12 @@ export function createSettingsBackButton(scene, onClick) {
 }
 
 export function createSettingsSaveButton(scene, x, y, onClick) {
+  const portrait = isPortrait(scene);
   const { size, icon } = settingsButtonSize(scene);
   return createIconCircleButton(scene, x, y, SETTINGS_ICONS.save, {
     size,
     iconSize: icon,
+    absoluteSize: portrait,
     depth: 200,
     fillColor: Theme.papel,
     ...settingsCircleBtnOpts,

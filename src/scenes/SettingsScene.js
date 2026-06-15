@@ -9,11 +9,13 @@ import {
   createSettingsSaveButton,
   createModoRow,
   getSettingsPanelSize,
+  settingsButtonSize,
 } from '../ui/settingsUi.js';
+import { getIconButtonSize } from '../ui/splashUi.js';
 import { playSound } from '../systems/ProceduralAudio.js';
 import { GameState } from '../utils/GameState.js';
 import { applyMusicVolume } from '../systems/MusicManager.js';
-import { layoutY, uiScale } from '../utils/responsive.js';
+import { layoutY, uiScale, isPortrait } from '../utils/responsive.js';
 
 /** Configurações — layout Figma */
 export class SettingsScene extends Phaser.Scene {
@@ -23,6 +25,7 @@ export class SettingsScene extends Phaser.Scene {
 
   create() {
     const { width } = this.scale;
+    const portrait = isPortrait(this);
     const scale = uiScale(this);
     const { w: panelW, h: panelH, contentW } = getSettingsPanelSize(this);
     this.settings = {
@@ -32,9 +35,24 @@ export class SettingsScene extends Phaser.Scene {
 
     drawSkyBackground(this);
 
-    const panelCy = layoutY(this, 0.48);
+    const { size: backSize } = settingsButtonSize(this);
+    const { btnH: backH } = getIconButtonSize(this, backSize, { absolute: portrait });
+    const titleY = layoutY(this, portrait ? 0.15 : 0.10);
+    const backY = titleY - backH / 2 - Math.round(14 * scale);
+    const panelCy = layoutY(this, portrait ? 0.52 : 0.48);
 
-    const title = createTitle(this, width / 2, layoutY(this, 0.085), 'Configurações', Math.round(42 * scale));
+    createSettingsBackButton(this, () => this.goBack(), {
+      x: width / 2,
+      y: backY,
+    });
+
+    const title = createTitle(
+      this,
+      width / 2,
+      titleY,
+      'Configurações',
+      Math.round((portrait ? 34 : 42) * (portrait ? 1 : scale)),
+    );
     title.setDepth(150);
 
     const panel = createSettingsPanel(this, width / 2, panelCy, panelW, panelH, { depth: 10 });
@@ -69,20 +87,18 @@ export class SettingsScene extends Phaser.Scene {
       },
     });
 
-    const save = () => {
-      GameState.setSettings(this, this.settings);
-      applyMusicVolume(this);
-      playSound(this, 'clique');
-      this.scene.start(GameState.getReturnScene(this));
-    };
-
-    createSettingsBackButton(this, save);
-
     createSettingsSaveButton(
       this,
       width / 2,
-      panelCy + panelH / 2 + Math.round(8 * scale),
-      save,
+      panelCy + panelH / 2 + Math.round(10 * scale),
+      () => this.goBack(),
     );
+  }
+
+  goBack() {
+    GameState.setSettings(this, this.settings);
+    applyMusicVolume(this);
+    playSound(this, 'clique');
+    this.scene.start(GameState.getReturnScene(this));
   }
 }

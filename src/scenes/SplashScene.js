@@ -6,6 +6,7 @@ import {
   SPLASH_ICONS,
   createIconCircleButton,
   placeTopRightButton,
+  placeTopLeftButton,
   getIconButtonSize,
 } from '../ui/splashUi.js';
 import { playSound } from '../systems/ProceduralAudio.js';
@@ -25,7 +26,7 @@ const FOOD_KEY = 'food_frutas';
 const SPLASH_BTN_SIZE = 142;
 const SPLASH_ICON_SIZE = 60;
 const SPLASH_LAYOUT = {
-  portrait: { logoY: 0.21, buttonsY: 0.54, logoWidth: 0.76, playBtn: 0.19, configBtn: 0.11, btnGap: 0.05 },
+  portrait: { buttonsY: 0.58, sideMargin: 0.05, playBtn: 0.19, configBtn: 0.10, btnGap: 0.05, topPad: 0.10 },
   landscape: { logoY: 0.28, buttonsY: 0.62, logoWidth: 0.38, playBtn: null, configBtn: null, btnGap: 0.022 },
 };
 const LOGO_MAX_WIDTH = 400;
@@ -302,10 +303,15 @@ export class SplashScene extends Phaser.Scene {
   }
 
   placeLogo(width, depth) {
-    const layout = isPortrait(this) ? SPLASH_LAYOUT.portrait : SPLASH_LAYOUT.landscape;
-    const y = layoutY(this, layout.logoY);
-    const maxW = isPortrait(this)
-      ? Math.round(width * layout.logoWidth)
+    const { height } = this.scale;
+    const portrait = isPortrait(this);
+    const layout = portrait ? SPLASH_LAYOUT.portrait : SPLASH_LAYOUT.landscape;
+    const buttonsY = layoutY(this, layout.buttonsY);
+    const y = portrait
+      ? (height * layout.topPad + buttonsY) / 2
+      : layoutY(this, layout.logoY);
+    const maxW = portrait
+      ? Math.round(width * (1 - layout.sideMargin * 2))
       : responsiveWidth(this, layout.logoWidth, LOGO_MAX_WIDTH);
 
     if (this.textures.exists(UI_LOGO_KEY)) {
@@ -325,8 +331,10 @@ export class SplashScene extends Phaser.Scene {
     const gap = Math.round(width * layout.btnGap);
     const rowY = layoutY(this, layout.buttonsY);
 
-    placeTopRightButton(this, SPLASH_ICONS.config, {
-      marginRatio: 0.04,
+    const placeConfig = portrait ? placeTopLeftButton : placeTopRightButton;
+
+    placeConfig(this, SPLASH_ICONS.config, {
+      marginRatio: layout.sideMargin ?? 0.04,
       size: configSize,
       iconSize: configIcon,
       depth: DEPTH_UI,
