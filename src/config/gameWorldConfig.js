@@ -11,7 +11,9 @@ export const CLIMB_FRAME_HEIGHT = 738;
 /** Corpo da lagarta no tronco ≈ tamanho da fruta (trunkW × ratio) */
 export const CLIMB_BODY_TRUNK_RATIO = 0.17;
 /** Cabeça da criança maior que cada bolinha do corpo */
-export const CLIMB_HEAD_SCALE_MUL = 1.55;
+export const CLIMB_HEAD_SCALE_MUL = 1.68;
+export const CLIMB_HEAD_BALL_TOP = 0.62;
+export const CLIMB_HEAD_OFFSET_Y = -0.06;
 /** Balanço lateral ao mover no tronco */
 export const CLIMB_SWAY_X = 9;
 export const CLIMB_SWAY_ROT = 0.075;

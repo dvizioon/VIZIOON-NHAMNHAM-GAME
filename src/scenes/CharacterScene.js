@@ -128,11 +128,9 @@ export class CharacterScene extends Phaser.Scene {
     const logoY = topPad + logoH / 2;
     const gapLogoSearch = Math.max(14, height * 0.02);
     const searchH = Math.max(44, width * 0.105);
-    const searchOffsetY = Math.max(14, height * 0.018);
-    const gridOffsetY = Math.max(12, height * 0.015);
-    const searchY = logoY + logoH / 2 + gapLogoSearch + searchH / 2 - 6 + searchOffsetY;
+    const searchY = logoY + logoH / 2 + gapLogoSearch + searchH / 2 - 12;
     const gapSearchGrid = Math.max(22, height * 0.028);
-    const gridTop = searchY + searchH / 2 + gapSearchGrid + gridOffsetY;
+    const gridTop = searchY + searchH / 2 + gapSearchGrid - Math.max(10, height * 0.012);
 
     return {
       s,

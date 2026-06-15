@@ -13,6 +13,9 @@ import {
   TRUNK_PLAY_WIDTH_RATIO,
   CLIMB_FRAME_WIDTH,
   CLIMB_EYES_CLOSED_FRAME,
+  CLIMB_HEAD_SCALE_MUL,
+  CLIMB_HEAD_BALL_TOP,
+  CLIMB_HEAD_OFFSET_Y,
 } from '../config/gameWorldConfig.js';
 
 /** Tronco intro — lagarta sobe; toque fecha os olhos até o fim */
@@ -89,7 +92,12 @@ export class TrunkIntroScene extends Phaser.Scene {
       }
 
       this.climberContainer.add(this.bodySprite);
-      const headCfg = getSpritesManifest().characters?.default?.head ?? {};
+      const headCfg = {
+        ...(getSpritesManifest().characters?.default?.head ?? {}),
+        scaleMul: CLIMB_HEAD_SCALE_MUL,
+        ballTopRatio: CLIMB_HEAD_BALL_TOP,
+        offsetY: CLIMB_HEAD_OFFSET_Y,
+      };
       this.headSprite = attachCharacterCabecaToClimb(
         this,
         this.climberContainer,
@@ -122,7 +130,12 @@ export class TrunkIntroScene extends Phaser.Scene {
     this.bodySprite.anims?.stop();
     if (this.headSprite) this.headSprite.anims?.stop();
 
-    const headCfg = getSpritesManifest().characters?.default?.head ?? {};
+    const headCfg = {
+      ...(getSpritesManifest().characters?.default?.head ?? {}),
+      scaleMul: CLIMB_HEAD_SCALE_MUL,
+      ballTopRatio: CLIMB_HEAD_BALL_TOP,
+      offsetY: CLIMB_HEAD_OFFSET_Y,
+    };
     const closedHeadFrame = headCfg.blinkFrame ?? 3;
     const blinkTargets = [this.headSprite, this.bodySprite].filter(Boolean);
 

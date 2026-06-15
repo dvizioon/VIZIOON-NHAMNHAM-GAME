@@ -15,6 +15,8 @@ import {
   CLIMB_FRAME_HEIGHT,
   CLIMB_BODY_TRUNK_RATIO,
   CLIMB_HEAD_SCALE_MUL,
+  CLIMB_HEAD_BALL_TOP,
+  CLIMB_HEAD_OFFSET_Y,
   CLIMB_SWAY_X,
   CLIMB_SWAY_ROT,
   DEPTH_LAGARTA,
@@ -175,7 +177,11 @@ export class GameScene extends Phaser.Scene {
         hideHead: true,
         segmentCount: MAX_BODY_SEGMENTS,
         displayScale: climbScale,
-        headCfg: { scaleMul: CLIMB_HEAD_SCALE_MUL },
+        headCfg: {
+          scaleMul: CLIMB_HEAD_SCALE_MUL,
+          ballTopRatio: CLIMB_HEAD_BALL_TOP,
+          offsetY: CLIMB_HEAD_OFFSET_Y,
+        },
       },
     );
 
