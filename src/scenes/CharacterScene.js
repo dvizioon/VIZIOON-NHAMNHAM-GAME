@@ -16,9 +16,14 @@ import {
   CHAR_GRID_COLS,
 } from '../config/characterUiConfig.js';
 
+const NAV_GREEN = '#1E6A30';
+const HOME_GREEN = Theme.botaoVerde;
+
 const NAV_ICONS = {
-  home: Icon.from('solar:home-2-bold', { designSize: 24 }),
-  search: Icon.from('solar:magnifer-linear', { designSize: 24 }),
+  home: Icon.from('mynaui:home', { designSize: 24, color: '#ffffff' }),
+  search: Icon.from('solar:magnifer-linear', { designSize: 24, color: NAV_GREEN }),
+  arrowLeft: Icon.from('solar:map-arrow-left-outline', { designSize: 24, color: NAV_GREEN }),
+  arrowRight: Icon.from('solar:map-arrow-right-outline', { designSize: 24, color: NAV_GREEN }),
 };
 
 function normalizeText(value) {
@@ -43,8 +48,12 @@ export class CharacterScene extends Phaser.Scene {
     this.gridContainer = null;
     this.pageLabel = null;
     this.domSearch = null;
-    this.searchVisible = null;
+    this.searchBarGfx = null;
     this.layout = null;
+    this.swipeStartX = 0;
+    this.swipeBlockedTap = false;
+    this.lastPageDir = 0;
+    this.syncSearchDom = null;
   }
 
   async create() {
@@ -67,11 +76,17 @@ export class CharacterScene extends Phaser.Scene {
     this.gridContainer = this.add.container(0, 0).setDepth(20);
     this.buildPagination();
     this.buildHomeButton();
+    this.setupGridSwipe();
 
     this.applyFilter(false);
     this.cameras.main.fadeIn(300, 0, 0, 0);
 
+    this.syncSearchDom = () => this.positionSearchInput();
+    this.scale.on('resize', this.syncSearchDom);
+    this.positionSearchInput();
+
     this.events.once('shutdown', () => {
+      this.scale.off('resize', this.syncSearchDom);
       this.domSearch?.remove();
       this.domSearch = null;
     });
@@ -79,20 +94,40 @@ export class CharacterScene extends Phaser.Scene {
 
   computeLayout(width, height) {
     const s = uiScale(this);
+    const sidePad = Math.max(8, width * 0.02);
+    const logoW = width * 0.88;
+    let logoH = logoW * 0.22;
+
+    if (hasTexture(this, UI_LOGO_PERSONAGENS_KEY)) {
+      const tex = this.textures.get(UI_LOGO_PERSONAGENS_KEY).getSourceImage();
+      logoH = logoW * (tex.height / tex.width);
+    }
+
+    const topPad = Math.max(6, height * 0.01);
+    const logoY = topPad + logoH / 2;
+    const gapLogoSearch = Math.max(18, height * 0.024);
+    const searchH = Math.max(44, width * 0.105);
+    const searchY = logoY + logoH / 2 + gapLogoSearch + searchH / 2 - 14;
+    const gapSearchGrid = Math.max(28, height * 0.036);
+    const gridTop = searchY + searchH / 2 + gapSearchGrid;
+
     return {
       s,
-      logoY: height * 0.085,
-      logoW: width * 0.88,
-      searchY: height * 0.165,
-      searchW: width * 0.92,
-      searchH: Math.max(58, width * 0.132),
-      gridTop: height * 0.245,
+      sidePad,
+      logoY,
+      logoW,
+      logoH,
+      searchY,
+      searchW: logoW,
+      searchH,
+      gridTop,
       gridW: width * 0.94,
       gridH: height * 0.52,
-      pageY: height * 0.805,
-      homeY: height * 0.925,
-      homeSize: Math.max(108, width * 0.24),
-      navBtn: Math.max(58, width * 0.14),
+      pageY: height * 0.808,
+      homeY: height * 0.915,
+      homeSize: Math.max(96, width * 0.22),
+      navBtn: Math.max(58, width * 0.135),
+      navGap: width * 0.24,
     };
   }
 
@@ -101,8 +136,8 @@ export class CharacterScene extends Phaser.Scene {
     if (hasTexture(this, UI_LOGO_PERSONAGENS_KEY)) {
       const logo = this.add.image(width / 2, logoY, UI_LOGO_PERSONAGENS_KEY)
         .setDepth(15)
-        .setOrigin(0.5);
-      logo.setDisplaySize(logoW, logoW * (logo.height / logo.width));
+        .setOrigin(0.5, 0.5);
+      logo.setDisplaySize(logoW, this.layout.logoH);
     } else {
       this.add.text(width / 2, logoY, 'Personagens', {
         fontFamily: Theme.fontFamily,
@@ -117,25 +152,24 @@ export class CharacterScene extends Phaser.Scene {
 
   buildSearchBar() {
     const { width } = this.scale;
-    const { searchY, searchW, searchH, s } = this.layout;
+    const { searchY, searchW, searchH } = this.layout;
     const barX = width / 2;
-    const searchBtnSize = Math.round(searchH * 0.88);
+    const searchBtnSize = Math.round(searchH * 0.92);
 
-    const g = this.add.graphics().setDepth(16);
-    g.fillStyle(Theme.modoVerde, 1);
-    g.fillRoundedRect(barX - searchW / 2, searchY - searchH / 2, searchW, searchH, searchH / 2);
+    this.searchBarGfx = this.add.graphics().setDepth(16);
+    this.searchBarGfx.fillStyle(Theme.modoVerde, 1);
+    this.searchBarGfx.fillRoundedRect(
+      barX - searchW / 2,
+      searchY - searchH / 2,
+      searchW,
+      searchH,
+      searchH / 2,
+    );
 
-    this.searchVisible = this.add.text(barX - searchW / 2 + 24, searchY, 'Pesquisar...', {
-      fontFamily: Theme.fontFamily,
-      fontSize: `${Math.round(searchH * 0.38)}px`,
-      color: '#ffffff',
-      fontStyle: 'bold',
-    }).setOrigin(0, 0.5).setDepth(17).setAlpha(0.85);
-
-    createIconCircleButton(this, barX + searchW / 2 - searchBtnSize * 0.55, searchY, NAV_ICONS.search, {
+    createIconCircleButton(this, barX + searchW / 2 - searchBtnSize * 0.52, searchY, NAV_ICONS.search, {
       onClick: () => this.domSearch?.focus(),
       size: searchBtnSize,
-      iconSize: Math.round(searchBtnSize * 0.46),
+      iconSize: 24,
       fillColor: Theme.sol,
       depth: 18,
       absoluteSize: true,
@@ -145,64 +179,106 @@ export class CharacterScene extends Phaser.Scene {
     this.domSearch.type = 'search';
     this.domSearch.placeholder = 'Pesquisar...';
     this.domSearch.autocomplete = 'off';
-    this.domSearch.style.cssText = `
-      position:absolute; opacity:0; width:1px; height:1px; left:-9999px;
-    `;
+    this.domSearch.enterKeyHint = 'search';
+    this.domSearch.setAttribute('inputmode', 'search');
+    this.domSearch.className = 'char-scene-search';
     document.body.appendChild(this.domSearch);
+
+    let style = document.getElementById('char-scene-search-style');
+    if (!style) {
+      style = document.createElement('style');
+      style.id = 'char-scene-search-style';
+      document.head.appendChild(style);
+    }
+    style.textContent = `
+      .char-scene-search::placeholder {
+        color: #ffffff;
+        opacity: 0.92;
+      }
+    `;
 
     this.domSearch.addEventListener('input', () => {
       this.searchQuery = this.domSearch.value;
-      this.searchVisible.setText(this.searchQuery || 'Pesquisar...');
-      this.searchVisible.setAlpha(this.searchQuery ? 1 : 0.85);
       this.applyFilter(true);
     });
 
-    g.setInteractive(
-      new Phaser.Geom.Rectangle(barX - searchW / 2, searchY - searchH / 2, searchW - searchBtnSize * 1.1, searchH),
+    this.searchBarGfx.setInteractive(
+      new Phaser.Geom.Rectangle(barX - searchW / 2, searchY - searchH / 2, searchW - searchBtnSize * 1.05, searchH),
       Phaser.Geom.Rectangle.Contains,
     );
-    g.on('pointerdown', () => this.domSearch.focus());
+    this.searchBarGfx.on('pointerdown', () => this.domSearch.focus());
+  }
+
+  positionSearchInput() {
+    if (!this.domSearch || !this.layout) return;
+
+    const canvas = this.game.canvas;
+    const rect = canvas.getBoundingClientRect();
+    const { width } = this.scale;
+    const { searchY, searchW, searchH } = this.layout;
+    const barX = width / 2;
+    const searchBtnSize = Math.round(searchH * 0.92);
+    const scaleX = rect.width / width;
+    const scaleY = rect.height / this.scale.height;
+
+    const left = rect.left + (barX - searchW / 2 + 18) * scaleX;
+    const top = rect.top + (searchY - searchH / 2 + 2) * scaleY;
+    const w = (searchW - searchBtnSize * 1.15) * scaleX;
+    const h = (searchH - 4) * scaleY;
+    const fontPx = Math.max(15, Math.round(searchH * 0.36 * scaleY));
+
+    this.domSearch.style.cssText = `
+      position:fixed;
+      left:${left}px;
+      top:${top}px;
+      width:${w}px;
+      height:${h}px;
+      margin:0;
+      padding:0 6px;
+      border:none;
+      outline:none;
+      background:transparent;
+      color:#ffffff;
+      caret-color:#ffffff;
+      font-family:'Fredoka','Comic Sans MS',sans-serif;
+      font-size:${fontPx}px;
+      font-weight:700;
+      z-index:1000;
+      -webkit-appearance:none;
+    `;
   }
 
   buildPagination() {
     const { width } = this.scale;
-    const { pageY, navBtn, s } = this.layout;
-    const gap = width * 0.28;
+    const { pageY, navBtn, navGap, s } = this.layout;
+    const cx = width / 2;
 
-    const mkNavBtn = (x, label, dir) => {
-      const c = this.add.container(x, pageY).setDepth(25);
-      const bg = this.add.graphics();
-      const r = navBtn / 2;
-      const draw = (pressed = false) => {
-        bg.clear();
-        bg.fillStyle(pressed ? 0xE6B800 : Theme.sol, 1);
-        bg.fillCircle(0, 0, r);
-      };
-      draw();
-      const t = this.add.text(0, 0, label, {
-        fontFamily: Theme.fontFamily,
-        fontSize: `${Math.round(navBtn * 0.52)}px`,
-        color: Theme.folhaEscura,
-        fontStyle: 'bold',
-      }).setOrigin(0.5);
-      c.add([bg, t]);
-      c.setSize(navBtn, navBtn);
-      c.setInteractive(new Phaser.Geom.Circle(0, 0, r), Phaser.Geom.Circle.Contains);
-      c.on('pointerdown', () => draw(true));
-      c.on('pointerup', () => {
-        draw(false);
-        this.shiftPage(dir);
-      });
-      c.on('pointerout', () => draw(false));
-      return c;
-    };
+    this.btnPrev = createIconCircleButton(this, cx - navGap, pageY, NAV_ICONS.arrowRight, {
+      onClick: () => this.shiftPage(-1),
+      size: navBtn,
+      iconSize: 24,
+      fillColor: Theme.sol,
+      borderScale: 1,
+      showBorder: true,
+      flipIcon: true,
+      depth: 25,
+      absoluteSize: true,
+    });
 
-    this.btnPrev = mkNavBtn(width / 2 - gap / 2, '‹', -1);
-    this.btnNext = mkNavBtn(width / 2 + gap / 2, '›', 1);
+    this.btnNext = createIconCircleButton(this, cx + navGap, pageY, NAV_ICONS.arrowRight, {
+      onClick: () => this.shiftPage(1),
+      size: navBtn,
+      iconSize: 24,
+      fillColor: Theme.sol,
+      borderScale: 1,
+      showBorder: true,
+      depth: 25,
+      absoluteSize: true,
+    });
 
-    this.pageLabel = this.add.text(width / 2, pageY + navBtn * 0.72, '', {
+    this.pageLabel = this.add.text(cx, pageY, '', {
       fontFamily: Theme.fontFamily,
-      fontSize: `${Math.max(16, Math.round(18 * s))}px`,
+      fontSize: `${Math.max(15, Math.round(17 * s))}px`,
       color: Theme.texto,
       fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(25);
@@ -211,6 +287,7 @@ export class CharacterScene extends Phaser.Scene {
   buildHomeButton() {
     const { width } = this.scale;
     const { homeY, homeSize } = this.layout;
+    const homeIcon = Math.round(homeSize * 0.42);
 
     createIconCircleButton(this, width / 2, homeY, NAV_ICONS.home, {
       onClick: () => {
@@ -218,10 +295,30 @@ export class CharacterScene extends Phaser.Scene {
         this.scene.start(SceneKeys.SPLASH);
       },
       size: homeSize,
-      iconSize: Math.round(homeSize * 0.38),
-      fillColor: Theme.botaoVerde,
+      iconSize: homeIcon,
+      fillColor: HOME_GREEN,
+      fillRatio: 0.4,
+      borderScale: 1,
+      borderTint: Theme.folhaEscura,
+      showBorder: true,
       depth: 30,
       absoluteSize: true,
+    });
+  }
+
+  setupGridSwipe() {
+    this.input.on('pointerdown', (p) => {
+      this.swipeStartX = p.x;
+      this.swipeBlockedTap = false;
+    });
+
+    this.input.on('pointerup', (p) => {
+      const dx = p.x - this.swipeStartX;
+      if (Math.abs(dx) > 72) {
+        this.swipeBlockedTap = true;
+        this.lastPageDir = dx > 0 ? -1 : 1;
+        this.shiftPage(this.lastPageDir);
+      }
     });
   }
 
@@ -247,6 +344,7 @@ export class CharacterScene extends Phaser.Scene {
     const max = this.pageCount();
     if (max <= 1) return;
     playSound(this, 'clique');
+    this.lastPageDir = dir;
     this.page = (this.page + dir + max) % max;
     this.renderGrid(true);
   }
@@ -255,7 +353,7 @@ export class CharacterScene extends Phaser.Scene {
     this.gridContainer.removeAll(true);
 
     const { width } = this.scale;
-    const { gridTop, gridW, gridH, s } = this.layout;
+    const { gridTop, gridW, gridH } = this.layout;
     const start = this.page * CHAR_PER_PAGE;
     const pageItems = this.filtered.slice(start, start + CHAR_PER_PAGE);
 
@@ -267,8 +365,8 @@ export class CharacterScene extends Phaser.Scene {
       const col = i % CHAR_GRID_COLS;
       const row = Math.floor(i / CHAR_GRID_COLS);
       const x = gridLeft + col * cellW;
-      const y = gridTop + row * cellH + cellH * 0.4;
-      const cardSize = Math.min(cellW * 0.96, cellH * 0.88);
+      const y = gridTop + row * cellH + cellH * 0.5;
+      const cardSize = Math.min(cellW * 0.98, cellH * 0.9);
       this.gridContainer.add(this.createCharacterCard(crianca, x, y, cardSize));
     });
 
@@ -283,13 +381,13 @@ export class CharacterScene extends Phaser.Scene {
     this.btnNext?.setAlpha(totalPages > 1 ? 1 : 0.35);
 
     if (animate) {
-      this.gridContainer.setAlpha(0.3);
-      this.gridContainer.setScale(0.96);
+      this.gridContainer.setAlpha(0.35);
+      this.gridContainer.x = (this.lastPageDir || 0) * -32;
       this.tweens.add({
         targets: this.gridContainer,
         alpha: 1,
-        scale: 1,
-        duration: 220,
+        x: 0,
+        duration: 240,
         ease: 'Sine.easeOut',
       });
     }
@@ -298,7 +396,21 @@ export class CharacterScene extends Phaser.Scene {
   createCharacterCard(crianca, x, y, size) {
     const s = this.layout.s;
     const container = this.add.container(x, y);
-    const r = size * 0.34;
+    const r = size * 0.36;
+
+    const nameY = -(r + Math.round(26 * s));
+    const name = this.add.text(0, nameY, crianca.nome, {
+      fontFamily: Theme.fontFamily,
+      fontSize: `${Math.max(16, Math.round(19 * s))}px`,
+      color: Theme.texto,
+      fontStyle: 'bold',
+      align: 'center',
+      wordWrap: { width: size * 0.98 },
+    }).setOrigin(0.5, 1);
+
+    const divider = this.add.graphics();
+    divider.lineStyle(2, Theme.texto, 0.28);
+    divider.lineBetween(-size * 0.38, nameY + 6, size * 0.38, nameY + 6);
 
     const shadow = this.add.graphics();
     shadow.fillStyle(0x000000, 0.14);
@@ -326,28 +438,25 @@ export class CharacterScene extends Phaser.Scene {
       if (this.anims.exists(CHAR_HEADS_ANIM_KEY)) {
         avatar.anims.play(CHAR_HEADS_ANIM_KEY);
       }
+
+      const maskG = this.add.graphics();
+      maskG.fillStyle(0xffffff, 1);
+      maskG.fillCircle(0, 2, r * 0.86);
+      avatar.setMask(maskG.createGeometryMask());
     } else {
       avatar = this.add.text(0, 0, crianca.genero === 'menina' ? '🌸' : '🐛', {
         fontSize: `${Math.round(r * 1.3)}px`,
       }).setOrigin(0.5);
     }
 
-    const name = this.add.text(0, r + Math.round(22 * s), crianca.nome, {
-      fontFamily: Theme.fontFamily,
-      fontSize: `${Math.max(17, Math.round(20 * s))}px`,
-      color: Theme.texto,
-      fontStyle: 'bold',
-      align: 'center',
-      wordWrap: { width: size * 0.98 },
-    }).setOrigin(0.5, 0);
-
-    container.add([shadow, base, ring, avatar, name]);
+    container.add([shadow, base, ring, avatar, divider, name]);
     container.setSize(size, size);
     container.setInteractive(new Phaser.Geom.Circle(0, 0, r + 10), Phaser.Geom.Circle.Contains);
 
     container.on('pointerdown', () => container.setScale(0.95));
     container.on('pointerup', () => {
       container.setScale(1);
+      if (this.swipeBlockedTap) return;
       this.selectChild(crianca);
     });
     container.on('pointerout', () => container.setScale(1));

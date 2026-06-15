@@ -6,7 +6,6 @@ import {
   SPLASH_ICONS,
   createIconCircleButton,
   placeTopRightButton,
-  placeTopLeftButton,
   getIconButtonSize,
 } from '../ui/splashUi.js';
 import { playSound } from '../systems/ProceduralAudio.js';
@@ -26,10 +25,19 @@ import { FOOD_FRUTAS } from '../config/foodConfig.js';
 
 const FOOD_KEY = FOOD_FRUTAS.key;
 const SPLASH_BTN_SIZE = 142;
-const SPLASH_ICON_SIZE = 60;
+const SPLASH_ICON_RATIO = 0.42;
+const SPLASH_CATERPILLAR_SCALE = 0.095;
+const SPLASH_GROUND_OFFSET_RATIO = 0.055;
 const SPLASH_LAYOUT = {
-  portrait: { buttonsY: 0.58, sideMargin: 0.05, playBtn: 0.22, configBtn: 0.10, btnGap: 0.05, topPad: 0.10 },
-  landscape: { logoY: 0.28, buttonsY: 0.62, logoWidth: 0.38, playBtn: null, configBtn: null, btnGap: 0.022 },
+  portrait: {
+    logoY: 0.4,
+    configTop: 0.045,
+    buttonsY: 0.69,
+    sideMargin: 0.05,
+    playBtn: 0.22,
+    btnGap: 0.05,
+  },
+  landscape: { logoY: 0.28, buttonsY: 0.62, logoWidth: 0.38, playBtn: null, btnGap: 0.022 },
 };
 const LOGO_MAX_WIDTH = 400;
 const FOOD_FRAMES = FOOD_FRUTAS.frames;
@@ -55,13 +63,13 @@ export class SplashScene extends Phaser.Scene {
     drawSkyBackground(this);
     ensureBgmPlaying(this);
 
-    const groundLine = getGroundY(this);
+    const groundLine = getGroundY(this) + height * SPLASH_GROUND_OFFSET_RATIO;
     const splashChild = { id: 'default' };
     const splashCustom = { cor: { clara: 0x7CB342, escura: 0x5C8F2E }, chapeu: false, oculos: false };
 
     this.caterpillar = CaterpillarSprite.create(
       this, -120, groundLine, splashChild, splashCustom, DEPTH_CATERPILLAR,
-      { layout: 'horizontal', segmentCount: 6 },
+      { layout: 'horizontal', segmentCount: 6, displayScale: SPLASH_CATERPILLAR_SCALE },
     );
 
     this.setupFallingFood(this.scale.width);
@@ -89,6 +97,7 @@ export class SplashScene extends Phaser.Scene {
         pauseMs: 2800,
         startRight: true,
       });
+      caterpillar.enablePetInteraction?.(() => playSound(this, 'clique'));
       this.events.on('update', () => {
         if (!caterpillar.isRising) {
           caterpillar.updateWave(this.time.now * 0.001, caterpillar.isMoving);
@@ -303,13 +312,9 @@ export class SplashScene extends Phaser.Scene {
   }
 
   placeLogo(width, depth) {
-    const { height } = this.scale;
     const portrait = isPortrait(this);
     const layout = portrait ? SPLASH_LAYOUT.portrait : SPLASH_LAYOUT.landscape;
-    const buttonsY = layoutY(this, layout.buttonsY);
-    const y = portrait
-      ? (height * layout.topPad + buttonsY) / 2
-      : layoutY(this, layout.logoY);
+    const y = layoutY(this, layout.logoY ?? 0.5);
     const maxW = portrait
       ? Math.round(width * (1 - layout.sideMargin * 2))
       : responsiveWidth(this, layout.logoWidth, LOGO_MAX_WIDTH);
@@ -323,34 +328,48 @@ export class SplashScene extends Phaser.Scene {
   placeSplashButtons(width) {
     const portrait = isPortrait(this);
     const layout = portrait ? SPLASH_LAYOUT.portrait : SPLASH_LAYOUT.landscape;
-    const configSize = mobileBtnSize(this, layout.configBtn ?? 0.11, SPLASH_BTN_SIZE);
-    const configIcon = Math.round(configSize * 0.42);
-    const playSize = mobileBtnSize(this, layout.playBtn ?? 0.19, SPLASH_BTN_SIZE);
-    const playIcon = Math.round(playSize * 0.42);
-    const { btnW } = getIconButtonSize(this, playSize, { absolute: portrait });
+    const btnSize = mobileBtnSize(this, layout.playBtn ?? 0.19, SPLASH_BTN_SIZE);
+    const btnIcon = Math.round(btnSize * SPLASH_ICON_RATIO);
+    const { btnW, btnH } = getIconButtonSize(this, btnSize, { absolute: portrait });
     const gap = Math.round(width * layout.btnGap);
     const rowY = layoutY(this, layout.buttonsY);
 
-    const placeConfig = portrait ? placeTopLeftButton : placeTopRightButton;
+    if (portrait) {
+      const topM = Math.max(10, Math.round(this.scale.height * (layout.configTop ?? 0.045)));
+      const sideM = Math.max(10, Math.round(width * (layout.sideMargin ?? 0.05)));
 
-    placeConfig(this, SPLASH_ICONS.config, {
-      marginRatio: layout.sideMargin ?? 0.04,
-      size: configSize,
-      iconSize: configIcon,
-      depth: DEPTH_UI,
-      onClick: () => {
-        playSound(this, 'clique');
-        GameState.setReturnScene(this, SceneKeys.SPLASH);
-        this.scene.start(SceneKeys.SETTINGS);
-      },
-    });
+      createIconCircleButton(this, width - sideM - btnW / 2, topM + btnH / 2, SPLASH_ICONS.config, {
+        size: btnSize,
+        iconSize: btnIcon,
+        absoluteSize: true,
+        depth: DEPTH_UI,
+        onClick: () => {
+          playSound(this, 'clique');
+          GameState.setReturnScene(this, SceneKeys.SPLASH);
+          this.scene.start(SceneKeys.SETTINGS);
+        },
+      });
+    } else {
+      placeTopRightButton(this, SPLASH_ICONS.config, {
+        marginRatio: layout.sideMargin ?? 0.04,
+        size: btnSize,
+        iconSize: btnIcon,
+        absoluteSize: portrait,
+        depth: DEPTH_UI,
+        onClick: () => {
+          playSound(this, 'clique');
+          GameState.setReturnScene(this, SceneKeys.SPLASH);
+          this.scene.start(SceneKeys.SETTINGS);
+        },
+      });
+    }
 
     const playX = width / 2 - (btnW + gap) / 2;
     const rankX = width / 2 + (btnW + gap) / 2;
 
     createIconCircleButton(this, playX, rowY, SPLASH_ICONS.play, {
-      size: playSize,
-      iconSize: playIcon,
+      size: btnSize,
+      iconSize: btnIcon,
       absoluteSize: portrait,
       depth: DEPTH_UI,
       onClick: () => {
@@ -361,8 +380,8 @@ export class SplashScene extends Phaser.Scene {
     });
 
     createIconCircleButton(this, rankX, rowY, SPLASH_ICONS.ranking, {
-      size: playSize,
-      iconSize: playIcon,
+      size: btnSize,
+      iconSize: btnIcon,
       absoluteSize: portrait,
       depth: DEPTH_UI,
       onClick: () => playSound(this, 'clique'),

@@ -7,7 +7,8 @@ export const CLIMB_TEX = 'char_default_climb';
 export const CLIMB_ANIM = 'char_default_climb';
 /** Dimensões de um frame em subindo.png — p/ escala na tela */
 export const CLIMB_FRAME_WIDTH = 1028;
-export const CLIMB_FRAME_HEIGHT = 738;
+/** Frame do subindo.png com olho fechado (1 = embaixo) */
+export const CLIMB_EYES_CLOSED_FRAME = 1;
 
 /** Tronco desce na tela ao subir; fundo mais devagar (parallax) */
 export const BG_PARALLAX_RATIO = 0.38;

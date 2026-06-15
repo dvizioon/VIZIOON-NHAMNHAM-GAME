@@ -56,6 +56,8 @@ export function createIconCircleButton(
     contentOffsetX = 0,
     contentOffsetY = 0,
     absoluteSize = false,
+    showBorder = true,
+    borderTint = null,
   } = {},
 ) {
   const textureKey = icon instanceof Icon ? icon.textureKey : icon;
@@ -67,11 +69,6 @@ export function createIconCircleButton(
   const borderH = Math.round(btnH * borderScale);
 
   const container = scene.add.container(x, y).setDepth(depth);
-
-  const border = scene.add
-    .image(0, 0, UI_BUTTON_BORDER_KEY)
-    .setDisplaySize(borderW, borderH)
-    .setOrigin(0.5);
 
   const content = scene.add.container(
     Math.round(contentOffsetX * iconScale),
@@ -92,7 +89,17 @@ export function createIconCircleButton(
   }
 
   content.add([bg, iconImg]);
-  container.add([border, content]);
+
+  if (showBorder && scene.textures.exists(UI_BUTTON_BORDER_KEY)) {
+    const border = scene.add
+      .image(0, 0, UI_BUTTON_BORDER_KEY)
+      .setDisplaySize(borderW, borderH)
+      .setOrigin(0.5);
+    if (borderTint != null) border.setTint(borderTint);
+    container.add([border, content]);
+  } else {
+    container.add(content);
+  }
 
   container.setSize(btnW, btnH);
   container.setInteractive({ useHandCursor: true });

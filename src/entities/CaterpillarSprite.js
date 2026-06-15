@@ -375,6 +375,7 @@ export class CaterpillarSprite {
       layout,
       isMoving: false,
       isRising: false,
+      isPetting: false,
       facingRight: true,
       headSprite,
       syncHeadToFront,
@@ -629,7 +630,62 @@ export class CaterpillarSprite {
         container.setX(minX);
         runCycle(true);
         api._stopWander = clearWander;
+        api._pauseWander = () => {
+          clearWander();
+          sceneRef.tweens.killTweensOf(container);
+          api.setMoving(false);
+        };
+        api._resumeWander = () => {
+          if (!container.active) return;
+          finishExit(facingRight);
+        };
         return clearWander;
+      },
+
+      /** Toque carinho — ergue a frente e fecha os olhos */
+      playPet(opts = {}) {
+        if (api.isPetting || layout !== 'horizontal' || useClimb) return;
+        const holdMs = opts.holdMs ?? 2800;
+        api.isPetting = true;
+        api._cancelPet?.();
+
+        api._pauseWander?.();
+        api.setMoving(false);
+        api.playRise();
+
+        clearHeadBlink();
+        if (headSprite?.active) {
+          headSprite.anims?.stop();
+          headSprite.setFrame(headBlinkFrame);
+          headSprite.setVisible(true);
+          bringHeadToFront();
+        }
+
+        const petTimer = scene.time.delayedCall(holdMs, () => {
+          api.isPetting = false;
+          api.resetPose();
+          opts.onComplete?.();
+          api._resumeWander?.();
+        });
+        api._cancelPet = () => petTimer.remove(false);
+      },
+
+      enablePetInteraction(onPet) {
+        if (layout !== 'horizontal' || useClimb) return;
+
+        const front = frontSegment();
+        const hitH = (front?.displayHeight ?? frameH * scale) * 1.1;
+        const hitW = headOffsetX + spacing * 0.45;
+        container.setSize(hitW, hitH);
+        container.setInteractive(
+          new Phaser.Geom.Rectangle(-spacing * 0.06, -hitH, hitW, hitH),
+          Phaser.Geom.Rectangle.Contains,
+        );
+        container.on('pointerup', () => {
+          if (api.isPetting) return;
+          onPet?.();
+          api.playPet();
+        });
       },
 
       setActiveSegmentCount(count) {
@@ -657,6 +713,7 @@ export class CaterpillarSprite {
 
       destroy() {
         api._stopWander?.();
+        api._cancelPet?.();
         clearHeadBlink();
         container.destroy();
       },

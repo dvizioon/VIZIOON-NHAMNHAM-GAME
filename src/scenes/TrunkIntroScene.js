@@ -4,17 +4,28 @@ import { Theme } from '../config/theme.js';
 import { playSound } from '../systems/ProceduralAudio.js';
 import { GameState } from '../utils/GameState.js';
 import { drawEnvironmentLayers, getGroundY, DEPTH_TRUNK } from '../ui/createUI.js';
+import { getCharacterTextureKeys, getSpritesManifest } from '../systems/SpriteLoader.js';
 import {
   INTRO_TRUNK_KEY,
   CLIMB_TEX,
   CLIMB_ANIM,
   TRUNK_PLAY_WIDTH_RATIO,
   CLIMB_FRAME_WIDTH,
+  CLIMB_EYES_CLOSED_FRAME,
 } from '../config/gameWorldConfig.js';
-/** Tronco intro — lagarta entra no tronco antes do gameplay */
+
+/** Tronco intro — lagarta sobe; toque fecha os olhos até o fim */
 export class TrunkIntroScene extends Phaser.Scene {
   constructor() {
     super(SceneKeys.TRUNK_INTRO);
+  }
+
+  init() {
+    this.eyesClosed = false;
+    this.climberContainer = null;
+    this.bodySprite = null;
+    this.headSprite = null;
+    this.climbScale = 1;
   }
 
   create() {
@@ -41,27 +52,13 @@ export class TrunkIntroScene extends Phaser.Scene {
       padding: { x: 14, y: 8 },
     }).setOrigin(0.5).setDepth(20);
 
-    const climbScale = (width * TRUNK_PLAY_WIDTH_RATIO * 1.1) / CLIMB_FRAME_WIDTH;
-    let climber = null;
-
-    if (this.textures.exists(CLIMB_TEX)) {
-      climber = this.add.sprite(width / 2, height + 60, CLIMB_TEX, 0)
-        .setOrigin(0.5, 0.92)
-        .setDepth(15)
-        .setScale(climbScale);
-
-      if (this.anims.exists(CLIMB_ANIM)) {
-        climber.anims.play(CLIMB_ANIM);
-      }
-    } else {
-      climber = this.add.circle(width / 2, height + 60, 24, Theme.folha)
-        .setDepth(15);
-    }
+    this.climbScale = (width * TRUNK_PLAY_WIDTH_RATIO * 1.1) / CLIMB_FRAME_WIDTH;
+    this.buildClimber(width, height + 60, child?.id);
 
     this.time.delayedCall(600, () => playSound(this, 'hut'));
 
     this.tweens.add({
-      targets: climber,
+      targets: this.climberContainer,
       y: anchorY,
       duration: 1400,
       ease: 'Sine.easeOut',
@@ -76,5 +73,104 @@ export class TrunkIntroScene extends Phaser.Scene {
     });
 
     this.cameras.main.fadeIn(400, 0, 0, 0);
+  }
+
+  buildClimber(startX, startY, childId) {
+    this.climberContainer = this.add.container(startX, startY).setDepth(25);
+
+    if (this.textures.exists(CLIMB_TEX)) {
+      this.bodySprite = this.add.sprite(0, 0, CLIMB_TEX, 0)
+        .setOrigin(0.5, 0.92)
+        .setScale(this.climbScale);
+
+      if (this.anims.exists(CLIMB_ANIM)) {
+        this.bodySprite.anims.play(CLIMB_ANIM);
+      }
+
+      this.climberContainer.add(this.bodySprite);
+      this.attachHead(childId);
+    } else {
+      const fallback = this.add.circle(0, 0, 24, Theme.folha);
+      this.climberContainer.add(fallback);
+      this.bodySprite = fallback;
+    }
+
+    const hitW = (this.bodySprite.displayWidth || 80) * 1.35;
+    const hitH = (this.bodySprite.displayHeight || 100) * 1.15;
+    this.climberContainer.setSize(hitW, hitH);
+    this.climberContainer.setInteractive(
+      new Phaser.Geom.Rectangle(-hitW / 2, -hitH, hitW, hitH),
+      Phaser.Geom.Rectangle.Contains,
+    );
+    this.climberContainer.on('pointerdown', () => this.closeEyes());
+  }
+
+  attachHead(childId) {
+    const texKeys = getCharacterTextureKeys(childId);
+    const headCfg = getSpritesManifest().characters?.default?.head ?? {};
+    const headKey = texKeys.headWalk;
+
+    if (!this.textures.exists(headKey) || !this.bodySprite?.displayHeight) return;
+
+    const idleFrame = headCfg.idleFrame ?? 1;
+    const headOriginX = headCfg.origin?.x ?? 0.5;
+    const headOriginY = headCfg.origin?.y ?? 0.84;
+    const ballTop = headCfg.ballTopRatio ?? 0.54;
+    const oy = (headCfg.offsetY ?? 0.12) * this.bodySprite.displayHeight;
+
+    this.headSprite = this.add.sprite(
+      0,
+      -this.bodySprite.displayHeight * ballTop + oy,
+      headKey,
+      idleFrame,
+    );
+    this.headSprite.setOrigin(headOriginX, headOriginY);
+    this.headSprite.setScale(this.climbScale);
+
+    const headWalkAnim = `${texKeys.base}_headWalk`;
+    if (this.anims.exists(headWalkAnim)) {
+      this.headSprite.anims.play(headWalkAnim);
+    }
+
+    this.climberContainer.add(this.headSprite);
+    this.climberContainer.bringToTop(this.headSprite);
+  }
+
+  closeEyes() {
+    if (this.eyesClosed || !this.bodySprite) return;
+    this.eyesClosed = true;
+    playSound(this, 'clique');
+
+    this.bodySprite.anims?.stop();
+    if (this.headSprite) this.headSprite.anims?.stop();
+
+    const headCfg = getSpritesManifest().characters?.default?.head ?? {};
+    const closedHeadFrame = headCfg.blinkFrame ?? 3;
+    const blinkTargets = [this.headSprite, this.bodySprite].filter(Boolean);
+
+    this.tweens.add({
+      targets: this.climberContainer,
+      y: this.climberContainer.y - this.bodySprite.displayHeight * 0.08,
+      duration: 280,
+      ease: 'Sine.easeOut',
+      yoyo: true,
+    });
+
+    this.tweens.add({
+      targets: blinkTargets,
+      scaleY: (t) => t.scaleY * 0.92,
+      duration: 110,
+      ease: 'Sine.easeIn',
+      yoyo: true,
+      onComplete: () => {
+        this.bodySprite.setFrame(CLIMB_EYES_CLOSED_FRAME);
+        this.bodySprite.setScale(this.climbScale);
+
+        if (this.headSprite) {
+          this.headSprite.setFrame(closedHeadFrame);
+          this.headSprite.setScale(this.climbScale);
+        }
+      },
+    });
   }
 }

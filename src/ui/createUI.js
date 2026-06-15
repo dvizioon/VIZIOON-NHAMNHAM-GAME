@@ -97,11 +97,81 @@ export const DEPTH_FRUIT = 5;
 export const DEPTH_CATERPILLAR = 20;
 export const DESIGN_SIZE = { width: 1280, height: 720, groundY: 694, grassTopY: 580 };
 
-const CLOUD_LANES = [
-  { yRatio: 0.13, scale: 1.45, duration: 26000, xRatio: -0.12, alpha: 0.9 },
-  { yRatio: 0.22, scale: 0.58, duration: 12000, xRatio: 0.62, alpha: 0.7 },
-  { yRatio: 0.3, scale: 1.05, duration: 19000, xRatio: 0.18, alpha: 0.82 },
-];
+const CLOUD_BASE_W = 136;
+const CLOUD_ASPECT = 106 / 136;
+const CLOUD_Y_MIN = 0.06;
+const CLOUD_Y_MAX = 0.28;
+const CLOUD_SCALE_MIN = 0.48;
+const CLOUD_SCALE_MAX = 1.65;
+
+const CLOUD_LANE_COUNT = 5;
+const CLOUD_MIN_GAP_MS = 2800;
+
+function cloudLaneY(height, laneIndex) {
+  const t = (laneIndex + 0.5) / CLOUD_LANE_COUNT;
+  return height * (CLOUD_Y_MIN + (CLOUD_Y_MAX - CLOUD_Y_MIN) * t);
+}
+
+function randomCloudSpec(scene, laneIndex = null) {
+  const { width, height } = scene.scale;
+  const scale = Phaser.Math.FloatBetween(CLOUD_SCALE_MIN, CLOUD_SCALE_MAX);
+  const displayW = Math.round(CLOUD_BASE_W * scale * uiScale(scene));
+  const displayH = Math.round(displayW * CLOUD_ASPECT);
+  const lane = laneIndex ?? Phaser.Math.Between(0, CLOUD_LANE_COUNT - 1);
+  const y = cloudLaneY(height, lane) + Phaser.Math.FloatBetween(-8, 8);
+
+  return {
+    displayW,
+    displayH,
+    lane,
+    x: -displayW - Phaser.Math.Between(30, 90),
+    y,
+    duration: Phaser.Math.Between(16000, 34000),
+    alpha: Phaser.Math.FloatBetween(0.65, 0.93),
+    depth: DEPTH_CLOUD + lane,
+  };
+}
+
+function pickCloudSpec(scene) {
+  const tracker = scene._cloudTracker ?? { active: [] };
+  const usedLanes = new Set(tracker.active.map((c) => c.lane));
+
+  const freeLanes = [];
+  for (let i = 0; i < CLOUD_LANE_COUNT; i++) {
+    if (!usedLanes.has(i)) freeLanes.push(i);
+  }
+
+  if (freeLanes.length) {
+    const lane = Phaser.Utils.Array.GetRandom(freeLanes);
+    return randomCloudSpec(scene, lane);
+  }
+
+  return randomCloudSpec(scene);
+}
+
+function trackCloud(scene, spec) {
+  if (!scene._cloudTracker) scene._cloudTracker = { active: [], lastSpawn: 0 };
+  const entry = {
+    lane: spec.lane,
+    y: spec.y,
+    displayW: spec.displayW,
+    displayH: spec.displayH,
+  };
+  scene._cloudTracker.active.push(entry);
+  return entry;
+}
+
+function untrackCloud(scene, entry) {
+  const list = scene._cloudTracker?.active;
+  if (!list) return;
+  const idx = list.indexOf(entry);
+  if (idx >= 0) list.splice(idx, 1);
+}
+
+
+function cloudExitX(scene, displayW) {
+  return scene.scale.width + displayW + 60;
+}
 
 export function getTerrenoLayout(scene) {
   const { width, height } = scene.scale;
@@ -156,7 +226,8 @@ function drawSkyLayer(scene) {
   g.fillRect(0, 0, width, height);
 }
 
-function createDriftingCloud(scene, x, y, displayW, displayH, duration, { alpha = 0.9, depth = DEPTH_CLOUD } = {}) {
+function createDriftingCloud(scene, spec) {
+  const { x, y, displayW, displayH, alpha, depth } = spec;
   let cloud;
   if (hasTexture(scene, CLOUD_KEY)) {
     cloud = scene.add.image(x, y, CLOUD_KEY).setOrigin(0.5).setAlpha(alpha);
@@ -172,35 +243,43 @@ function createDriftingCloud(scene, x, y, displayW, displayH, duration, { alpha 
   }
 
   cloud.setDepth(depth);
-  scene.tweens.add({
-    targets: cloud,
-    x: scene.scale.width + displayW + 60,
-    duration,
-    repeat: -1,
-    onRepeat: () => cloud.setX(-displayW - 80),
-  });
   return cloud;
 }
 
-/** Nuvens — nuvem.png */
-export function spawnEnvironmentClouds(scene) {
-  const { width, height } = scene.scale;
-  const cloudBaseW = 136;
-  const cloudAspect = 106 / 136;
+function spawnCloudLoop(scene, delayMs = 0) {
+  const spawn = () => {
+    if (!scene.sys?.isActive()) return;
 
-  CLOUD_LANES.forEach((lane, index) => {
-    const displayW = Math.round(cloudBaseW * lane.scale * uiScale(scene));
-    const displayH = Math.round(displayW * cloudAspect);
-    createDriftingCloud(
-      scene,
-      width * lane.xRatio,
-      height * lane.yRatio,
-      displayW,
-      displayH,
-      lane.duration,
-      { alpha: lane.alpha, depth: DEPTH_CLOUD + index },
-    );
-  });
+    const spec = pickCloudSpec(scene);
+    const entry = trackCloud(scene, spec);
+    const cloud = createDriftingCloud(scene, spec);
+
+    scene.tweens.add({
+      targets: cloud,
+      x: cloudExitX(scene, spec.displayW),
+      duration: spec.duration,
+      onComplete: () => {
+        untrackCloud(scene, entry);
+        cloud.destroy();
+        if (scene.sys?.isActive()) {
+          scene.time.delayedCall(Phaser.Math.Between(2500, 6500), () => spawnCloudLoop(scene));
+        }
+      },
+    });
+  };
+
+  if (delayMs > 0) scene.time.delayedCall(delayMs, spawn);
+  else spawn();
+}
+
+/** Nuvens — entram pela esquerda, uma de cada vez em faixas separadas */
+export function spawnEnvironmentClouds(scene) {
+  scene._cloudTracker = { active: [], lastSpawn: 0 };
+  const initial = Phaser.Math.Between(2, 3);
+
+  for (let i = 0; i < initial; i++) {
+    spawnCloudLoop(scene, i * Phaser.Math.Between(CLOUD_MIN_GAP_MS, CLOUD_MIN_GAP_MS + 4200));
+  }
 }
 
 /** terreno.png — chão mobile ancorado embaixo */
