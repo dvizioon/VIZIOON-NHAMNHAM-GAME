@@ -1,6 +1,14 @@
-/** Escala UI — proporcional ao design 1280×720, sem esticar em telas largas */
+/** Escala UI — proporcional ao design 1280×720; no celular não encolhe demais */
 export function uiScale(scene) {
-  return Math.min(scene.scale.width / 1280, scene.scale.height / 720);
+  const { width, height } = scene.scale;
+  const fit = Math.min(width / 1280, height / 720, 1);
+
+  if (height > width) {
+    const portraitMin = width / 720;
+    return Math.max(fit, Math.min(portraitMin, 1));
+  }
+
+  return fit;
 }
 
 export function responsiveSize(scene, base) {

@@ -15,7 +15,6 @@ export const UI_DECO_3FOLHAS_KEY = 'ui_deco_3folhas';
 export const UI_DECO_FOLHAS_RAIZES_KEY = 'ui_deco_folhas_raizes';
 
 const LABEL_COLOR = '#3B3024';
-/** Abaixo disso o slider encaixa em 0% (mudo) */
 const VOLUME_ZERO_THRESHOLD = 0.005;
 
 function normalizeVolumeValue(raw) {
@@ -56,7 +55,20 @@ function attach(parent, obj, x, y) {
   return obj;
 }
 
-/** Painel — camada verde atrás + creme #FFF8E7 na frente */
+export const PANEL_SHADOW_OFFSET = 10;
+export const PANEL_CORNER_RADIUS = 32;
+export const PANEL_DESIGN_WIDTH = 400;
+export const PANEL_DESIGN_HEIGHT = 420;
+
+export function getSettingsPanelSize(scene) {
+  const scale = uiScale(scene);
+  return {
+    w: Math.round(PANEL_DESIGN_WIDTH * scale),
+    h: Math.round(PANEL_DESIGN_HEIGHT * scale),
+    contentW: Math.round(300 * scale),
+  };
+}
+
 export function createSettingsPanel(scene, cx, cy, w, h, { depth = 10, shadowOffset = PANEL_SHADOW_OFFSET } = {}) {
   const scale = uiScale(scene);
   const r = Math.round(PANEL_CORNER_RADIUS * scale);
@@ -78,7 +90,7 @@ export function createSettingsPanel(scene, cx, cy, w, h, { depth = 10, shadowOff
   return panel;
 }
 
-/** Folhas decorativas — atrás do creme (depth 8); só posição mais alta e nas bordas */
+/** Folhas — atrás do creme (depth 8) */
 export function createSettingsDecorations(scene, cx, cy, w, h) {
   const scale = uiScale(scene);
   const decoDepth = 8;
@@ -105,7 +117,7 @@ export function createSettingsDecorations(scene, cx, cy, w, h) {
   }
 }
 
-/** Slider — ícone/% à esquerda; bolinha amarela com contorno cor do texto */
+/** Slider — ícone fixo à esquerda + % ao lado + trilho */
 export function createSettingsSlider(
   parent,
   x,
@@ -120,49 +132,50 @@ export function createSettingsSlider(
   const trackH = Math.round(18 * scale);
   const knobR = Math.round(14 * scale);
   const iconPx = Math.round(32 * scale);
-  const iconGap = Math.round(20 * scale);
+  const iconGap = Math.round(12 * scale);
   const labelSize = Math.max(16, Math.round(22 * scale));
 
   const row = attach(parent, scene.add.container(0, 0), x, y);
   let value = normalizeVolumeValue(initial);
   let isAdjusting = false;
 
-  const labelText = scene.add.text(-innerW / 2, -Math.round(32 * scale), label, {
+  const labelText = scene.add.text(0, -Math.round(32 * scale), label, {
     fontFamily: Theme.fontFamily,
     fontSize: `${labelSize}px`,
     color: LABEL_COLOR,
     fontStyle: 'bold',
-  }).setOrigin(0, 0.5);
+  }).setOrigin(0.5);
 
-  const indicatorX = -innerW / 2 + iconPx / 2;
-  const indicatorY = Math.round(8 * scale);
+  const leftPadding = volumeIcon ? Math.round(65 * scale) : 0;
+  const trackX = -innerW / 2 + leftPadding;
+  const trackW = innerW / 2 - trackX;
+  const trackInset = knobR + Math.round(4 * scale);
+  const trackInnerX = trackX + trackInset;
+  const trackInnerW = Math.max(1, trackW - trackInset * 2);
+
+  const indicatorX = -innerW / 2 + Math.round(15 * scale);
+  const indicatorY = trackH / 2;
 
   let iconImg;
   let percentText;
+
   if (volumeIcon) {
     const startKey = isVolumeMuted(value)
       ? SETTINGS_ICONS.volumeOff.textureKey
       : SETTINGS_ICONS.volumeHigh.textureKey;
+
     iconImg = scene.add
       .image(indicatorX, indicatorY, startKey)
       .setDisplaySize(iconPx, iconPx)
       .setOrigin(0.5);
 
-    if (percentOnAdjust) {
-      percentText = scene.add.text(indicatorX, indicatorY, '', {
-        fontFamily: Theme.fontFamily,
-        fontSize: `${Math.max(14, Math.round(20 * scale))}px`,
-        color: LABEL_COLOR,
-        fontStyle: 'bold',
-      }).setOrigin(0.5).setVisible(false);
-    }
+    percentText = scene.add.text(indicatorX + iconPx / 2 + iconGap, indicatorY, '', {
+      fontFamily: Theme.fontFamily,
+      fontSize: `${Math.max(14, Math.round(18 * scale))}px`,
+      color: LABEL_COLOR,
+      fontStyle: 'bold',
+    }).setOrigin(0, 0.5).setVisible(false);
   }
-
-  const trackX = -innerW / 2 + (volumeIcon ? iconPx + iconGap : 0);
-  const trackW = innerW / 2 - trackX;
-  const trackInset = knobR + Math.round(4 * scale);
-  const trackInnerX = trackX + trackInset;
-  const trackInnerW = Math.max(1, trackW - trackInset * 2);
 
   const trackBg = scene.add.graphics();
   const trackFill = scene.add.graphics();
@@ -173,17 +186,16 @@ export function createSettingsSlider(
   const updateIndicator = () => {
     if (!iconImg) return;
     const muted = isVolumeMuted(value);
-    if (percentOnAdjust && isAdjusting && !muted) {
-      iconImg.setVisible(false);
-      percentText.setVisible(true);
-      percentText.setText(`${volumePercent(value)}%`);
-      return;
+    iconImg.setTexture(muted ? SETTINGS_ICONS.volumeOff.textureKey : SETTINGS_ICONS.volumeHigh.textureKey);
+
+    if (percentText) {
+      if (percentOnAdjust && isAdjusting && !muted) {
+        percentText.setVisible(true);
+        percentText.setText(`${volumePercent(value)}%`);
+      } else {
+        percentText.setVisible(false);
+      }
     }
-    iconImg.setVisible(true);
-    if (percentText) percentText.setVisible(false);
-    iconImg.setTexture(
-      muted ? SETTINGS_ICONS.volumeOff.textureKey : SETTINGS_ICONS.volumeHigh.textureKey,
-    );
   };
 
   const redraw = () => {
@@ -228,6 +240,7 @@ export function createSettingsSlider(
   };
 
   const localX = (pointer) => row.getLocalPoint(pointer.x, pointer.y).x;
+
   zone.on('pointerdown', (pointer) => {
     isAdjusting = percentOnAdjust;
     update(localX(pointer));
@@ -253,7 +266,38 @@ export function createSettingsSlider(
   return row;
 }
 
-/** Botão setas — esquerda + direita no mesmo quadrado */
+export function createModoToggle(scene, x, y, icon, { active = false, onClick } = {}) {
+  const scale = uiScale(scene);
+  const size = Math.round(58 * scale);
+  const iconPx = Math.round(32 * scale);
+  const container = scene.add.container(x, y);
+
+  const bg = scene.add.graphics();
+  const draw = (on) => {
+    bg.clear();
+    bg.fillStyle(on ? Theme.folhaEscura : Theme.modoVerde, 1);
+    bg.fillRoundedRect(-size / 2, -size / 2, size, size, Math.round(10 * scale));
+  };
+  draw(active);
+
+  const iconImg = scene.add
+    .image(0, 0, icon.textureKey)
+    .setDisplaySize(iconPx, iconPx)
+    .setOrigin(0.5);
+
+  container.add([bg, iconImg]);
+  container.setSize(size, size);
+  container.setInteractive({ useHandCursor: true });
+  container.setActive = (on) => draw(on);
+
+  container.on('pointerup', () => {
+    playSound(scene, 'clique');
+    onClick?.();
+  });
+
+  return container;
+}
+
 export function createModoArrowsToggle(scene, x, y, { active = false, onClick } = {}) {
   const scale = uiScale(scene);
   const size = Math.round(58 * scale);
@@ -292,44 +336,6 @@ export function createModoArrowsToggle(scene, x, y, { active = false, onClick } 
   return container;
 }
 
-/** Botão quadrado modo — fundo #5EA448, ícone creme #FFF8E7 */
-export function createModoToggle(scene, x, y, icon, { active = false, onClick, flipIcon = false } = {}) {
-  const scale = uiScale(scene);
-  const size = Math.round(58 * scale);
-  const iconPx = Math.round(32 * scale);
-  const container = scene.add.container(x, y);
-
-  const bg = scene.add.graphics();
-  const draw = (on) => {
-    bg.clear();
-    bg.fillStyle(on ? Theme.folhaEscura : Theme.modoVerde, 1);
-    bg.fillRoundedRect(-size / 2, -size / 2, size, size, Math.round(10 * scale));
-  };
-  draw(active);
-
-  const iconImg = scene.add
-    .image(0, 0, icon.textureKey)
-    .setDisplaySize(iconPx, iconPx)
-    .setOrigin(0.5);
-
-  if (flipIcon) {
-    iconImg.scaleX = -Math.abs(iconImg.scaleX);
-  }
-
-  container.add([bg, iconImg]);
-  container.setSize(size, size);
-  container.setInteractive({ useHandCursor: true });
-  container.setActive = (on) => draw(on);
-
-  container.on('pointerup', () => {
-    playSound(scene, 'clique');
-    onClick?.();
-  });
-
-  return container;
-}
-
-/** Botões voltar/salvar — menor que a splash; borda em splashUi → SETTINGS_BTN_BORDER_SCALE */
 export const SETTINGS_BTN_SIZE = 108;
 export const SETTINGS_BTN_ICON_SIZE = 46;
 
@@ -365,31 +371,35 @@ export function createSettingsSaveButton(scene, x, y, onClick) {
   });
 }
 
-/** Linha Modo — ícone ao lado do texto; toggles centralizados */
+/** Linha Modo — título + controller centralizados; toggles abaixo */
 export function createModoRow(parent, x, y, { activeMode = 'toque', onChange, contentW } = {}) {
   const scene = sceneOf(parent);
   const scale = uiScale(scene);
-  const innerW = contentW ?? Math.round(300 * scale);
   const iconPx = Math.round(28 * scale);
   const labelY = -Math.round(32 * scale);
 
   const row = attach(parent, scene.add.container(0, 0), x, y);
 
-  const label = scene.add.text(-innerW / 2, labelY, 'Modo', {
+  const label = scene.add.text(0, labelY, 'Modo', {
     fontFamily: Theme.fontFamily,
     fontSize: `${Math.max(16, Math.round(22 * scale))}px`,
     color: LABEL_COLOR,
     fontStyle: 'bold',
-  }).setOrigin(0, 0.5);
+  }).setOrigin(0.5);
+
+  const totalHeaderW = label.width + iconPx + Math.round(8 * scale);
+  const headerStartX = -totalHeaderW / 2;
 
   const controller = scene.add
-    .image(-innerW / 2 + label.width + Math.round(10 * scale), labelY, SETTINGS_ICONS.controller.textureKey)
+    .image(headerStartX, labelY, SETTINGS_ICONS.controller.textureKey)
     .setDisplaySize(iconPx, iconPx)
     .setOrigin(0, 0.5);
 
-  const toggleY = Math.round(28 * scale);
+  label.setX(headerStartX + iconPx + Math.round(8 * scale) + label.width / 2);
+
+  const toggleY = Math.round(24 * scale);
   const btnSize = Math.round(58 * scale);
-  const toggleGap = Math.round(28 * scale);
+  const toggleGap = Math.round(20 * scale);
   const pairW = btnSize * 2 + toggleGap;
   const leftX = -pairW / 2 + btnSize / 2;
 
@@ -410,21 +420,4 @@ export function createModoRow(parent, x, y, { activeMode = 'toque', onChange, co
   };
 
   return row;
-}
-
-/** Ajuste visual do painel — sombra verde (aumente = borda mais grossa) */
-export const PANEL_SHADOW_OFFSET = 10;
-export const PANEL_CORNER_RADIUS = 32;
-
-/** Dimensões do painel vertical (Figma) — h = altura da caixa creme */
-export const PANEL_DESIGN_WIDTH = 400;
-export const PANEL_DESIGN_HEIGHT = 420;
-
-export function getSettingsPanelSize(scene) {
-  const scale = uiScale(scene);
-  return {
-    w: Math.round(PANEL_DESIGN_WIDTH * scale),
-    h: Math.round(PANEL_DESIGN_HEIGHT * scale),
-    contentW: Math.round(300 * scale),
-  };
 }
