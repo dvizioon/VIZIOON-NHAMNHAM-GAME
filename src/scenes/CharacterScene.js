@@ -21,6 +21,21 @@ const SEARCH_BORDER_COLOR = 0x1E6A30;
 const SEARCH_BORDER_WIDTH = 3;
 const HOME_GREEN = Theme.botaoVerde;
 
+function getSearchBarMetrics(searchW, searchH) {
+  const searchBtnSize = Math.round(searchH * 1.06);
+  const padLeft = 18;
+  const padRight = Math.round(searchBtnSize * 0.58 + 16);
+  const btnInset = searchBtnSize * 0.5;
+  return {
+    searchBtnSize,
+    searchIconSize: Math.max(26, Math.round(searchBtnSize * 0.52)),
+    padLeft,
+    padRight,
+    btnInset,
+    inputWidth: Math.max(72, searchW - padLeft - padRight),
+  };
+}
+
 const NAV_ICONS = {
   home: Icon.from('mynaui:home', { designSize: 24, color: '#ffffff' }),
   search: Icon.from('solar:magnifer-linear', { designSize: 24, color: NAV_GREEN }),
@@ -159,7 +174,7 @@ export class CharacterScene extends Phaser.Scene {
     const { width } = this.scale;
     const { searchY, searchW, searchH } = this.layout;
     const barX = width / 2;
-    const searchBtnSize = Math.round(searchH * 0.92);
+    const { searchBtnSize, searchIconSize, padLeft, inputWidth, btnInset } = getSearchBarMetrics(searchW, searchH);
 
     this.searchBarGfx = this.add.graphics().setDepth(16);
     this.searchBarGfx.fillStyle(Theme.modoVerde, 1);
@@ -179,10 +194,10 @@ export class CharacterScene extends Phaser.Scene {
       searchH / 2,
     );
 
-    createIconCircleButton(this, barX + searchW / 2 - searchBtnSize * 0.52, searchY, NAV_ICONS.search, {
+    createIconCircleButton(this, barX + searchW / 2 - btnInset, searchY, NAV_ICONS.search, {
       onClick: () => this.domSearch?.focus(),
       size: searchBtnSize,
-      iconSize: 24,
+      iconSize: searchIconSize,
       fillColor: Theme.sol,
       showBorder: false,
       simpleBorder: true,
@@ -220,7 +235,12 @@ export class CharacterScene extends Phaser.Scene {
     });
 
     this.searchBarGfx.setInteractive(
-      new Phaser.Geom.Rectangle(barX - searchW / 2, searchY - searchH / 2, searchW - searchBtnSize * 1.05, searchH),
+      new Phaser.Geom.Rectangle(
+        barX - searchW / 2,
+        searchY - searchH / 2,
+        padLeft + inputWidth,
+        searchH,
+      ),
       Phaser.Geom.Rectangle.Contains,
     );
     this.searchBarGfx.on('pointerdown', () => this.domSearch.focus());
@@ -234,13 +254,13 @@ export class CharacterScene extends Phaser.Scene {
     const { width } = this.scale;
     const { searchY, searchW, searchH } = this.layout;
     const barX = width / 2;
-    const searchBtnSize = Math.round(searchH * 0.92);
+    const { padLeft, inputWidth } = getSearchBarMetrics(searchW, searchH);
     const scaleX = rect.width / width;
     const scaleY = rect.height / this.scale.height;
 
-    const left = rect.left + (barX - searchW / 2 + 18) * scaleX;
+    const left = rect.left + (barX - searchW / 2 + padLeft) * scaleX;
     const top = rect.top + (searchY - searchH / 2 + 2) * scaleY;
-    const w = (searchW - searchBtnSize * 1.15) * scaleX;
+    const w = inputWidth * scaleX;
     const h = (searchH - 4) * scaleY;
     const fontPx = Math.max(15, Math.round(searchH * 0.36 * scaleY));
 
