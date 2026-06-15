@@ -373,7 +373,7 @@ export class GameScene extends Phaser.Scene {
     const msgs = {
       sapo: `🐸 ${nome}, cuidado! O sapo tá chegando!`,
       cresceu: `✨ Uau ${nome}! A lagartinha cresceu!`,
-      comeu: `😋 ${nome} comeu! Nham-nham!`,
+      comeu: `😋 ${nome} comeu! Nhoc-nhoc!`,
       sapoHit: `😵 ${nome} levou uma lambida do sapo!`,
     };
 

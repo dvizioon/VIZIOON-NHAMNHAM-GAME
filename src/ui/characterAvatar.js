@@ -8,7 +8,7 @@ import {
 
 /** Cabeça animada — padrão ou spritesheet própria da criança (criancas.json → cabeca) */
 export function createCharacterFace(scene, crianca, r, frameHint = 0, options = {}) {
-  const { headHeightRatio = 1.82 } = options;
+  const { headHeightRatio = 2.0, headWidthRatio = 0.85 } = options;
 
   const wrap = scene.add.container(0, 2);
   const frame = Phaser.Math.Wrap(frameHint, 0, CHAR_HEAD_FRAME_COUNT);
@@ -21,7 +21,7 @@ export function createCharacterFace(scene, crianca, r, frameHint = 0, options = 
     const head = scene.add.sprite(0, 0, textureKey, safeFrame);
     head.setOrigin(0.5, 0.58);
     const headH = r * headHeightRatio;
-    head.setDisplaySize(headH * 0.82, headH);
+    head.setDisplaySize(headH * headWidthRatio, headH);
     if (scene.anims.exists(animKey) && texture.has(safeFrame)) {
       head.anims.play(animKey);
     }

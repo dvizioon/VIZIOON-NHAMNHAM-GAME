@@ -16,7 +16,9 @@ import {
   CHAR_HEAD_FRAME_W,
   CHAR_HEAD_FRAME_H,
   CHAR_HEAD_FRAME_COUNT,
+  CHAR_HEADS_ANIM_FRAME_RATE,
   getCharacterHeadAnimKey,
+  getCharacterHeadFrameRate,
   getCharacterHeadSheetKey,
   listCharacterHeadAssets,
   listCharacterFaceAssets,
@@ -45,7 +47,7 @@ export class PreloadScene extends Phaser.Scene {
     const titleSize = Math.max(28, Math.round((portrait ? width * 0.11 : 42) * (portrait ? 1 : uiScale(this))));
     const titleY = height * (portrait ? 0.42 : 0.5) - 60;
 
-    this.add.text(width / 2, titleY, 'NhamNham!', {
+    this.add.text(width / 2, titleY, 'Nhoc Nhoc!', {
       fontFamily: Theme.fontFamily,
       fontSize: `${titleSize}px`,
       color: '#4E9A2E',
@@ -130,7 +132,7 @@ export class PreloadScene extends Phaser.Scene {
           start: 0,
           end: CHAR_HEAD_FRAME_COUNT - 1,
         }),
-        frameRate: 7,
+        frameRate: CHAR_HEADS_ANIM_FRAME_RATE,
         repeat: -1,
       });
     }
@@ -145,7 +147,7 @@ export class PreloadScene extends Phaser.Scene {
             start: 0,
             end: CHAR_HEAD_FRAME_COUNT - 1,
           }),
-          frameRate: 7,
+          frameRate: getCharacterHeadFrameRate(crianca),
           repeat: -1,
         });
       }

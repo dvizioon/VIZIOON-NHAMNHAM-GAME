@@ -1,7 +1,7 @@
 {
   "name": "nhamnham-largatinha",
   "version": "0.1.0",
-  "description": "NhamNham! A Lagartinha da Turminha — jogo educativo de metamorfose",
+  "description": "Nhoc Nhoc! A Lagartinha da Turminha — jogo educativo de metamorfose",
   "type": "module",
   "scripts": {
     "dev": "vite",

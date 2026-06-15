@@ -66,7 +66,7 @@ function buildModalAvatar(scene, crianca, r, frameHint) {
 
 
   const face = createCharacterFace(scene, crianca, r, frameHint, {
-    headHeightRatio: 2.08,
+    headHeightRatio: 2.3,
   });
 
 
