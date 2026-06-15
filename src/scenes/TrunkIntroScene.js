@@ -3,14 +3,14 @@ import { SceneKeys } from '../config/constants.js';
 import { Theme } from '../config/theme.js';
 import { playSound } from '../systems/ProceduralAudio.js';
 import { GameState } from '../utils/GameState.js';
+import { drawEnvironmentLayers, getGroundY, DEPTH_TRUNK } from '../ui/createUI.js';
 import {
   INTRO_TRUNK_KEY,
   CLIMB_TEX,
   CLIMB_ANIM,
-  CLIMBER_ANCHOR_Y_RATIO,
   TRUNK_PLAY_WIDTH_RATIO,
+  CLIMB_FRAME_WIDTH,
 } from '../config/gameWorldConfig.js';
-
 /** Tronco intro — lagarta entra no tronco antes do gameplay */
 export class TrunkIntroScene extends Phaser.Scene {
   constructor() {
@@ -20,17 +20,15 @@ export class TrunkIntroScene extends Phaser.Scene {
   create() {
     const { width, height } = this.scale;
     const child = GameState.getChild(this);
-    const anchorY = Math.round(height * CLIMBER_ANCHOR_Y_RATIO);
+    const anchorY = Math.round(getGroundY(this));
+
+    drawEnvironmentLayers(this);
 
     if (this.textures.exists(INTRO_TRUNK_KEY)) {
       this.add.image(width / 2, 0, INTRO_TRUNK_KEY)
         .setOrigin(0.5, 0)
-        .setDepth(0)
+        .setDepth(DEPTH_TRUNK)
         .setDisplaySize(width, height);
-    } else {
-      const g = this.add.graphics().setDepth(0);
-      g.fillGradientStyle(Theme.ceuClaro, Theme.ceuClaro, Theme.ceu, Theme.ceu, 1);
-      g.fillRect(0, 0, width, height);
     }
 
     const nome = child?.nome ?? 'Lagartinha';
@@ -43,7 +41,7 @@ export class TrunkIntroScene extends Phaser.Scene {
       padding: { x: 14, y: 8 },
     }).setOrigin(0.5).setDepth(20);
 
-    const climbScale = (width * TRUNK_PLAY_WIDTH_RATIO * 1.1) / 244;
+    const climbScale = (width * TRUNK_PLAY_WIDTH_RATIO * 1.1) / CLIMB_FRAME_WIDTH;
     let climber = null;
 
     if (this.textures.exists(CLIMB_TEX)) {
@@ -59,6 +57,8 @@ export class TrunkIntroScene extends Phaser.Scene {
       climber = this.add.circle(width / 2, height + 60, 24, Theme.folha)
         .setDepth(15);
     }
+
+    this.time.delayedCall(600, () => playSound(this, 'hut'));
 
     this.tweens.add({
       targets: climber,

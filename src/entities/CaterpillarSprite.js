@@ -54,7 +54,7 @@ export class CaterpillarSprite {
       && scene.textures.exists(texKeys.climb);
     const hideHead = opts.hideHead ?? useClimb;
     const scale = opts.displayScale ?? cfg?.displayScale ?? 1;
-    const climbFrameH = cfg?.sheets?.climb?.frameHeight ?? 201;
+    const climbFrameH = cfg?.sheets?.climb?.frameHeight ?? 738;
     const frameH = useClimb
       ? climbFrameH
       : (cfg?.sheets?.idle?.frameHeight ?? cfg?.frameHeight ?? 128);
@@ -100,6 +100,31 @@ export class CaterpillarSprite {
       };
     };
 
+    function playClimbOnSegment(sprite, staggerMs = 0) {
+      if (!sprite?.active) return;
+      sprite.setTexture(texKeys.climb);
+      const run = () => {
+        if (!sprite.active) return;
+        if (scene.anims.exists(climbAnimKey)) {
+          sprite.play(climbAnimKey);
+        } else {
+          sprite.setFrame(0);
+        }
+      };
+      if (staggerMs > 0) {
+        scene.time.delayedCall(staggerMs, run);
+      } else {
+        run();
+      }
+    }
+
+    function playClimbOnVisibleSegments(staggerMs = 80) {
+      segments.forEach(({ sprite, index }) => {
+        if (!sprite.visible) return;
+        playClimbOnSegment(sprite, index * staggerMs);
+      });
+    }
+
     for (let i = 0; i < segCount; i++) {
       const fromEnd = segCount - 1 - i;
       const sx = layout === 'horizontal' ? fromEnd * spacing : 0;
@@ -107,10 +132,10 @@ export class CaterpillarSprite {
       const seg = scene.add.sprite(sx, sy, defaultTex).setScale(scale);
       seg.setOrigin(originX, originY);
 
-      if (scene.anims.exists(idleAnimKey)) {
+      if (useClimb && scene.textures.exists(texKeys.climb)) {
+        playClimbOnSegment(seg, i * 80);
+      } else if (scene.anims.exists(idleAnimKey)) {
         seg.play(idleAnimKey);
-      } else if (useClimb && scene.anims.exists(climbAnimKey)) {
-        seg.play(climbAnimKey);
       } else {
         seg.setFrame(cfg?.animations?.idle?.start ?? 0);
       }
@@ -118,6 +143,8 @@ export class CaterpillarSprite {
       container.add(seg);
       segments.push({ sprite: seg, index: i });
     }
+
+    let activeSegmentCount = segCount;
 
     const headCfg = cfg?.head ?? {};
     const headOriginX = headCfg.origin?.x ?? originX;
@@ -135,7 +162,14 @@ export class CaterpillarSprite {
       container.add(headSprite);
     }
 
-    const frontSegment = () => segments.find(({ index }) => index === 0)?.sprite;
+    const frontSegment = () => {
+      if (useClimb && layout === 'vertical') {
+        const topIndex = segCount - activeSegmentCount;
+        return segments.find(({ index }) => index === topIndex)?.sprite
+          ?? segments[segCount - 1]?.sprite;
+      }
+      return segments.find(({ index }) => index === 0)?.sprite;
+    };
 
     const syncHeadToSegment = (seg, cfgOverride = {}) => {
       if (!headSprite?.active || !seg) return;
@@ -349,7 +383,10 @@ export class CaterpillarSprite {
         if (layout === 'horizontal') {
           return { x: container.x + headOffsetX, y: container.y };
         }
-        return { x: container.x, y: container.y - headOffsetY };
+        const visibleStack = useClimb
+          ? (activeSegmentCount - 1) * spacing
+          : headOffsetY;
+        return { x: container.x, y: container.y - visibleStack };
       },
 
       setPosition(nx, ny) {
@@ -359,15 +396,7 @@ export class CaterpillarSprite {
       setMoving(moving) {
         if (useClimb) {
           api.isMoving = moving;
-          segments.forEach(({ sprite }) => {
-            if (moving && scene.anims.exists(climbAnimKey)) {
-              sprite.setTexture(texKeys.climb);
-              sprite.play(climbAnimKey);
-            } else {
-              sprite.anims?.stop();
-              sprite.setTexture(texKeys.climb, 0);
-            }
-          });
+          playClimbOnVisibleSegments(moving ? 60 : 80);
           return;
         }
         api.isRising = false;
@@ -455,15 +484,24 @@ export class CaterpillarSprite {
 
       playEat() {
         if (useClimb) {
-          segments.forEach(({ sprite }) => {
-            sprite.setTexture(texKeys.climb);
-            if (scene.anims.exists(climbAnimKey)) sprite.play(climbAnimKey);
+          const top = frontSegment();
+          const munch = top ? [top] : segments.map(({ sprite }) => sprite);
+          munch.forEach((sprite) => {
+            if (!sprite?.active) return;
+            scene.tweens.killTweensOf(sprite);
+            sprite.setScale(scale * 1.1);
           });
-          scene.time.delayedCall(320, () => {
-            segments.forEach(({ sprite }) => {
-              sprite.anims?.stop();
-              sprite.setTexture(texKeys.climb, 0);
+          if (headSprite?.active) {
+            scene.tweens.killTweensOf(headSprite);
+            headSprite.setScale(scale * 1.1);
+          }
+          scene.time.delayedCall(220, () => {
+            munch.forEach((sprite) => {
+              if (sprite?.active) sprite.setScale(scale);
             });
+            if (headSprite?.active) headSprite.setScale(scale);
+            playClimbOnVisibleSegments(80);
+            syncHeadToFront();
           });
           return;
         }
@@ -592,6 +630,21 @@ export class CaterpillarSprite {
         runCycle(true);
         api._stopWander = clearWander;
         return clearWander;
+      },
+
+      setActiveSegmentCount(count) {
+        activeSegmentCount = Phaser.Math.Clamp(count, 1, segments.length);
+        const firstVisible = segments.length - activeSegmentCount;
+        segments.forEach(({ sprite, index }) => {
+          sprite.setVisible(index >= firstVisible);
+        });
+        playClimbOnVisibleSegments(80);
+        syncHeadToFront();
+        bringHeadToFront();
+      },
+
+      getActiveSegmentCount() {
+        return activeSegmentCount;
       },
 
       setAlpha(a) {

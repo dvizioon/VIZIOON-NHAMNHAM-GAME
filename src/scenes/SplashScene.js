@@ -55,8 +55,6 @@ export class SplashScene extends Phaser.Scene {
     drawSkyBackground(this);
     ensureBgmPlaying(this);
 
-    this.spawnSplashClouds();
-
     const groundLine = getGroundY(this);
     const splashChild = { id: 'default' };
     const splashCustom = { cor: { clara: 0x7CB342, escura: 0x5C8F2E }, chapeu: false, oculos: false };
@@ -368,58 +366,6 @@ export class SplashScene extends Phaser.Scene {
       absoluteSize: portrait,
       depth: DEPTH_UI,
       onClick: () => playSound(this, 'clique'),
-    });
-  }
-
-  spawnSplashClouds() {
-    const { width, height } = this.scale;
-    const cloudBaseW = 128;
-    const cloudAspect = 106 / 136;
-    const cloudDepth = -50;
-
-    const lanes = [
-      { yRatio: SCENE_PAD_TOP + 0.05, scale: 1.45, duration: 26000, xRatio: -0.12, alpha: 0.9 },
-      { yRatio: SCENE_PAD_TOP + 0.14, scale: 0.58, duration: 12000, xRatio: 0.62, alpha: 0.7 },
-      { yRatio: SCENE_PAD_TOP + 0.22, scale: 1.05, duration: 19000, xRatio: 0.18, alpha: 0.82 },
-    ];
-
-    lanes.forEach((lane, index) => {
-      const displayW = Math.round(cloudBaseW * lane.scale);
-      const displayH = Math.round(displayW * cloudAspect);
-      this.createCloud(
-        width * lane.xRatio,
-        height * lane.yRatio,
-        displayW,
-        displayH,
-        lane.duration,
-        { alpha: lane.alpha, depth: cloudDepth + index },
-      );
-    });
-  }
-
-  createCloud(x, y, displayW, displayH, duration, { alpha = 0.9, depth = -50 } = {}) {
-    let cloud;
-    if (this.textures.exists('env_cloud')) {
-      cloud = this.add.image(x, y, 'env_cloud').setOrigin(0.5).setAlpha(alpha);
-      cloud.setDisplaySize(displayW, displayH);
-    } else {
-      const size = displayW * 0.45;
-      cloud = this.add.graphics();
-      cloud.fillStyle(0xffffff, 0.85);
-      cloud.fillCircle(0, 0, size * 0.35);
-      cloud.fillCircle(size * 0.3, -size * 0.15, size * 0.45);
-      cloud.fillCircle(size * 0.55, 0, size * 0.35);
-      cloud.setPosition(x, y);
-    }
-
-    cloud.setDepth(depth);
-
-    this.tweens.add({
-      targets: cloud,
-      x: this.scale.width + displayW + 60,
-      duration,
-      repeat: -1,
-      onRepeat: () => cloud.setX(-displayW - 80),
     });
   }
 }

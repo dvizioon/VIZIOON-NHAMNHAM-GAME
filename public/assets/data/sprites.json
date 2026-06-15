@@ -32,8 +32,8 @@
         },
         "climb": {
           "spritesheet": "sprites/characters/subindo.png",
-          "frameWidth": 244,
-          "frameHeight": 201
+          "frameWidth": 1028,
+          "frameHeight": 738
         }
       },
       "displayScale": 0.16,
@@ -62,7 +62,7 @@
           "sheet": "climb",
           "start": 0,
           "end": 1,
-          "frameRate": 8,
+          "frameRate": 6,
           "repeat": -1
         }
       },

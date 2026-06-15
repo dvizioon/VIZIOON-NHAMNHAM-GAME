@@ -2,6 +2,13 @@ import Phaser from 'phaser';
 import { Theme } from '../config/theme.js';
 import { uiScale, coverDisplaySize } from '../utils/responsive.js';
 import { hasTexture } from '../systems/AssetLoader.js';
+import {
+  ENV_SKY_KEY,
+  ENV_CLOUD_KEY,
+  ENV_GROUND_KEY,
+  TERRENO_GRASS_TOP_RATIO,
+  TERRENO_GROUND_LINE_RATIO,
+} from '../config/environmentConfig.js';
 
 /** Botão estilo folha — reutilizado em todas as telas */
 export function createButton(scene, x, y, label, { color = Theme.verde, onClick, width = 280, fontSize = 28 } = {}) {
@@ -77,72 +84,153 @@ export function createTitle(scene, x, y, text, size = 52) {
   }).setOrigin(0.5);
 }
 
-/** Fundo 1280×720 — céu + grama/chão em camadas */
-export const BACKGROUND_KEY = 'env_background';
-export const GROUND_KEY = 'env_ground';
+/** Céu + nuvens + terreno (mobile) */
+export const BACKGROUND_KEY = ENV_SKY_KEY;
+export const GROUND_KEY = ENV_GROUND_KEY;
+export const CLOUD_KEY = ENV_CLOUD_KEY;
 export const DEPTH_SKY = -100;
 export const DEPTH_CLOUD = -50;
+export const DEPTH_GROUND = 4;
+export const DEPTH_GROUND_FG = DEPTH_GROUND;
+export const DEPTH_TRUNK = 6;
 export const DEPTH_FRUIT = 5;
-export const DEPTH_GROUND_FG = 12;
 export const DEPTH_CATERPILLAR = 20;
 export const DESIGN_SIZE = { width: 1280, height: 720, groundY: 694, grassTopY: 580 };
 
-export function drawSkyBackground(scene) {
+const CLOUD_LANES = [
+  { yRatio: 0.13, scale: 1.45, duration: 26000, xRatio: -0.12, alpha: 0.9 },
+  { yRatio: 0.22, scale: 0.58, duration: 12000, xRatio: 0.62, alpha: 0.7 },
+  { yRatio: 0.3, scale: 1.05, duration: 19000, xRatio: 0.18, alpha: 0.82 },
+];
+
+export function getTerrenoLayout(scene) {
   const { width, height } = scene.scale;
-  const cover = coverDisplaySize(width, height, DESIGN_SIZE.width, DESIGN_SIZE.height);
+
+  if (!hasTexture(scene, GROUND_KEY)) {
+    return {
+      groundY: height * (DESIGN_SIZE.groundY / DESIGN_SIZE.height),
+      grassTopY: height * (DESIGN_SIZE.grassTopY / DESIGN_SIZE.height),
+      displayH: 0,
+      top: height,
+    };
+  }
+
+  const tex = scene.textures.get(GROUND_KEY).getSourceImage();
+  const displayW = width;
+  const displayH = (tex.height / tex.width) * displayW;
+  const top = height - displayH;
+
+  return {
+    groundY: top + displayH * TERRENO_GROUND_LINE_RATIO,
+    grassTopY: top + displayH * TERRENO_GRASS_TOP_RATIO,
+    displayH,
+    top,
+  };
+}
+
+/** Linha do chão — pés da lagarta */
+export function getGroundY(scene) {
+  return getTerrenoLayout(scene).groundY;
+}
+
+/** Topo da grama — frutas somem ao passar por trás */
+export function getGrassTopY(scene) {
+  return getTerrenoLayout(scene).grassTopY;
+}
+
+function drawSkyLayer(scene) {
+  const { width, height } = scene.scale;
 
   if (hasTexture(scene, BACKGROUND_KEY)) {
+    const tex = scene.textures.get(BACKGROUND_KEY).getSourceImage();
+    const cover = coverDisplaySize(width, height, tex.width, tex.height);
     scene.add.image(width / 2, height / 2, BACKGROUND_KEY)
       .setDepth(DEPTH_SKY)
       .setScrollFactor(0)
       .setDisplaySize(cover.w, cover.h);
-  } else {
-    const g = scene.add.graphics().setDepth(DEPTH_SKY);
-    g.fillGradientStyle(Theme.ceuClaro, Theme.ceuClaro, Theme.ceu, Theme.ceu, 1);
-    g.fillRect(0, 0, width, height);
+    return;
   }
 
-  drawGroundForeground(scene);
-  return null;
+  const g = scene.add.graphics().setDepth(DEPTH_SKY);
+  g.fillGradientStyle(Theme.ceuClaro, Theme.ceuClaro, Theme.ceu, Theme.ceu, 1);
+  g.fillRect(0, 0, width, height);
 }
 
-/** Grama + chão — recorta só a faixa verde/marrom e escala até a base da tela */
-export function drawGroundForeground(scene, depth = DEPTH_GROUND_FG) {
+function createDriftingCloud(scene, x, y, displayW, displayH, duration, { alpha = 0.9, depth = DEPTH_CLOUD } = {}) {
+  let cloud;
+  if (hasTexture(scene, CLOUD_KEY)) {
+    cloud = scene.add.image(x, y, CLOUD_KEY).setOrigin(0.5).setAlpha(alpha);
+    cloud.setDisplaySize(displayW, displayH);
+  } else {
+    const size = displayW * 0.45;
+    cloud = scene.add.graphics();
+    cloud.fillStyle(0xffffff, 0.85);
+    cloud.fillCircle(0, 0, size * 0.35);
+    cloud.fillCircle(size * 0.3, -size * 0.15, size * 0.45);
+    cloud.fillCircle(size * 0.55, 0, size * 0.35);
+    cloud.setPosition(x, y);
+  }
+
+  cloud.setDepth(depth);
+  scene.tweens.add({
+    targets: cloud,
+    x: scene.scale.width + displayW + 60,
+    duration,
+    repeat: -1,
+    onRepeat: () => cloud.setX(-displayW - 80),
+  });
+  return cloud;
+}
+
+/** Nuvens — nuvem.png */
+export function spawnEnvironmentClouds(scene) {
+  const { width, height } = scene.scale;
+  const cloudBaseW = 136;
+  const cloudAspect = 106 / 136;
+
+  CLOUD_LANES.forEach((lane, index) => {
+    const displayW = Math.round(cloudBaseW * lane.scale * uiScale(scene));
+    const displayH = Math.round(displayW * cloudAspect);
+    createDriftingCloud(
+      scene,
+      width * lane.xRatio,
+      height * lane.yRatio,
+      displayW,
+      displayH,
+      lane.duration,
+      { alpha: lane.alpha, depth: DEPTH_CLOUD + index },
+    );
+  });
+}
+
+/** terreno.png — chão mobile ancorado embaixo */
+export function drawGroundForeground(scene, depth = DEPTH_GROUND) {
   const { width, height } = scene.scale;
   if (!hasTexture(scene, GROUND_KEY)) return null;
 
   const tex = scene.textures.get(GROUND_KEY).getSourceImage();
-  const texW = tex.width;
-  const texH = tex.height;
-
-  const grassTopRatio = DESIGN_SIZE.grassTopY / DESIGN_SIZE.height;
-  const cropY = Math.round(texH * grassTopRatio);
-  const cropH = texH - cropY;
-
-  const screenGrassTop = getGrassTopY(scene);
-  const screenStripH = height - screenGrassTop;
-  const scale = screenStripH / cropH;
-  const displayW = texW * scale;
-  const displayH = screenStripH;
+  const displayW = width;
+  const displayH = (tex.height / tex.width) * displayW;
 
   return scene.add.image(width / 2, height, GROUND_KEY)
     .setDepth(depth)
     .setScrollFactor(0)
     .setOrigin(0.5, 1)
-    .setCrop(0, cropY, texW, cropH)
     .setDisplaySize(displayW, displayH);
 }
 
-/** Linha do chão — pés da lagarta */
-export function getGroundY(scene) {
-  const h = scene.scale.height;
-  return (DESIGN_SIZE.groundY / DESIGN_SIZE.height) * h;
+/** fundo azul + nuvens + terreno */
+export function drawEnvironmentLayers(scene, { clouds = true, ground = true } = {}) {
+  drawSkyLayer(scene);
+  if (clouds) spawnEnvironmentClouds(scene);
+  if (ground) drawGroundForeground(scene);
+  return null;
 }
 
-/** Topo da grama — frutas somem ao passar por trás */
-export function getGrassTopY(scene) {
-  const h = scene.scale.height;
-  return (DESIGN_SIZE.grassTopY / DESIGN_SIZE.height) * h;
+/** Atalho usado nas telas de menu */
+export function drawSkyBackground(scene) {
+  drawEnvironmentLayers(scene);
+  return null;
 }
 
 /** Botão voltar — canto superior esquerdo */

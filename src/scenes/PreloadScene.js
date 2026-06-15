@@ -10,7 +10,20 @@ import { startBgm } from '../systems/MusicManager.js';
 import { preloadSplashIcons } from '../ui/splashUi.js';
 import { preloadSettingsIcons } from '../ui/settingsUi.js';
 import { FOOD_FRUTAS } from '../config/foodConfig.js';
-import { GAME_BG_KEY, GAME_TRUNK_KEY, INTRO_TRUNK_KEY } from '../config/gameWorldConfig.js';
+import {
+  CHAR_HEADS_KEY,
+  CHAR_HEADS_ANIM_KEY,
+  CHAR_HEAD_FRAME_COUNT,
+} from '../config/characterUiConfig.js';
+import {
+  ENV_SKY_KEY,
+  ENV_CLOUD_KEY,
+  ENV_GROUND_KEY,
+  ENV_SKY_PATH,
+  ENV_CLOUD_PATH,
+  ENV_GROUND_PATH,
+} from '../config/environmentConfig.js';
+import { GAME_TRUNK_KEY, INTRO_TRUNK_KEY } from '../config/gameWorldConfig.js';
 import criancasData from '../../public/assets/data/criancas.json';
 
 export class PreloadScene extends Phaser.Scene {
@@ -52,10 +65,15 @@ export class PreloadScene extends Phaser.Scene {
 
     queueOptionalAssets(this);
     this.load.json('sprites', 'assets/data/sprites.json');
-    this.load.image('env_background', 'assets/textures/environment/Background.png');
-    this.load.image('env_ground', 'assets/textures/environment/Grama%20+%20Ch%C3%A3o.png');
-    this.load.image('env_cloud', 'assets/textures/environment/cloud.png');
+    this.load.image(ENV_SKY_KEY, ENV_SKY_PATH);
+    this.load.image(ENV_CLOUD_KEY, ENV_CLOUD_PATH);
+    this.load.image(ENV_GROUND_KEY, ENV_GROUND_PATH);
     this.load.image('ui_logo', 'assets/textures/ui/logo.svg');
+    this.load.image('ui_logo_personagens', 'assets/textures/ui/Logo_personagens.svg');
+    this.load.spritesheet('char_heads_kids', 'assets/sprites/characters/cabe%C3%A7a_crian%C3%A7as.png', {
+      frameWidth: 641,
+      frameHeight: 804,
+    });
     this.load.image('ui_button_border', 'assets/textures/ui/BordaButton.svg');
     this.load.image('ui_deco_3folhas', 'assets/textures/ui/3folhas.svg');
     this.load.image(
@@ -66,7 +84,6 @@ export class PreloadScene extends Phaser.Scene {
       frameWidth: FOOD_FRUTAS.frameWidth,
       frameHeight: FOOD_FRUTAS.frameHeight,
     });
-    this.load.image(GAME_BG_KEY, 'assets/textures/environment/backgroundgame.png');
     this.load.image(GAME_TRUNK_KEY, 'assets/textures/ui/tronco_game.png');
     this.load.image(INTRO_TRUNK_KEY, 'assets/textures/ui/tronco_intro.png');
     for (const [key, url] of Object.entries(REQUIRED_SOUNDS)) {
@@ -78,10 +95,21 @@ export class PreloadScene extends Phaser.Scene {
   async create() {
     registerSpriteAnimations(this);
 
+    if (this.textures.exists(CHAR_HEADS_KEY) && !this.anims.exists(CHAR_HEADS_ANIM_KEY)) {
+      this.anims.create({
+        key: CHAR_HEADS_ANIM_KEY,
+        frames: this.anims.generateFrameNumbers(CHAR_HEADS_KEY, {
+          start: 0,
+          end: CHAR_HEAD_FRAME_COUNT - 1,
+        }),
+        frameRate: 7,
+        repeat: -1,
+      });
+    }
+
     // PNGs do Figma passam de 4096px — reduz p/ GPU exibir
-    capImageTexture(this, 'env_background');
-    capImageTexture(this, 'env_ground');
-    capImageTexture(this, GAME_BG_KEY);
+    capImageTexture(this, ENV_SKY_KEY);
+    capImageTexture(this, ENV_GROUND_KEY);
     capImageTexture(this, GAME_TRUNK_KEY);
     capImageTexture(this, INTRO_TRUNK_KEY);
     capSpritesheet(this, FOOD_FRUTAS.key, FOOD_FRUTAS.frameWidth, FOOD_FRUTAS.frameHeight);

@@ -33,10 +33,33 @@
         display: block;
         margin: 0 !important;
       }
+      #mobile-only {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        padding: 32px;
+        text-align: center;
+        background: linear-gradient(180deg, #E8F9FF 0%, #BDE9F7 100%);
+        color: #3B3024;
+        font-size: clamp(18px, 5vw, 24px);
+        font-weight: 700;
+      }
+      #mobile-only[hidden] { display: none !important; }
+      #mobile-only span { font-size: 56px; }
     </style>
   </head>
   <body>
     <div id="page-back" aria-hidden="true"></div>
+    <div id="mobile-only" hidden>
+      <span>📱</span>
+      <p>NhamNham! só funciona no celular em pé.</p>
+      <p style="font-size:0.85em;font-weight:600;opacity:0.85">Abra no telefone ou gire a tela.</p>
+    </div>
     <div id="game-container"></div>
     <script type="module" src="/src/main.js"></script>
   </body>

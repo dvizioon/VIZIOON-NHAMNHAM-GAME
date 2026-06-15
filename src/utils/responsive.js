@@ -1,12 +1,13 @@
-/** Celular em pé — escala pela largura (tela estreita manda) */
+/** Mobile portrait — escala pela largura (390pt de referência) */
 export function uiScale(scene) {
   const { width, height } = scene.scale;
+  const base = width / 390;
 
   if (height > width) {
-    return Math.min(width / 720, 1);
+    return base;
   }
 
-  return Math.min(width / 1280, height / 720, 1);
+  return base * 0.85;
 }
 
 /** Cover 1280×720 — preenche tela sem esticar */

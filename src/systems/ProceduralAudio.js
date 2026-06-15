@@ -57,6 +57,8 @@ export class ProceduralAudio {
         tocar(600, 1200, 0.25, 0.2, 'sine', 0.15);
       },
       comer: () => tocar(700, 1100, 0.1, 0.3),
+      eat: () => tocar(700, 1100, 0.1, 0.3),
+      hut: () => tocar(520, 820, 0.14, 0.28),
       fruta: () => {
         tocar(600, 900, 0.1);
         tocar(900, 1300, 0.12, 0.25, 'sine', 0.08);

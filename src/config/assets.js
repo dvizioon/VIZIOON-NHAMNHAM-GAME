@@ -28,8 +28,8 @@ export const TEXTURES = {
 
   // Sprites Figma — ver public/assets/data/sprites.json
 
-  // Cenário
-  background: `${ASSET_BASE}/textures/environment/Background.png`,
+  // Cenário — ver environmentConfig.js (fundo, nuvem, terreno)
+  background: `${ASSET_BASE}/textures/environment/fundo.png`,
 
   // UI / acessórios
   hat: `${ASSET_BASE}/textures/ui/hat.png`,
@@ -39,6 +39,8 @@ export const TEXTURES = {
 /** Sons com arquivo real em public/assets/ — carregados no preload */
 export const REQUIRED_SOUNDS = {
   clique: `${ASSET_BASE}/sounds/sfx/pop.mp3`,
+  eat: `${ASSET_BASE}/sounds/sfx/eat.mp3`,
+  hut: `${ASSET_BASE}/sounds/sfx/hut.mp3`,
   bgm: `${ASSET_BASE}/sounds/music/Pleasant Creek.mp3`,
 };
 

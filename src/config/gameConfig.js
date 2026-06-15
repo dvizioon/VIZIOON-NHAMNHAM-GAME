@@ -23,8 +23,8 @@ export function createGameConfig() {
     scale: {
       mode: Phaser.Scale.RESIZE,
       autoCenter: Phaser.Scale.NO_CENTER,
-      width: 1280,
-      height: 720,
+      width: 390,
+      height: 844,
       expandParent: true,
     },
     input: {

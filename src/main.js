@@ -1,6 +1,9 @@
 import Phaser from 'phaser';
 import { createGameConfig } from './config/gameConfig.js';
 import { initDebugFlags } from './utils/debug.js';
+import { setupMobileGate } from './utils/mobileGate.js';
+
+setupMobileGate();
 
 const game = new Phaser.Game(createGameConfig());
 initDebugFlags(game);

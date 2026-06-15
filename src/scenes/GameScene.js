@@ -2,22 +2,20 @@ import Phaser from 'phaser';
 import { SceneKeys } from '../config/constants.js';
 import { Theme } from '../config/theme.js';
 import { playSound } from '../systems/ProceduralAudio.js';
-import { GameState } from '../utils/GameState.js';
-import { createButton } from '../ui/createUI.js';
+import { GameState, defaultCustom } from '../utils/GameState.js';
+import { createButton, drawEnvironmentLayers, getGroundY, DEPTH_TRUNK } from '../ui/createUI.js';
 import { FOOD_FRUTAS } from '../config/foodConfig.js';
+import { CaterpillarSprite } from '../entities/CaterpillarSprite.js';
 import {
   GAME_TRUNK_KEY,
-  CLIMB_TEX,
-  CLIMB_ANIM,
-  BG_FADE_SCROLL,
-  BG_PARALLAX_RATIO,
-  FRUIT_ROW_SPACING,
-  FRUIT_ROW_JITTER,
   TRUNK_PLAY_WIDTH_RATIO,
-  TRUNK_HEIGHT_BLEED,
-  TRUNK_LOOP_SEGMENTS,
-  CLIMBER_ANCHOR_Y_RATIO,
-  CLIMB_RISE_RATIO,
+  FRUIT_EAT_RADIUS_X,
+  MAX_BODY_SEGMENTS,
+  CLIMB_FRAME_WIDTH,
+  DEPTH_LAGARTA,
+  DEPTH_FRUIT,
+  FRUIT_FALL_INTERVAL_MIN,
+  FRUIT_FALL_INTERVAL_MAX,
   FRUIT_TRUNK_INSET,
 } from '../config/gameWorldConfig.js';
 import {
@@ -28,11 +26,9 @@ import {
 } from '../utils/debug.js';
 
 /**
- * Gameplay em camadas (tela fixa, mobile):
- * 1. backgroundgame.png — topo da tela
- * 2. tronco.png — centro, desce em loop
- * 3. frutas — surgem no tronco e descem com ele
- * 4. lagarta — fixa na tela, só move lateral
+ * tronco_game = background fixo
+ * lagarta no chão (cresce ao comer, até 6 segmentos)
+ * frutas caindo na frente
  */
 export class GameScene extends Phaser.Scene {
   constructor() {
@@ -42,56 +38,49 @@ export class GameScene extends Phaser.Scene {
   init() {
     this.config = null;
     this.child = null;
+    this.custom = null;
     this.pontos = 0;
     this.jogoAtivo = false;
     this.comidas = [];
     this.particulas = [];
     this.sapo = null;
-    this.trunkScroll = 0;
     this.motion = null;
-    this.maxScroll = 0;
     this.tonta = 0;
     this.invulneravel = 0;
     this.gameOverActive = false;
     this.vidas = 0;
     this.maxVidas = 3;
     this.showTutorial = true;
-    this.bgImage = null;
-    this.trunkContainer = null;
-    this.trunkSegs = [];
-    this.climber = null;
+    this.trunkBg = null;
+    this.caterpillarApi = null;
     this.lagarta = null;
     this.avisoContainer = null;
     this.avisoText = null;
     this.tutorialGroup = null;
-    this.nextFruitLocalY = 0;
-    this.isClimbing = false;
-    this.climbFrameMs = 0;
-    this.climbFrameIndex = 0;
+    this.fruitSpawnTimer = null;
+    this._fruitFrameBag = [];
   }
 
   create() {
     this.config = GameState.getConfig(this);
     this.child = GameState.getChild(this);
+    this.custom = GameState.getCustom(this) ?? defaultCustom(this.child);
     this.pontos = 0;
     this.maxVidas = this.config.maxVidas ?? 3;
     this.vidas = GameState.getLives(this) ?? this.maxVidas;
     this.gameOverActive = false;
     this.invulneravel = 0;
-    this.trunkScroll = 0;
     this.showTutorial = true;
     this.comidas = [];
     this.particulas = [];
+    this._fruitFrameBag = [];
 
     const { width, height } = this.scale;
-    this.maxScroll = height * 5.5;
-    this.anchorY = Math.round(height * CLIMBER_ANCHOR_Y_RATIO);
+    this.anchorY = Math.round(getGroundY(this));
     this.trunkCX = width / 2;
-    this.motion = { trunkY: 0, climberY: this.anchorY };
+    this.motion = { climberY: this.anchorY };
 
-    this.buildBackground(width, height);
-    this.buildTrunkLoop(width, height);
-    this.ensureClimbAnimation();
+    this.buildTrunkBackground(width, height);
     this.buildClimber(width);
     this.buildTutorial(width);
     this.buildAvisoPanel(width, height);
@@ -99,10 +88,12 @@ export class GameScene extends Phaser.Scene {
     this.gameplayG = this.add.graphics().setDepth(30).setScrollFactor(0);
     this.sapo = { ativo: false, lado: 1, lingua: 0, estado: 'escondido', timer: 0 };
 
-    this.nextFruitLocalY = -FRUIT_ROW_SPACING;
-    this.seedInitialFruits(height);
+    this.setupFallingFruits(width, height);
 
-    this.input.on('pointerdown', (p) => { this.moverPara(p.x); });
+    this.input.on('pointerdown', (p) => {
+      this.moverPara(p.x);
+      this.tentarComerNoToque(p.x, p.y);
+    });
     this.input.on('pointermove', (p) => { if (p.isDown) this.moverPara(p.x); });
     this.input.keyboard.on('keydown-LEFT', () => { this.lagarta.alvoX -= 48; });
     this.input.keyboard.on('keydown-RIGHT', () => { this.lagarta.alvoX += 48; });
@@ -136,169 +127,130 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  ensureClimbAnimation() {
-    if (!this.textures.exists(CLIMB_TEX)) return;
-    if (this.anims.exists(CLIMB_ANIM)) return;
-
-    this.anims.create({
-      key: CLIMB_ANIM,
-      frames: [
-        { key: CLIMB_TEX, frame: 0 },
-        { key: CLIMB_TEX, frame: 1 },
-      ],
-      frameRate: 10,
-      repeat: -1,
-    });
-  }
-
-  playClimbAnimation(active = true) {
-    if (!this.climber) return;
-
-    if (this.climber.anims && this.anims.exists(CLIMB_ANIM)) {
-      this.climber.anims.timeScale = active ? 1.5 : 0.8;
-      if (active || !this.climber.anims.isPlaying) {
-        this.climber.anims.play(CLIMB_ANIM);
-      }
-      return;
-    }
-
-    if (!this.climber.setFrame) return;
-    const interval = active ? 130 : 220;
-    this.climbFrameMs += this.game.loop.delta;
-    if (this.climbFrameMs >= interval) {
-      this.climbFrameMs = 0;
-      this.climbFrameIndex = this.climbFrameIndex === 0 ? 1 : 0;
-      this.climber.setFrame(this.climbFrameIndex);
-    }
-  }
-
-  buildBackground(width, height) {
-    // tronco_game.png cobre a tela — sem backgroundgame por cima
-    this.bgImage = null;
-  }
-
-  buildTrunkLoop(width, height) {
-    this.trunkSegs = [];
+  buildTrunkBackground(width, height) {
     this.trunkW = width;
     this.trunkPlayW = Math.round(width * TRUNK_PLAY_WIDTH_RATIO);
-    this.trunkCX = width / 2;
-    this.trunkH = Math.round(height * TRUNK_HEIGHT_BLEED);
 
-    this.trunkContainer = this.add.container(this.trunkCX, 0)
-      .setDepth(12)
-      .setScrollFactor(0);
+    drawEnvironmentLayers(this);
 
-    for (let i = 0; i < TRUNK_LOOP_SEGMENTS; i++) {
-      const seg = this.add.image(0, -i * this.trunkH, GAME_TRUNK_KEY)
-        .setOrigin(0.5, 0);
-
-      if (this.textures.exists(GAME_TRUNK_KEY)) {
-        this.scaleTrunkSegment(seg);
-      } else {
-        seg.setDisplaySize(this.trunkW, this.trunkH);
-        seg.setTint(0x8B5A2B);
-      }
-
-      this.trunkContainer.add(seg);
-      this.trunkSegs.push(seg);
+    if (this.textures.exists(GAME_TRUNK_KEY)) {
+      this.trunkBg = this.add.image(width / 2, 0, GAME_TRUNK_KEY)
+        .setOrigin(0.5, 0)
+        .setDepth(DEPTH_TRUNK)
+        .setScrollFactor(0)
+        .setDisplaySize(width, height);
+    } else {
+      this.trunkBg = this.add.rectangle(width / 2, height / 2, width, height, 0x8B5A2B)
+        .setDepth(DEPTH_TRUNK)
+        .setScrollFactor(0);
     }
-
-    this.applyMotion();
   }
 
-  scaleTrunkSegment(seg) {
-    seg.setDisplaySize(this.trunkW, this.trunkH);
+  buildClimber(width) {
+    const climbScale = (this.trunkPlayW * 0.55) / CLIMB_FRAME_WIDTH;
+
+    this.caterpillarApi = CaterpillarSprite.create(
+      this,
+      this.trunkCX,
+      this.anchorY,
+      this.child,
+      this.custom,
+      DEPTH_LAGARTA,
+      {
+        layout: 'vertical',
+        preferClimb: true,
+        hideHead: true,
+        segmentCount: MAX_BODY_SEGMENTS,
+        displayScale: climbScale,
+      },
+    );
+
+    this.caterpillarApi.setActiveSegmentCount(1);
+    this.caterpillarApi.setMoving(false);
+
+    this.lagarta = {
+      x: this.trunkCX,
+      alvoX: this.trunkCX,
+      raio: 28,
+      segmentos: 1,
+    };
   }
 
-  applyMotion() {
-    if (!this.trunkContainer || !this.motion) return;
-
-    const loop = this.trunkH * this.trunkSegs.length;
-    const shift = ((this.motion.trunkY % loop) + loop) % loop;
-    this.trunkContainer.y = shift;
-    this.trunkScroll = this.motion.trunkY;
-
-    if (this.climber && this.lagarta) {
-      this.climber.setPosition(this.lagarta.x, this.motion.climberY);
+  getHeadPos() {
+    if (this.caterpillarApi?.getHeadPosition) {
+      return this.caterpillarApi.getHeadPosition();
     }
+    return { x: this.lagarta.x, y: this.motion.climberY };
   }
 
   getClimberY() {
     return this.motion?.climberY ?? this.anchorY;
   }
 
-  getFruitWorldPos(c) {
-    return {
-      x: this.trunkCX + c.localX,
-      y: this.trunkContainer.y + c.localY,
-    };
+  pickFruitFrame() {
+    if (!this._fruitFrameBag.length) {
+      this._fruitFrameBag = Phaser.Utils.Array.Shuffle(
+        Array.from({ length: FOOD_FRUTAS.frames }, (_, i) => i),
+      );
+    }
+    return this._fruitFrameBag.pop();
   }
 
-  buildClimber(width) {
-    const climbKey = this.textures.exists(CLIMB_TEX) ? CLIMB_TEX : null;
-    const scale = (this.trunkPlayW * 1.15) / 244;
+  setupFallingFruits(width, height) {
+    if (!this.textures.exists(FOOD_FRUTAS.key)) return;
 
-    if (climbKey) {
-      this.climber = this.add.sprite(this.trunkCX, this.anchorY, climbKey, 0)
-        .setOrigin(0.5, 0.92)
-        .setDepth(25)
-        .setScale(scale)
-        .setScrollFactor(0);
-      if (this.anims.exists(CLIMB_ANIM)) {
-        this.playClimbAnimation(false);
-      }
-    } else {
-      this.climber = this.add.circle(this.trunkCX, this.anchorY, 22, Theme.folha)
-        .setDepth(25)
-        .setScrollFactor(0);
+    for (let i = 0; i < 3; i++) {
+      this.time.delayedCall(i * 600, () => this.spawnFallingFruit());
     }
 
-    this.lagarta = {
-      x: this.trunkCX,
-      alvoX: this.trunkCX,
-      raio: 26,
-      segmentos: 1,
-    };
-  }
-
-  gerarFrutasAdiante(height) {
-    const needAbove = this.motion.trunkY + height * 1.25;
-    while (-this.nextFruitLocalY < needAbove) {
-      this.spawnFruitRow(this.nextFruitLocalY);
-      this.nextFruitLocalY -= FRUIT_ROW_SPACING + Phaser.Math.Between(0, FRUIT_ROW_JITTER);
-    }
-  }
-
-  seedInitialFruits(height) {
-    let localY = Math.round(height * 0.14);
-    const stopY = this.anchorY - 64;
-
-    while (localY < stopY) {
-      this.spawnFruitRow(localY);
-      localY += FRUIT_ROW_SPACING + Phaser.Math.Between(12, FRUIT_ROW_JITTER);
-    }
-
-    this.gerarFrutasAdiante(height);
-  }
-
-  spawnFruitRow(localY) {
-    const count = Phaser.Math.Between(1, 2);
-    const lanes = count === 1
-      ? [this.pickFruitX()]
-      : [this.pickFruitX(-1), this.pickFruitX(1)];
-
-    lanes.forEach((x) => {
-      if (!this.textures.exists(FOOD_FRUTAS.key)) return;
-
-      const frame = Phaser.Math.Between(0, FOOD_FRUTAS.frames - 1);
-      const size = Math.round(this.trunkW * 0.2 + Math.random() * 8);
-      const localX = x - this.trunkCX;
-      const sprite = this.add.image(localX, localY, FOOD_FRUTAS.key, frame)
-        .setDisplaySize(size, size);
-
-      this.trunkContainer.add(sprite);
-      this.comidas.push({ localX, localY, sprite, tipo: 'fruta' });
+    this.fruitSpawnTimer = this.time.addEvent({
+      delay: Phaser.Math.Between(FRUIT_FALL_INTERVAL_MIN, FRUIT_FALL_INTERVAL_MAX),
+      loop: true,
+      callback: () => {
+        this.spawnFallingFruit();
+        this.fruitSpawnTimer.delay = Phaser.Math.Between(
+          FRUIT_FALL_INTERVAL_MIN,
+          FRUIT_FALL_INTERVAL_MAX,
+        );
+      },
     });
+  }
+
+  spawnFallingFruit() {
+    if (!this.jogoAtivo || this.comidas.length >= 8) return;
+
+    const { height } = this.scale;
+    const x = this.pickFruitX();
+    const frame = this.pickFruitFrame();
+    const size = Math.round(this.trunkW * 0.19 + Math.random() * 10);
+    const startY = Phaser.Math.Between(-180, -40);
+
+    const sprite = this.add.image(x, startY, FOOD_FRUTAS.key, frame)
+      .setDisplaySize(size, size)
+      .setDepth(DEPTH_FRUIT)
+      .setScrollFactor(0);
+
+    const entry = { x, sprite, falling: true };
+    this.comidas.push(entry);
+
+    const fallMs = Phaser.Math.Between(3200, 5200);
+    this.tweens.add({
+      targets: sprite,
+      y: height + 100,
+      duration: fallMs,
+      ease: 'Quad.easeIn',
+      rotation: Phaser.Math.FloatBetween(-0.2, 0.2),
+      onComplete: () => this.removeFruit(entry),
+    });
+  }
+
+  removeFruit(entry) {
+    const idx = this.comidas.indexOf(entry);
+    if (idx >= 0) this.comidas.splice(idx, 1);
+    if (entry.sprite?.active) {
+      this.tweens.killTweensOf(entry.sprite);
+      entry.sprite.destroy();
+    }
   }
 
   pickFruitX(side = 0) {
@@ -311,7 +263,7 @@ export class GameScene extends Phaser.Scene {
     this.tutorialGroup = this.add.container(0, 0).setDepth(200);
     this.pinHud(this.tutorialGroup);
 
-    const hint = this.add.text(width / 2, 100, `🍎 ${this.child.nome}, toque nas frutas e suba!`, {
+    const hint = this.add.text(width / 2, 100, `🍎 ${this.child.nome}, toque nas frutas!`, {
       fontFamily: Theme.fontFamily,
       fontSize: '16px',
       color: '#3B3024',
@@ -368,6 +320,42 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  tentarComerNoToque(px, py) {
+    if (!this.jogoAtivo || this.gameOverActive) return;
+
+    let melhor = null;
+    let melhorDist = 90;
+
+    for (const c of this.comidas) {
+      if (!c.sprite?.active) continue;
+      const d = Phaser.Math.Distance.Between(px, py, c.sprite.x, c.sprite.y);
+      if (d < melhorDist) {
+        melhor = c;
+        melhorDist = d;
+      }
+    }
+
+    if (melhor) {
+      this.lagarta.alvoX = melhor.x;
+      this.comer(melhor);
+    }
+  }
+
+  podeComerFruta(sprite) {
+    const head = this.getHeadPos();
+    return (
+      Math.abs(sprite.x - head.x) < FRUIT_EAT_RADIUS_X + 18
+      && Math.abs(sprite.y - head.y) < 58
+    );
+  }
+
+  crescerLagarta() {
+    const segs = Math.min(MAX_BODY_SEGMENTS, this.pontos + 1);
+    this.caterpillarApi?.setActiveSegmentCount(segs);
+    this.lagarta.segmentos = segs;
+    this.lagarta.raio = Math.min(38, 24 + this.pontos * 2);
+  }
+
   ativarSapo() {
     if (!this.jogoAtivo || this.sapo.ativo) return;
     if (this.pontos < (this.config.minComidaAntesSapo ?? 4)) return;
@@ -385,8 +373,8 @@ export class GameScene extends Phaser.Scene {
     const msgs = {
       sapo: `🐸 ${nome}, cuidado! O sapo tá chegando!`,
       cresceu: `✨ Uau ${nome}! A lagartinha cresceu!`,
+      comeu: `😋 ${nome} comeu! Nham-nham!`,
       sapoHit: `😵 ${nome} levou uma lambida do sapo!`,
-      subiu: `⬆️ ${nome} subiu! Nham-nham!`,
     };
 
     this.avisoText.setText(msgs[tipo] || tipo);
@@ -404,14 +392,14 @@ export class GameScene extends Phaser.Scene {
     this.dismissTutorial();
     this.pontos = Math.min(this.pontos + 1, this.config.metaComida);
     GameState.setPoints(this, this.pontos);
-    playSound(this, 'fruta');
+    playSound(this, 'eat');
 
-    const pos = this.getFruitWorldPos(c);
-
-    c.sprite?.destroy();
+    const pos = { x: c.sprite.x, y: c.sprite.y };
+    this.tweens.killTweensOf(c.sprite);
+    c.sprite.destroy();
     this.comidas = this.comidas.filter((f) => f !== c);
 
-    this.playClimbAnimation(true);
+    this.caterpillarApi?.playEat?.();
 
     for (let i = 0; i < 8; i++) {
       this.particulas.push({
@@ -424,54 +412,16 @@ export class GameScene extends Phaser.Scene {
       });
     }
 
+    this.crescerLagarta();
+
     if (this.pontos % 4 === 0) {
       playSound(this, 'cresceu');
       this.avisar('cresceu');
-      this.lagarta.raio = Math.min(36, this.lagarta.raio + 2);
     } else {
-      this.avisar('subiu');
+      this.avisar('comeu');
     }
 
-    const climbDelta = FRUIT_ROW_SPACING + Phaser.Math.Between(0, FRUIT_ROW_JITTER * 0.5);
-    const { height } = this.scale;
-    const targetTrunk = Math.min(this.maxScroll, this.motion.trunkY + climbDelta);
-    const targetClimber = Math.max(
-      height * 0.18,
-      this.motion.climberY - climbDelta * CLIMB_RISE_RATIO,
-    );
-
-    this.isClimbing = true;
-    this.tweens.killTweensOf(this.motion);
-    this.tweens.killTweensOf(this.climber);
-    this.playClimbAnimation(true);
-
-    this.tweens.add({
-      targets: this.motion,
-      trunkY: targetTrunk,
-      duration: 520,
-      ease: 'Sine.easeOut',
-      onUpdate: () => {
-        this.applyMotion();
-        this.playClimbAnimation(true);
-      },
-    });
-
-    this.tweens.add({
-      targets: this.climber,
-      y: targetClimber,
-      duration: 520,
-      ease: 'Sine.easeOut',
-      onUpdate: () => {
-        this.motion.climberY = this.climber.y;
-        this.playClimbAnimation(true);
-      },
-      onComplete: () => {
-        this.motion.climberY = targetClimber;
-        this.isClimbing = false;
-        this.playClimbAnimation(false);
-        this.gerarFrutasAdiante(this.scale.height);
-      },
-    });
+    this.spawnFallingFruit();
 
     if (this.pontos >= this.config.metaComida) {
       this.jogoAtivo = false;
@@ -486,6 +436,7 @@ export class GameScene extends Phaser.Scene {
     GameState.setLives(this, this.vidas);
     this.invulneravel = this.config.invulneravelFrames ?? 120;
     playSound(this, somId);
+    this.caterpillarApi?.playHurt?.();
     this.avisar(tipo);
 
     if (this.vidas <= 0) {
@@ -543,23 +494,9 @@ export class GameScene extends Phaser.Scene {
     if (this.tonta > 0) this.tonta--;
     if (this.invulneravel > 0) this.invulneravel--;
 
-    const { width, height } = this.scale;
-
-    const bgFade = Phaser.Math.Clamp(
-      this.motion.trunkY / (height * BG_FADE_SCROLL),
-      0,
-      1,
-    );
-    if (this.bgImage?.setAlpha) {
-      this.bgImage.setAlpha(Math.max(0.12, 1 - bgFade * 0.98));
-    }
-    if (this.bgImage?.setY) {
-      this.bgImage.y = Math.min(this.motion.trunkY * BG_PARALLAX_RATIO, height * 0.45);
-    }
-
-    this.applyMotion();
-
+    const { width } = this.scale;
     const halfTrunk = this.trunkPlayW * 0.5;
+
     this.lagarta.alvoX = Phaser.Math.Clamp(
       this.lagarta.alvoX,
       this.trunkCX - halfTrunk,
@@ -567,26 +504,18 @@ export class GameScene extends Phaser.Scene {
     );
     this.lagarta.x += (this.lagarta.alvoX - this.lagarta.x) * 0.14;
 
-    if (this.climber) {
-      this.climber.setPosition(this.lagarta.x, this.getClimberY());
+    if (this.caterpillarApi) {
+      this.caterpillarApi.setPosition(this.lagarta.x, this.getClimberY());
       const alpha = this.invulneravel > 0 && Math.floor(this.invulneravel / 6) % 2 ? 0.45 : 1;
-      this.climber.setAlpha(alpha);
-      this.playClimbAnimation(this.isClimbing);
+      this.caterpillarApi.setAlpha(alpha);
+      this.caterpillarApi.updateWave(this.time.now * 0.001, this.lagarta.alvoX !== this.lagarta.x);
     }
 
     for (let i = this.comidas.length - 1; i >= 0; i--) {
       const c = this.comidas[i];
-      const pos = this.getFruitWorldPos(c);
-      const climberY = this.getClimberY();
+      if (!c.sprite?.active) continue;
 
-      if (pos.y > height + 80) {
-        c.sprite?.destroy();
-        this.comidas.splice(i, 1);
-        continue;
-      }
-
-      const dist = Phaser.Math.Distance.Between(pos.x, pos.y, this.lagarta.x, climberY);
-      if (!this.isClimbing && dist < this.lagarta.raio + 26) {
+      if (this.podeComerFruta(c.sprite)) {
         this.comer(c);
         break;
       }
@@ -594,6 +523,7 @@ export class GameScene extends Phaser.Scene {
 
     if (this.sapo.ativo) {
       this.sapo.timer++;
+      const head = this.getHeadPos();
       if (this.sapo.estado === 'avisando' && this.sapo.timer > 55) {
         this.sapo.estado = 'atacando';
         this.sapo.timer = 0;
@@ -603,7 +533,7 @@ export class GameScene extends Phaser.Scene {
         this.sapo.lingua += width * 0.02;
         const px = this.sapo.lado === 0 ? this.sapo.lingua : width - this.sapo.lingua;
         if (
-          Math.abs(px - this.lagarta.x) < this.lagarta.raio + 14
+          Math.abs(px - head.x) < this.lagarta.raio + 14
           && this.tonta === 0 && this.invulneravel === 0
         ) {
           this.perderVida('sapoHit', 'ai');
@@ -635,13 +565,14 @@ export class GameScene extends Phaser.Scene {
     if (!g) return;
     g.clear();
 
-    if (this.trunkContainer?.getBounds) {
-      drawBoundsHit(g, this.trunkContainer.getBounds(), 0x8B5A2B, 0.12);
+    if (this.trunkBg?.getBounds) {
+      drawBoundsHit(g, this.trunkBg.getBounds(), 0x8B5A2B, 0.08);
     }
 
-    if (this.climber?.getBounds) {
-      drawBoundsHit(g, this.climber.getBounds(), 0x4CAF50, 0.2);
-      drawCircleHit(g, getGameObjectCircle(this.climber, 0.38, 0.55), 0x00FF88, 0.25);
+    if (this.caterpillarApi?.container?.getBounds) {
+      drawBoundsHit(g, this.caterpillarApi.container.getBounds(), 0x4CAF50, 0.2);
+      const head = this.getHeadPos();
+      drawCircleHit(g, { x: head.x, y: head.y, r: this.lagarta.raio }, 0x00FF88, 0.25);
     }
 
     for (const c of this.comidas) {
@@ -665,7 +596,8 @@ export class GameScene extends Phaser.Scene {
     if (!this.sapo.ativo) return;
 
     const { width } = this.scale;
-    const frogY = this.getClimberY();
+    const head = this.getHeadPos();
+    const frogY = head.y;
     const x = this.sapo.lado === 0 ? 0 : width;
     const dir = this.sapo.lado === 0 ? 1 : -1;
 
@@ -691,9 +623,15 @@ export class GameScene extends Phaser.Scene {
 
   shutdown() {
     this.timerSapo?.remove();
+    this.fruitSpawnTimer?.remove();
     if (this.debugDraw) this.events.off('update', this.debugDraw);
     this.debugGfx?.destroy();
-    this.comidas.forEach((c) => c.sprite?.destroy());
+    this.comidas.forEach((c) => {
+      this.tweens.killTweensOf(c.sprite);
+      c.sprite?.destroy();
+    });
     this.comidas = [];
+    this.caterpillarApi?.destroy?.();
+    this.caterpillarApi = null;
   }
 }
