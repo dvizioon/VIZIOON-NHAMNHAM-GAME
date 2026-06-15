@@ -106,19 +106,30 @@ export function drawSkyBackground(scene) {
   return null;
 }
 
-/** Grama + chão — altura = tela, largura proporcional, base na borda inferior (sem esticar) */
+/** Grama + chão — recorta só a faixa verde/marrom e escala até a base da tela */
 export function drawGroundForeground(scene, depth = DEPTH_GROUND_FG) {
   const { width, height } = scene.scale;
   if (!hasTexture(scene, GROUND_KEY)) return null;
 
   const tex = scene.textures.get(GROUND_KEY).getSourceImage();
-  const displayH = height;
-  const displayW = displayH * (tex.width / tex.height);
+  const texW = tex.width;
+  const texH = tex.height;
+
+  const grassTopRatio = DESIGN_SIZE.grassTopY / DESIGN_SIZE.height;
+  const cropY = Math.round(texH * grassTopRatio);
+  const cropH = texH - cropY;
+
+  const screenGrassTop = getGrassTopY(scene);
+  const screenStripH = height - screenGrassTop;
+  const scale = screenStripH / cropH;
+  const displayW = texW * scale;
+  const displayH = screenStripH;
 
   return scene.add.image(width / 2, height, GROUND_KEY)
     .setDepth(depth)
     .setScrollFactor(0)
     .setOrigin(0.5, 1)
+    .setCrop(0, cropY, texW, cropH)
     .setDisplaySize(displayW, displayH);
 }
 

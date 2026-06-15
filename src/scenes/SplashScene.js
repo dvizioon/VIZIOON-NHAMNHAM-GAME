@@ -12,7 +12,7 @@ import { playSound } from '../systems/ProceduralAudio.js';
 import { GameState } from '../utils/GameState.js';
 import { CaterpillarSprite } from '../entities/CaterpillarSprite.js';
 import { ensureBgmPlaying } from '../systems/MusicManager.js';
-import { responsiveWidth, layoutY, uiScale, isPortrait } from '../utils/responsive.js';
+import { responsiveWidth, layoutY, isPortrait, mobileBtnSize } from '../utils/responsive.js';
 import { hasTexture } from '../systems/AssetLoader.js';
 import {
   drawBoundsHit,
@@ -24,9 +24,10 @@ import {
 const FOOD_KEY = 'food_frutas';
 const SPLASH_BTN_SIZE = 142;
 const SPLASH_ICON_SIZE = 60;
-const SPLASH_BUTTONS_Y_RATIO = 0.62;
-const LOGO_Y_RATIO = 0.28;
-const LOGO_MAX_WIDTH_RATIO = 0.38;
+const SPLASH_LAYOUT = {
+  portrait: { logoY: 0.21, buttonsY: 0.54, logoWidth: 0.76, playBtn: 0.19, configBtn: 0.11, btnGap: 0.05 },
+  landscape: { logoY: 0.28, buttonsY: 0.62, logoWidth: 0.38, playBtn: null, configBtn: null, btnGap: 0.022 },
+};
 const LOGO_MAX_WIDTH = 400;
 const FOOD_FRAMES = 14;
 const FOOD_FRAME_W = 898;
@@ -82,7 +83,7 @@ export class SplashScene extends Phaser.Scene {
 
     if (caterpillar.mode === 'filament') {
       caterpillar.startWander(this, {
-        edgePad: Math.max(100, width * 0.08),
+        edgePad: isPortrait(this) ? Math.max(48, width * 0.06) : Math.max(100, width * 0.08),
         speed: 85,
         pauseMs: 2800,
         startRight: true,
@@ -301,31 +302,31 @@ export class SplashScene extends Phaser.Scene {
   }
 
   placeLogo(width, depth) {
-    const y = layoutY(this, LOGO_Y_RATIO);
+    const layout = isPortrait(this) ? SPLASH_LAYOUT.portrait : SPLASH_LAYOUT.landscape;
+    const y = layoutY(this, layout.logoY);
     const maxW = isPortrait(this)
-      ? Math.min(Math.round(width * 0.95), Math.round(this.scale.height * 0.55), 580)
-      : responsiveWidth(this, LOGO_MAX_WIDTH_RATIO, LOGO_MAX_WIDTH);
+      ? Math.round(width * layout.logoWidth)
+      : responsiveWidth(this, layout.logoWidth, LOGO_MAX_WIDTH);
 
     if (this.textures.exists(UI_LOGO_KEY)) {
       const logo = this.add.image(width / 2, y, UI_LOGO_KEY).setDepth(depth);
-      const scale = maxW / logo.width;
-      logo.setScale(scale);
+      logo.setScale(maxW / logo.width);
     }
   }
 
   placeSplashButtons(width) {
-    const scale = uiScale(this);
     const portrait = isPortrait(this);
-    const configSize = portrait ? Math.round(SPLASH_BTN_SIZE * 1.05) : SPLASH_BTN_SIZE;
-    const configIcon = portrait ? Math.round(SPLASH_ICON_SIZE * 1.05) : SPLASH_ICON_SIZE;
-    const playSize = portrait ? Math.round(SPLASH_BTN_SIZE * 1.55) : SPLASH_BTN_SIZE;
-    const playIcon = portrait ? Math.round(SPLASH_ICON_SIZE * 1.35) : SPLASH_ICON_SIZE;
-    const { btnW } = getIconButtonSize(this, playSize);
-    const gap = Math.round(28 * scale);
-    const rowY = layoutY(this, SPLASH_BUTTONS_Y_RATIO);
+    const layout = portrait ? SPLASH_LAYOUT.portrait : SPLASH_LAYOUT.landscape;
+    const configSize = mobileBtnSize(this, layout.configBtn ?? 0.11, SPLASH_BTN_SIZE);
+    const configIcon = Math.round(configSize * 0.42);
+    const playSize = mobileBtnSize(this, layout.playBtn ?? 0.19, SPLASH_BTN_SIZE);
+    const playIcon = Math.round(playSize * 0.42);
+    const { btnW } = getIconButtonSize(this, playSize, { absolute: portrait });
+    const gap = Math.round(width * layout.btnGap);
+    const rowY = layoutY(this, layout.buttonsY);
 
     placeTopRightButton(this, SPLASH_ICONS.config, {
-      margin: 24,
+      marginRatio: 0.04,
       size: configSize,
       iconSize: configIcon,
       depth: DEPTH_UI,
@@ -342,6 +343,7 @@ export class SplashScene extends Phaser.Scene {
     createIconCircleButton(this, playX, rowY, SPLASH_ICONS.play, {
       size: playSize,
       iconSize: playIcon,
+      absoluteSize: portrait,
       depth: DEPTH_UI,
       onClick: () => {
         playSound(this, 'clique');
@@ -353,6 +355,7 @@ export class SplashScene extends Phaser.Scene {
     createIconCircleButton(this, rankX, rowY, SPLASH_ICONS.ranking, {
       size: playSize,
       iconSize: playIcon,
+      absoluteSize: portrait,
       depth: DEPTH_UI,
       onClick: () => playSound(this, 'clique'),
     });

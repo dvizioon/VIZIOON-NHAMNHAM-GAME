@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { SceneKeys, RegistryKeys, defaultSettings } from '../config/constants.js';
 import { REQUIRED_SOUNDS } from '../config/assets.js';
 import { Theme } from '../config/theme.js';
+import { uiScale, isPortrait } from '../utils/responsive.js';
 import { queueOptionalAssets } from '../systems/AssetLoader.js';
 import { queueSpriteAssets, registerSpriteAnimations } from '../systems/SpriteLoader.js';
 import { capImageTexture, capSpritesheet } from '../systems/TextureScaler.js';
@@ -17,26 +18,30 @@ export class PreloadScene extends Phaser.Scene {
 
   preload() {
     const { width, height } = this.scale;
-    const barW = 400;
-    const barH = 28;
+    const portrait = isPortrait(this);
+    const barW = portrait ? Math.round(width * 0.78) : Math.min(400, Math.round(width * 0.55));
+    const barH = Math.max(18, Math.round(barW * 0.07));
+    const titleSize = Math.max(28, Math.round((portrait ? width * 0.11 : 42) * (portrait ? 1 : uiScale(this))));
+    const titleY = height * (portrait ? 0.42 : 0.5) - 60;
 
-    this.add.text(width / 2, height / 2 - 60, 'NhamNham!', {
+    this.add.text(width / 2, titleY, 'NhamNham!', {
       fontFamily: Theme.fontFamily,
-      fontSize: '42px',
+      fontSize: `${titleSize}px`,
       color: '#4E9A2E',
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
+    const barY = height * (portrait ? 0.48 : 0.5);
     const box = this.add.graphics();
     box.fillStyle(0x222222, 0.8);
-    box.fillRoundedRect(width / 2 - barW / 2 - 10, height / 2 - 10, barW + 20, barH + 20, 8);
+    box.fillRoundedRect(width / 2 - barW / 2 - 10, barY - 10, barW + 20, barH + 20, 8);
 
     const bar = this.add.graphics();
 
     this.load.on('progress', (value) => {
       bar.clear();
       bar.fillStyle(Theme.sol, 1);
-      bar.fillRoundedRect(width / 2 - barW / 2, height / 2, barW * value, barH, 6);
+      bar.fillRoundedRect(width / 2 - barW / 2, barY, barW * value, barH, 6);
     });
 
     this.load.on('loaderror', () => {

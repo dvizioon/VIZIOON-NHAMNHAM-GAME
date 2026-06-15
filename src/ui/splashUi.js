@@ -1,5 +1,5 @@
 import { Theme } from '../config/theme.js';
-import { uiScale } from '../utils/responsive.js';
+import { uiScale, isPortrait } from '../utils/responsive.js';
 import { Icon } from './iconify.js';
 
 export const UI_LOGO_KEY = 'ui_logo';
@@ -28,8 +28,8 @@ export async function preloadSplashIcons(scene) {
 }
 
 /** Tamanho renderizado do botão (borda incluída) */
-export function getIconButtonSize(scene, size = 142) {
-  const scale = uiScale(scene);
+export function getIconButtonSize(scene, size = 142, { absolute = false } = {}) {
+  const scale = absolute ? 1 : uiScale(scene);
   const btnW = Math.round(size * scale);
   const btnH = Math.round(size * BORDER_ASPECT * scale);
   return { btnW, btnH, scale };
@@ -55,11 +55,13 @@ export function createIconCircleButton(
     flipIcon = false,
     contentOffsetX = 0,
     contentOffsetY = 0,
+    absoluteSize = false,
   } = {},
 ) {
   const textureKey = icon instanceof Icon ? icon.textureKey : icon;
-  const { btnW, btnH, scale } = getIconButtonSize(scene, size);
-  const iconPx = Math.round(iconSize * scale);
+  const { btnW, btnH, scale } = getIconButtonSize(scene, size, { absolute: absoluteSize });
+  const iconScale = absoluteSize ? 1 : scale;
+  const iconPx = Math.round(iconSize * iconScale);
   const fillR = Math.round(Math.min(btnW, btnH) * fillRatio);
   const borderW = Math.round(btnW * borderScale);
   const borderH = Math.round(btnH * borderScale);
@@ -72,8 +74,8 @@ export function createIconCircleButton(
     .setOrigin(0.5);
 
   const content = scene.add.container(
-    Math.round(contentOffsetX * scale),
-    Math.round(contentOffsetY * scale),
+    Math.round(contentOffsetX * iconScale),
+    Math.round(contentOffsetY * iconScale),
   );
 
   const bg = scene.add.graphics();
@@ -106,16 +108,25 @@ export function createIconCircleButton(
 }
 
 /** Canto superior direito — encaixa a caixa do botão na margem */
-export function placeTopRightButton(scene, icon, { margin = 24, onClick, ...opts } = {}) {
+export function placeTopRightButton(scene, icon, {
+  margin = 24,
+  marginRatio = null,
+  absoluteSize = false,
+  onClick,
+  ...opts
+} = {}) {
   const { width } = scene.scale;
-  const { btnW, btnH, scale } = getIconButtonSize(scene, opts.size ?? 142);
-  const m = Math.round(margin * scale);
+  const abs = absoluteSize || isPortrait(scene);
+  const { btnW, btnH, scale } = getIconButtonSize(scene, opts.size ?? 142, { absolute: abs });
+  const m = marginRatio != null
+    ? Math.max(12, Math.round(width * marginRatio))
+    : Math.round(margin * (abs ? 1 : scale));
 
   return createIconCircleButton(
     scene,
     width - m - btnW / 2,
     m + btnH / 2,
     icon,
-    { onClick, ...opts },
+    { onClick, absoluteSize: abs, ...opts },
   );
 }
