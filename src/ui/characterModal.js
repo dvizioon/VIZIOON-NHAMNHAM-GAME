@@ -15,6 +15,7 @@ import { playSound } from '../systems/ProceduralAudio.js';
 
 const MODAL_DEPTH = 180;
 const CLOSE_ICON = Icon.from('solar:close-circle-bold', { designSize: 24, color: '#4E9A2E' });
+const CUSTOMIZE_ICON = Icon.from('solar:palette-bold', { designSize: 24, color: '#1E6A30' });
 
 function headFrameFor(crianca, frameHint = 0) {
   return Phaser.Math.Wrap(frameHint, 0, CHAR_HEAD_FRAME_COUNT);
@@ -63,6 +64,7 @@ function buildModalAvatar(scene, crianca, r, frameHint) {
 /** Modal — clique fora fecha; dentro do painel não */
 export async function openCharacterDetailModal(scene, crianca, {
   onPlay,
+  onCustomize,
   onClose,
   frameHint = 0,
 } = {}) {
@@ -70,27 +72,46 @@ export async function openCharacterDetailModal(scene, crianca, {
   const s = uiScale(scene);
   const profile = getCharacterProfile(crianca);
 
-  await Icon.preload(scene, [CLOSE_ICON]);
+  await Icon.preload(scene, [CLOSE_ICON, CUSTOMIZE_ICON]);
 
-  const root = scene.add.container(0, 0).setDepth(MODAL_DEPTH);
   const panelW = Math.min(Math.round(width * 0.88), 360);
-  const panelH = Math.round(Math.min(height * 0.56, 470 * s));
+  const avatarR = Math.round(panelW * 0.15);
+  const bioFont = Math.max(15, Math.round(17 * s));
+  const bioWrap = panelW * 0.82;
+
+  const measureBio = scene.add.text(0, 0, profile.personalidade, {
+    fontFamily: Theme.fontFamily,
+    fontSize: `${bioFont}px`,
+    wordWrap: { width: bioWrap },
+    lineSpacing: 6,
+  }).setVisible(false);
+  const bioH = measureBio.height;
+  measureBio.destroy();
+
+  const btnH = 56;
+  const navBtnSize = 52;
+  const actionsGap = 48;
+  const panelH = Math.min(
+    height * 0.74,
+    Math.max(
+      Math.round(height * 0.56),
+      avatarR * 2 + 148 + bioH + btnH + actionsGap + 24,
+    ),
+  );
+
   const cx = width / 2;
-  const cy = height * 0.45;
+  const cy = height * 0.46;
+  const root = scene.add.container(0, 0).setDepth(MODAL_DEPTH);
 
   const overlay = scene.add.rectangle(cx, height / 2, width, height, 0x061018, 0.68);
   overlay.setInteractive({ useHandCursor: false });
 
   const panel = scene.add.container(cx, cy);
   const panelBg = scene.add.graphics();
-  const drawPanel = () => {
-    panelBg.clear();
-    panelBg.fillStyle(Theme.papel, 1);
-    panelBg.fillRoundedRect(-panelW / 2, -panelH / 2, panelW, panelH, 26);
-    panelBg.lineStyle(5, Theme.folhaEscura, 1);
-    panelBg.strokeRoundedRect(-panelW / 2, -panelH / 2, panelW, panelH, 26);
-  };
-  drawPanel();
+  panelBg.fillStyle(Theme.papel, 1);
+  panelBg.fillRoundedRect(-panelW / 2, -panelH / 2, panelW, panelH, 26);
+  panelBg.lineStyle(5, Theme.folhaEscura, 1);
+  panelBg.strokeRoundedRect(-panelW / 2, -panelH / 2, panelW, panelH, 26);
 
   panel.add(panelBg);
   panel.setSize(panelW, panelH);
@@ -99,10 +120,12 @@ export async function openCharacterDetailModal(scene, crianca, {
     Phaser.Geom.Rectangle.Contains,
   );
 
+  const top = -panelH / 2;
+
   const closeBtn = createIconCircleButton(
     scene,
     panelW / 2 - 28,
-    -panelH / 2 + 28,
+    top + 28,
     CLOSE_ICON,
     {
       size: 44,
@@ -121,12 +144,11 @@ export async function openCharacterDetailModal(scene, crianca, {
   );
   panel.add(closeBtn);
 
-  const avatarR = Math.round(Math.min(panelW, panelH) * 0.14);
   const avatar = buildModalAvatar(scene, crianca, avatarR, frameHint);
-  avatar.setY(-panelH * 0.18);
+  avatar.setY(top + avatarR + 36);
   panel.add(avatar);
 
-  const nameText = scene.add.text(0, -panelH * 0.02, crianca.nome, {
+  const nameText = scene.add.text(0, top + avatarR * 2 + 52, crianca.nome, {
     fontFamily: Theme.fontFamily,
     fontSize: `${Math.max(24, Math.round(28 * s))}px`,
     color: Theme.folhaEscura,
@@ -135,7 +157,7 @@ export async function openCharacterDetailModal(scene, crianca, {
   }).setOrigin(0.5);
   panel.add(nameText);
 
-  const tipoText = scene.add.text(0, panelH * 0.06, profile.tipo, {
+  const tipoText = scene.add.text(0, nameText.y + 28, profile.tipo, {
     fontFamily: Theme.fontFamily,
     fontSize: `${Math.max(14, Math.round(16 * s))}px`,
     color: crianca.genero === 'menina' ? '#D85A96' : '#4E9A2E',
@@ -145,23 +167,31 @@ export async function openCharacterDetailModal(scene, crianca, {
   }).setOrigin(0.5);
   panel.add(tipoText);
 
+  const dividerY = tipoText.y + 20;
   const divider = scene.add.graphics();
   divider.lineStyle(2, Theme.texto, 0.2);
-  divider.lineBetween(-panelW * 0.36, panelH * 0.1, panelW * 0.36, panelH * 0.1);
+  divider.lineBetween(-panelW * 0.36, dividerY, panelW * 0.36, dividerY);
   panel.add(divider);
 
-  const bioText = scene.add.text(0, panelH * 0.21, profile.personalidade, {
+  const bioText = scene.add.text(0, dividerY + 18, profile.personalidade, {
     fontFamily: Theme.fontFamily,
-    fontSize: `${Math.max(15, Math.round(17 * s))}px`,
+    fontSize: `${bioFont}px`,
     color: Theme.texto,
     align: 'center',
-    wordWrap: { width: panelW * 0.82 },
+    wordWrap: { width: bioWrap },
     lineSpacing: 6,
   }).setOrigin(0.5, 0);
   panel.add(bioText);
 
-  const playBtn = createButton(scene, 0, panelH * 0.38, 'JOGAR', {
-    width: Math.round(panelW * 0.62),
+  const actionsY = bioText.y + bioText.height + actionsGap;
+  const playW = Math.round(panelW * 0.52);
+  const btnGap = 14;
+  const rowW = playW + btnGap + navBtnSize;
+  const playX = -rowW / 2 + playW / 2;
+  const customX = rowW / 2 - navBtnSize / 2;
+
+  const playBtn = createButton(scene, playX, actionsY, 'JOGAR', {
+    width: playW,
     fontSize: Math.max(22, Math.round(26 * s)),
     color: Theme.verde,
     onClick: () => {
@@ -171,6 +201,23 @@ export async function openCharacterDetailModal(scene, crianca, {
     },
   });
   panel.add(playBtn);
+
+  const customBtn = createIconCircleButton(scene, customX, actionsY, CUSTOMIZE_ICON, {
+    size: navBtnSize,
+    iconSize: 24,
+    fillColor: Theme.sol,
+    borderScale: 1,
+    showBorder: true,
+    borderTint: Theme.folhaEscura,
+    absoluteSize: true,
+    depth: 0,
+    onClick: () => {
+      playSound(scene, 'clique');
+      close(true);
+      onCustomize?.();
+    },
+  });
+  panel.add(customBtn);
 
   root.add([overlay, panel]);
 

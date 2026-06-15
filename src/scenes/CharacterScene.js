@@ -175,6 +175,9 @@ export class CharacterScene extends Phaser.Scene {
       size: searchBtnSize,
       iconSize: 24,
       fillColor: Theme.sol,
+      borderScale: 1,
+      showBorder: true,
+      borderTint: Theme.folhaEscura,
       depth: 18,
       absoluteSize: true,
     });
@@ -264,6 +267,7 @@ export class CharacterScene extends Phaser.Scene {
       fillColor: Theme.sol,
       borderScale: 1,
       showBorder: true,
+      borderTint: Theme.folhaEscura,
       flipIcon: true,
       depth: 25,
       absoluteSize: true,
@@ -276,6 +280,7 @@ export class CharacterScene extends Phaser.Scene {
       fillColor: Theme.sol,
       borderScale: 1,
       showBorder: true,
+      borderTint: Theme.folhaEscura,
       depth: 25,
       absoluteSize: true,
     });
@@ -453,7 +458,7 @@ export class CharacterScene extends Phaser.Scene {
     const hitTop = nameY - 10;
     const hitBottom = r + 14;
     const hitH = hitBottom - hitTop;
-    const hitZone = this.add.rectangle(0, (hitTop + hitBottom) / 2, size * 0.96, hitH, 0xffffff, 0);
+    const hitZone = this.add.zone(0, (hitTop + hitBottom) / 2, size * 0.96, hitH);
     hitZone.setInteractive({ useHandCursor: true });
     container.add(hitZone);
     container.bringToTop(hitZone);
@@ -473,11 +478,14 @@ export class CharacterScene extends Phaser.Scene {
     if (!this.domSearch) return;
     this.domSearch.style.pointerEvents = '';
     this.domSearch.style.visibility = '';
+    this.domSearch.style.opacity = '';
   }
 
   hideSearchInput() {
     if (!this.domSearch) return;
     this.domSearch.style.pointerEvents = 'none';
+    this.domSearch.style.visibility = 'hidden';
+    this.domSearch.style.opacity = '0';
   }
 
   async openCharacterModal(crianca, frameHint = 0) {
@@ -492,6 +500,11 @@ export class CharacterScene extends Phaser.Scene {
         this.modalClose = null;
         this.restoreSearchInput();
         this.startGameWith(crianca);
+      },
+      onCustomize: () => {
+        this.modalClose = null;
+        this.restoreSearchInput();
+        this.goToCustomize(crianca);
       },
       onClose: () => {
         this.modalClose = null;
@@ -508,6 +521,15 @@ export class CharacterScene extends Phaser.Scene {
     this.cameras.main.fadeOut(250, 0, 0, 0);
     this.time.delayedCall(250, () => {
       this.scene.start(SceneKeys.TRUNK_INTRO);
+    });
+  }
+
+  goToCustomize(crianca) {
+    GameState.setChild(this, crianca);
+    GameState.setCustom(this, defaultCustom(crianca));
+    this.cameras.main.fadeOut(250, 0, 0, 0);
+    this.time.delayedCall(250, () => {
+      this.scene.start(SceneKeys.CUSTOMIZE);
     });
   }
 
