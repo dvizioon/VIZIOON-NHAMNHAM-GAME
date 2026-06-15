@@ -501,11 +501,6 @@ export class CharacterScene extends Phaser.Scene {
         this.restoreSearchInput();
         this.startGameWith(crianca);
       },
-      onCustomize: () => {
-        this.modalClose = null;
-        this.restoreSearchInput();
-        this.goToCustomize(crianca);
-      },
       onClose: () => {
         this.modalClose = null;
         this.restoreSearchInput();
@@ -521,15 +516,6 @@ export class CharacterScene extends Phaser.Scene {
     this.cameras.main.fadeOut(250, 0, 0, 0);
     this.time.delayedCall(250, () => {
       this.scene.start(SceneKeys.TRUNK_INTRO);
-    });
-  }
-
-  goToCustomize(crianca) {
-    GameState.setChild(this, crianca);
-    GameState.setCustom(this, defaultCustom(crianca));
-    this.cameras.main.fadeOut(250, 0, 0, 0);
-    this.time.delayedCall(250, () => {
-      this.scene.start(SceneKeys.CUSTOMIZE);
     });
   }
 

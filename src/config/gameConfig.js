@@ -5,7 +5,6 @@ import { PreloadScene } from '../scenes/PreloadScene.js';
 import { SplashScene } from '../scenes/SplashScene.js';
 import { NameScene } from '../scenes/NameScene.js';
 import { CharacterScene } from '../scenes/CharacterScene.js';
-import { CustomizeScene } from '../scenes/CustomizeScene.js';
 import { SettingsScene } from '../scenes/SettingsScene.js';
 import { EggScene } from '../scenes/EggScene.js';
 import { GameScene } from '../scenes/GameScene.js';
@@ -52,7 +51,6 @@ export function createGameConfig() {
       SplashScene,
       NameScene,
       CharacterScene,
-      CustomizeScene,
       SettingsScene,
       EggScene,
       TrunkIntroScene,

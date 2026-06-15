@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { Theme } from '../config/theme.js';
 import { uiScale } from '../utils/responsive.js';
-import { createButton } from './createUI.js';
+import { createButton, showThematicAlert } from './createUI.js';
 import { createIconCircleButton } from './splashUi.js';
 import { Icon } from './iconify.js';
 import { hasTexture } from '../systems/AssetLoader.js';
@@ -64,7 +64,6 @@ function buildModalAvatar(scene, crianca, r, frameHint) {
 /** Modal — clique fora fecha; dentro do painel não */
 export async function openCharacterDetailModal(scene, crianca, {
   onPlay,
-  onCustomize,
   onClose,
   frameHint = 0,
 } = {}) {
@@ -213,8 +212,11 @@ export async function openCharacterDetailModal(scene, crianca, {
     depth: 0,
     onClick: () => {
       playSound(scene, 'clique');
-      close(true);
-      onCustomize?.();
+      showThematicAlert(
+        scene,
+        'Customização ainda não está disponível!\nEm breve você poderá deixar sua lagartinha ainda mais especial. 🎨',
+        { depth: MODAL_DEPTH + 20 },
+      );
     },
   });
   panel.add(customBtn);
