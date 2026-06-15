@@ -1,0 +1,430 @@
+import Phaser from 'phaser';
+import { Theme } from '../config/theme.js';
+import { uiScale } from '../utils/responsive.js';
+import { Icon } from './iconify.js';
+import { playSound } from '../systems/ProceduralAudio.js';
+import {
+  createIconCircleButton,
+  getIconButtonSize,
+  SETTINGS_BTN_BORDER_SCALE,
+  SETTINGS_BTN_CONTENT_OFFSET_X,
+  SETTINGS_BTN_CONTENT_OFFSET_Y,
+} from './splashUi.js';
+
+export const UI_DECO_3FOLHAS_KEY = 'ui_deco_3folhas';
+export const UI_DECO_FOLHAS_RAIZES_KEY = 'ui_deco_folhas_raizes';
+
+const LABEL_COLOR = '#3B3024';
+/** Abaixo disso o slider encaixa em 0% (mudo) */
+const VOLUME_ZERO_THRESHOLD = 0.005;
+
+function normalizeVolumeValue(raw) {
+  const v = Phaser.Math.Clamp(raw, 0, 1);
+  return v <= VOLUME_ZERO_THRESHOLD ? 0 : v;
+}
+
+function volumePercent(v) {
+  return Math.round(v * 100);
+}
+
+function isVolumeMuted(v) {
+  return v <= 0;
+}
+
+export const SETTINGS_ICONS = {
+  controller: Icon.from('mynaui:controller'),
+  volumeHigh: Icon.from('mynaui:volume-high'),
+  volumeOff: Icon.from('mynaui:volume-off'),
+  back: Icon.from('solar:map-arrow-left-outline', { color: '#FFFFFF', designSize: 32 }),
+  save: Icon.from('mynaui:save', { designSize: 32 }),
+  touch: Icon.from('hugeicons:tap-05', { color: '#FFF8E7' }),
+  arrowLeft: Icon.from('solar:alt-arrow-left-bold', { color: '#FFF8E7' }),
+  arrowRight: Icon.from('solar:alt-arrow-right-bold', { color: '#FFF8E7' }),
+};
+
+export async function preloadSettingsIcons(scene) {
+  await Icon.preload(scene, Object.values(SETTINGS_ICONS));
+}
+
+function sceneOf(parent) {
+  return parent instanceof Phaser.Scene ? parent : parent.scene;
+}
+
+function attach(parent, obj, x, y) {
+  obj.setPosition(x, y);
+  if (!(parent instanceof Phaser.Scene)) parent.add(obj);
+  return obj;
+}
+
+/** Painel — camada verde atrás + creme #FFF8E7 na frente */
+export function createSettingsPanel(scene, cx, cy, w, h, { depth = 10, shadowOffset = PANEL_SHADOW_OFFSET } = {}) {
+  const scale = uiScale(scene);
+  const r = Math.round(PANEL_CORNER_RADIUS * scale);
+  const off = Math.round(shadowOffset * scale);
+
+  const panel = attach(scene, scene.add.container(cx, cy), cx, cy).setDepth(depth);
+
+  const greenLayer = scene.add.graphics();
+  greenLayer.fillStyle(Theme.verde, 1);
+  greenLayer.fillRoundedRect(-w / 2 + off, -h / 2 + off, w, h, r);
+
+  const creamLayer = scene.add.graphics();
+  creamLayer.fillStyle(Theme.papel, 1);
+  creamLayer.fillRoundedRect(-w / 2, -h / 2, w, h, r);
+
+  panel.add([greenLayer, creamLayer]);
+  panel._panelW = w;
+  panel._panelH = h;
+  return panel;
+}
+
+/** Folhas decorativas — atrás do creme (depth 8); só posição mais alta e nas bordas */
+export function createSettingsDecorations(scene, cx, cy, w, h) {
+  const scale = uiScale(scene);
+  const decoDepth = 8;
+
+  if (scene.textures.exists(UI_DECO_3FOLHAS_KEY)) {
+    const leafW = Math.round(105 * scale);
+    const leafH = Math.round(166 * scale);
+    scene.add
+      .image(cx - w / 2 - leafW * 0.06, cy + h * 0.12, UI_DECO_3FOLHAS_KEY)
+      .setDisplaySize(leafW, leafH)
+      .setOrigin(0.55, 0.45)
+      .setDepth(decoDepth);
+  }
+
+  if (scene.textures.exists(UI_DECO_FOLHAS_RAIZES_KEY)) {
+    const rightW = Math.round(125 * scale);
+    const rightH = Math.round(186 * scale);
+    scene.add
+      .image(cx + w / 2 + rightW * 0.06, cy - h * 0.02, UI_DECO_FOLHAS_RAIZES_KEY)
+      .setDisplaySize(rightW, rightH)
+      .setOrigin(0.62, 0.58)
+      .setFlipY(true)
+      .setDepth(decoDepth);
+  }
+}
+
+/** Slider — ícone/% à esquerda; bolinha amarela com contorno cor do texto */
+export function createSettingsSlider(
+  parent,
+  x,
+  y,
+  label,
+  initial,
+  { onChange, volumeIcon = false, percentOnAdjust = true, contentW } = {},
+) {
+  const scene = sceneOf(parent);
+  const scale = uiScale(scene);
+  const innerW = contentW ?? Math.round(300 * scale);
+  const trackH = Math.round(18 * scale);
+  const knobR = Math.round(14 * scale);
+  const iconPx = Math.round(32 * scale);
+  const iconGap = Math.round(20 * scale);
+  const labelSize = Math.max(16, Math.round(22 * scale));
+
+  const row = attach(parent, scene.add.container(0, 0), x, y);
+  let value = normalizeVolumeValue(initial);
+  let isAdjusting = false;
+
+  const labelText = scene.add.text(-innerW / 2, -Math.round(32 * scale), label, {
+    fontFamily: Theme.fontFamily,
+    fontSize: `${labelSize}px`,
+    color: LABEL_COLOR,
+    fontStyle: 'bold',
+  }).setOrigin(0, 0.5);
+
+  const indicatorX = -innerW / 2 + iconPx / 2;
+  const indicatorY = Math.round(8 * scale);
+
+  let iconImg;
+  let percentText;
+  if (volumeIcon) {
+    const startKey = isVolumeMuted(value)
+      ? SETTINGS_ICONS.volumeOff.textureKey
+      : SETTINGS_ICONS.volumeHigh.textureKey;
+    iconImg = scene.add
+      .image(indicatorX, indicatorY, startKey)
+      .setDisplaySize(iconPx, iconPx)
+      .setOrigin(0.5);
+
+    if (percentOnAdjust) {
+      percentText = scene.add.text(indicatorX, indicatorY, '', {
+        fontFamily: Theme.fontFamily,
+        fontSize: `${Math.max(14, Math.round(20 * scale))}px`,
+        color: LABEL_COLOR,
+        fontStyle: 'bold',
+      }).setOrigin(0.5).setVisible(false);
+    }
+  }
+
+  const trackX = -innerW / 2 + (volumeIcon ? iconPx + iconGap : 0);
+  const trackW = innerW / 2 - trackX;
+  const trackInset = knobR + Math.round(4 * scale);
+  const trackInnerX = trackX + trackInset;
+  const trackInnerW = Math.max(1, trackW - trackInset * 2);
+
+  const trackBg = scene.add.graphics();
+  const trackFill = scene.add.graphics();
+  const knob = scene.add.graphics();
+
+  const knobX = () => trackInnerX + trackInnerW * value;
+
+  const updateIndicator = () => {
+    if (!iconImg) return;
+    const muted = isVolumeMuted(value);
+    if (percentOnAdjust && isAdjusting && !muted) {
+      iconImg.setVisible(false);
+      percentText.setVisible(true);
+      percentText.setText(`${volumePercent(value)}%`);
+      return;
+    }
+    iconImg.setVisible(true);
+    if (percentText) percentText.setVisible(false);
+    iconImg.setTexture(
+      muted ? SETTINGS_ICONS.volumeOff.textureKey : SETTINGS_ICONS.volumeHigh.textureKey,
+    );
+  };
+
+  const redraw = () => {
+    trackBg.clear();
+    trackBg.fillStyle(0xE8F5DC, 1);
+    trackBg.fillRoundedRect(trackInnerX, 0, trackInnerW, trackH, trackH / 2);
+
+    trackFill.clear();
+    if (value > 0) {
+      trackFill.fillStyle(Theme.folhaEscura, 1);
+      trackFill.fillRoundedRect(trackInnerX, 0, trackInnerW * value, trackH, trackH / 2);
+    }
+
+    const kx = knobX();
+    knob.clear();
+    knob.fillStyle(Theme.sol, 1);
+    knob.lineStyle(2, Theme.texto, 1);
+    knob.fillCircle(kx, trackH / 2, knobR);
+    knob.strokeCircle(kx, trackH / 2, knobR);
+
+    updateIndicator();
+  };
+
+  redraw();
+
+  const zone = scene.add
+    .zone(trackInnerX + trackInnerW / 2, trackH / 2, trackInnerW, Math.max(40, trackH + 20))
+    .setInteractive({ useHandCursor: true });
+
+  const update = (localX) => {
+    let raw = (localX - trackInnerX) / trackInnerW;
+    if (localX <= trackInnerX + knobR * 0.5) raw = 0;
+    value = normalizeVolumeValue(raw);
+    redraw();
+    onChange?.(value);
+  };
+
+  const stopAdjusting = () => {
+    if (!isAdjusting) return;
+    isAdjusting = false;
+    redraw();
+  };
+
+  const localX = (pointer) => row.getLocalPoint(pointer.x, pointer.y).x;
+  zone.on('pointerdown', (pointer) => {
+    isAdjusting = percentOnAdjust;
+    update(localX(pointer));
+  });
+  zone.on('pointermove', (pointer) => {
+    if (pointer.isDown) update(localX(pointer));
+  });
+  zone.on('pointerup', stopAdjusting);
+  zone.on('pointerout', (pointer) => {
+    if (!pointer.isDown) stopAdjusting();
+  });
+
+  const parts = [labelText, trackBg, trackFill, knob, zone];
+  if (iconImg) parts.push(iconImg);
+  if (percentText) parts.push(percentText);
+  row.add(parts);
+
+  row.setValue = (v) => {
+    value = normalizeVolumeValue(v);
+    redraw();
+  };
+
+  return row;
+}
+
+/** Botão setas — esquerda + direita no mesmo quadrado */
+export function createModoArrowsToggle(scene, x, y, { active = false, onClick } = {}) {
+  const scale = uiScale(scene);
+  const size = Math.round(58 * scale);
+  const iconPx = Math.round(22 * scale);
+  const spread = Math.round(11 * scale);
+  const container = scene.add.container(x, y);
+
+  const bg = scene.add.graphics();
+  const draw = (on) => {
+    bg.clear();
+    bg.fillStyle(on ? Theme.folhaEscura : Theme.modoVerde, 1);
+    bg.fillRoundedRect(-size / 2, -size / 2, size, size, Math.round(10 * scale));
+  };
+  draw(active);
+
+  const leftIcon = scene.add
+    .image(-spread, 0, SETTINGS_ICONS.arrowLeft.textureKey)
+    .setDisplaySize(iconPx, iconPx)
+    .setOrigin(0.5);
+
+  const rightIcon = scene.add
+    .image(spread, 0, SETTINGS_ICONS.arrowRight.textureKey)
+    .setDisplaySize(iconPx, iconPx)
+    .setOrigin(0.5);
+
+  container.add([bg, leftIcon, rightIcon]);
+  container.setSize(size, size);
+  container.setInteractive({ useHandCursor: true });
+  container.setActive = (on) => draw(on);
+
+  container.on('pointerup', () => {
+    playSound(scene, 'clique');
+    onClick?.();
+  });
+
+  return container;
+}
+
+/** Botão quadrado modo — fundo #5EA448, ícone creme #FFF8E7 */
+export function createModoToggle(scene, x, y, icon, { active = false, onClick, flipIcon = false } = {}) {
+  const scale = uiScale(scene);
+  const size = Math.round(58 * scale);
+  const iconPx = Math.round(32 * scale);
+  const container = scene.add.container(x, y);
+
+  const bg = scene.add.graphics();
+  const draw = (on) => {
+    bg.clear();
+    bg.fillStyle(on ? Theme.folhaEscura : Theme.modoVerde, 1);
+    bg.fillRoundedRect(-size / 2, -size / 2, size, size, Math.round(10 * scale));
+  };
+  draw(active);
+
+  const iconImg = scene.add
+    .image(0, 0, icon.textureKey)
+    .setDisplaySize(iconPx, iconPx)
+    .setOrigin(0.5);
+
+  if (flipIcon) {
+    iconImg.scaleX = -Math.abs(iconImg.scaleX);
+  }
+
+  container.add([bg, iconImg]);
+  container.setSize(size, size);
+  container.setInteractive({ useHandCursor: true });
+  container.setActive = (on) => draw(on);
+
+  container.on('pointerup', () => {
+    playSound(scene, 'clique');
+    onClick?.();
+  });
+
+  return container;
+}
+
+/** Botões voltar/salvar — menor que a splash; borda em splashUi → SETTINGS_BTN_BORDER_SCALE */
+export const SETTINGS_BTN_SIZE = 108;
+export const SETTINGS_BTN_ICON_SIZE = 46;
+
+const settingsCircleBtnOpts = {
+  borderScale: SETTINGS_BTN_BORDER_SCALE,
+  contentOffsetX: SETTINGS_BTN_CONTENT_OFFSET_X,
+  contentOffsetY: SETTINGS_BTN_CONTENT_OFFSET_Y,
+};
+
+export function createSettingsBackButton(scene, onClick) {
+  const scale = uiScale(scene);
+  const m = Math.round(36 * scale);
+  const { btnW, btnH } = getIconButtonSize(scene, SETTINGS_BTN_SIZE);
+
+  return createIconCircleButton(scene, m + btnW / 2, m + btnH / 2, SETTINGS_ICONS.back, {
+    size: SETTINGS_BTN_SIZE,
+    iconSize: SETTINGS_BTN_ICON_SIZE,
+    depth: 200,
+    fillColor: Theme.botaoVerde,
+    ...settingsCircleBtnOpts,
+    onClick,
+  });
+}
+
+export function createSettingsSaveButton(scene, x, y, onClick) {
+  return createIconCircleButton(scene, x, y, SETTINGS_ICONS.save, {
+    size: SETTINGS_BTN_SIZE,
+    iconSize: SETTINGS_BTN_ICON_SIZE,
+    depth: 200,
+    fillColor: Theme.papel,
+    ...settingsCircleBtnOpts,
+    onClick,
+  });
+}
+
+/** Linha Modo — ícone ao lado do texto; toggles centralizados */
+export function createModoRow(parent, x, y, { activeMode = 'toque', onChange, contentW } = {}) {
+  const scene = sceneOf(parent);
+  const scale = uiScale(scene);
+  const innerW = contentW ?? Math.round(300 * scale);
+  const iconPx = Math.round(28 * scale);
+  const labelY = -Math.round(32 * scale);
+
+  const row = attach(parent, scene.add.container(0, 0), x, y);
+
+  const label = scene.add.text(-innerW / 2, labelY, 'Modo', {
+    fontFamily: Theme.fontFamily,
+    fontSize: `${Math.max(16, Math.round(22 * scale))}px`,
+    color: LABEL_COLOR,
+    fontStyle: 'bold',
+  }).setOrigin(0, 0.5);
+
+  const controller = scene.add
+    .image(-innerW / 2 + label.width + Math.round(10 * scale), labelY, SETTINGS_ICONS.controller.textureKey)
+    .setDisplaySize(iconPx, iconPx)
+    .setOrigin(0, 0.5);
+
+  const toggleY = Math.round(28 * scale);
+  const btnSize = Math.round(58 * scale);
+  const toggleGap = Math.round(28 * scale);
+  const pairW = btnSize * 2 + toggleGap;
+  const leftX = -pairW / 2 + btnSize / 2;
+
+  const btnToque = createModoToggle(scene, leftX, toggleY, SETTINGS_ICONS.touch, {
+    active: activeMode === 'toque',
+    onClick: () => onChange?.('toque'),
+  });
+
+  const btnSetas = createModoArrowsToggle(scene, leftX + btnSize + toggleGap, toggleY, {
+    active: activeMode === 'setas',
+    onClick: () => onChange?.('setas'),
+  });
+
+  row.add([label, controller, btnToque, btnSetas]);
+  row._setMode = (mode) => {
+    btnToque.setActive(mode === 'toque');
+    btnSetas.setActive(mode === 'setas');
+  };
+
+  return row;
+}
+
+/** Ajuste visual do painel — sombra verde (aumente = borda mais grossa) */
+export const PANEL_SHADOW_OFFSET = 10;
+export const PANEL_CORNER_RADIUS = 32;
+
+/** Dimensões do painel vertical (Figma) — h = altura da caixa creme */
+export const PANEL_DESIGN_WIDTH = 400;
+export const PANEL_DESIGN_HEIGHT = 420;
+
+export function getSettingsPanelSize(scene) {
+  const scale = uiScale(scene);
+  return {
+    w: Math.round(PANEL_DESIGN_WIDTH * scale),
+    h: Math.round(PANEL_DESIGN_HEIGHT * scale),
+    contentW: Math.round(300 * scale),
+  };
+}

@@ -1,0 +1,64 @@
+import Phaser from 'phaser';
+import { SceneKeys } from './constants.js';
+import { BootScene } from '../scenes/BootScene.js';
+import { PreloadScene } from '../scenes/PreloadScene.js';
+import { SplashScene } from '../scenes/SplashScene.js';
+import { NameScene } from '../scenes/NameScene.js';
+import { CharacterScene } from '../scenes/CharacterScene.js';
+import { CustomizeScene } from '../scenes/CustomizeScene.js';
+import { SettingsScene } from '../scenes/SettingsScene.js';
+import { EggScene } from '../scenes/EggScene.js';
+import { GameScene } from '../scenes/GameScene.js';
+import { CocoonScene } from '../scenes/CocoonScene.js';
+import { VictoryScene } from '../scenes/VictoryScene.js';
+
+export function createGameConfig() {
+  return {
+    type: Phaser.AUTO,
+    parent: 'game-container',
+    backgroundColor: '#E8F9FF',
+    title: 'NhamNham! A Lagartinha da Turminha',
+    version: '0.1.0',
+    scale: {
+      mode: Phaser.Scale.RESIZE,
+      autoCenter: Phaser.Scale.NO_CENTER,
+      width: 1280,
+      height: 720,
+      expandParent: true,
+    },
+    input: {
+      activePointers: 2,
+      touch: { capture: true },
+    },
+    audio: {
+      disableWebAudio: false,
+      noAudio: false,
+    },
+    loader: {
+      maxParallelDownloads: 16,
+      crossOrigin: 'anonymous',
+    },
+    physics: {
+      default: 'arcade',
+      arcade: {
+        gravity: { y: 0 },
+        debug: false,
+      },
+    },
+    scene: [
+      BootScene,
+      PreloadScene,
+      SplashScene,
+      NameScene,
+      CharacterScene,
+      CustomizeScene,
+      SettingsScene,
+      EggScene,
+      GameScene,
+      CocoonScene,
+      VictoryScene,
+    ],
+  };
+}
+
+export { SceneKeys };

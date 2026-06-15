@@ -1,0 +1,17 @@
+{
+  "metaComida": 24,
+  "maxVidas": 3,
+  "cliquesOvo": 3,
+  "cliquesCasulo": 2,
+  "intervaloSapo": 12000,
+  "intervaloAranha": 15000,
+  "delayInicioSapo": 25000,
+  "delayInicioAranha": 35000,
+  "minComidaAntesSapo": 4,
+  "minComidaAntesAranha": 6,
+  "intervaloComida": 1800,
+  "tempoPreso": 90,
+  "invulneravelFrames": 120,
+  "designWidth": 1280,
+  "designHeight": 720
+}
