@@ -1,14 +1,18 @@
-/** Escala UI — proporcional ao design 1280×720; no celular não encolhe demais */
+/** Escala UI — portrait usa altura (botões maiores); landscape proporcional 1280×720 */
 export function uiScale(scene) {
   const { width, height } = scene.scale;
-  const fit = Math.min(width / 1280, height / 720, 1);
 
   if (height > width) {
-    const portraitMin = width / 720;
-    return Math.max(fit, Math.min(portraitMin, 1));
+    return Math.min(height / 720, 1);
   }
 
-  return fit;
+  return Math.min(width / 1280, height / 720, 1);
+}
+
+/** Cover 1280×720 — preenche tela sem esticar/distortion */
+export function coverDisplaySize(viewW, viewH, designW = 1280, designH = 720) {
+  const s = Math.max(viewW / designW, viewH / designH);
+  return { w: designW * s, h: designH * s };
 }
 
 export function responsiveSize(scene, base) {

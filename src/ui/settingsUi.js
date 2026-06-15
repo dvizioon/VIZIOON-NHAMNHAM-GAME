@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { Theme } from '../config/theme.js';
-import { uiScale } from '../utils/responsive.js';
+import { uiScale, isPortrait } from '../utils/responsive.js';
 import { Icon } from './iconify.js';
 import { playSound } from '../systems/ProceduralAudio.js';
 import {
@@ -339,6 +339,16 @@ export function createModoArrowsToggle(scene, x, y, { active = false, onClick } 
 export const SETTINGS_BTN_SIZE = 108;
 export const SETTINGS_BTN_ICON_SIZE = 46;
 
+function settingsButtonSize(scene) {
+  if (isPortrait(scene)) {
+    return {
+      size: Math.round(SETTINGS_BTN_SIZE * 1.15),
+      icon: Math.round(SETTINGS_BTN_ICON_SIZE * 1.12),
+    };
+  }
+  return { size: SETTINGS_BTN_SIZE, icon: SETTINGS_BTN_ICON_SIZE };
+}
+
 const settingsCircleBtnOpts = {
   borderScale: SETTINGS_BTN_BORDER_SCALE,
   contentOffsetX: SETTINGS_BTN_CONTENT_OFFSET_X,
@@ -348,11 +358,12 @@ const settingsCircleBtnOpts = {
 export function createSettingsBackButton(scene, onClick) {
   const scale = uiScale(scene);
   const m = Math.round(36 * scale);
-  const { btnW, btnH } = getIconButtonSize(scene, SETTINGS_BTN_SIZE);
+  const { size, icon } = settingsButtonSize(scene);
+  const { btnW, btnH } = getIconButtonSize(scene, size);
 
   return createIconCircleButton(scene, m + btnW / 2, m + btnH / 2, SETTINGS_ICONS.back, {
-    size: SETTINGS_BTN_SIZE,
-    iconSize: SETTINGS_BTN_ICON_SIZE,
+    size,
+    iconSize: icon,
     depth: 200,
     fillColor: Theme.botaoVerde,
     ...settingsCircleBtnOpts,
@@ -361,9 +372,10 @@ export function createSettingsBackButton(scene, onClick) {
 }
 
 export function createSettingsSaveButton(scene, x, y, onClick) {
+  const { size, icon } = settingsButtonSize(scene);
   return createIconCircleButton(scene, x, y, SETTINGS_ICONS.save, {
-    size: SETTINGS_BTN_SIZE,
-    iconSize: SETTINGS_BTN_ICON_SIZE,
+    size,
+    iconSize: icon,
     depth: 200,
     fillColor: Theme.papel,
     ...settingsCircleBtnOpts,

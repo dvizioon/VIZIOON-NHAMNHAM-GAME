@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { Theme } from '../config/theme.js';
-import { uiScale } from '../utils/responsive.js';
+import { uiScale, coverDisplaySize } from '../utils/responsive.js';
 import { hasTexture } from '../systems/AssetLoader.js';
 
 /** Botão estilo folha — reutilizado em todas as telas */
@@ -89,12 +89,13 @@ export const DESIGN_SIZE = { width: 1280, height: 720, groundY: 694, grassTopY: 
 
 export function drawSkyBackground(scene) {
   const { width, height } = scene.scale;
+  const cover = coverDisplaySize(width, height, DESIGN_SIZE.width, DESIGN_SIZE.height);
 
   if (hasTexture(scene, BACKGROUND_KEY)) {
     scene.add.image(width / 2, height / 2, BACKGROUND_KEY)
       .setDepth(DEPTH_SKY)
       .setScrollFactor(0)
-      .setDisplaySize(width, height);
+      .setDisplaySize(cover.w, cover.h);
   } else {
     const g = scene.add.graphics().setDepth(DEPTH_SKY);
     g.fillGradientStyle(Theme.ceuClaro, Theme.ceuClaro, Theme.ceu, Theme.ceu, 1);
@@ -108,13 +109,14 @@ export function drawSkyBackground(scene) {
 /** Grama + chão — na frente das frutas, atrás da lagarta */
 export function drawGroundForeground(scene, depth = DEPTH_GROUND_FG) {
   const { width, height } = scene.scale;
+  const cover = coverDisplaySize(width, height, DESIGN_SIZE.width, DESIGN_SIZE.height);
 
   if (!hasTexture(scene, GROUND_KEY)) return null;
 
   return scene.add.image(width / 2, height / 2, GROUND_KEY)
     .setDepth(depth)
     .setScrollFactor(0)
-    .setDisplaySize(width, height);
+    .setDisplaySize(cover.w, cover.h);
 }
 
 /** Linha do chão — pés da lagarta */
