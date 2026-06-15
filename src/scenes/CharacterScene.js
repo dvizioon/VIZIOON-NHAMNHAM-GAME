@@ -15,6 +15,7 @@ import {
   CHAR_PER_PAGE,
   CHAR_GRID_COLS,
 } from '../config/characterUiConfig.js';
+import { openCharacterDetailModal } from '../ui/characterModal.js';
 
 const NAV_GREEN = '#1E6A30';
 const HOME_GREEN = Theme.botaoVerde;
@@ -54,6 +55,7 @@ export class CharacterScene extends Phaser.Scene {
     this.swipeBlockedTap = false;
     this.lastPageDir = 0;
     this.syncSearchDom = null;
+    this.modalClose = null;
   }
 
   async create() {
@@ -87,6 +89,8 @@ export class CharacterScene extends Phaser.Scene {
 
     this.events.once('shutdown', () => {
       this.scale.off('resize', this.syncSearchDom);
+      this.modalClose?.(true);
+      this.modalClose = null;
       this.domSearch?.remove();
       this.domSearch = null;
     });
@@ -367,7 +371,7 @@ export class CharacterScene extends Phaser.Scene {
       const x = gridLeft + col * cellW;
       const y = gridTop + row * cellH + cellH * 0.5;
       const cardSize = Math.min(cellW * 0.98, cellH * 0.9);
-      this.gridContainer.add(this.createCharacterCard(crianca, x, y, cardSize));
+      this.gridContainer.add(this.createCharacterCard(crianca, x, y, cardSize, i));
     });
 
     const totalPages = this.pageCount();
@@ -393,7 +397,7 @@ export class CharacterScene extends Phaser.Scene {
     }
   }
 
-  createCharacterCard(crianca, x, y, size) {
+  createCharacterCard(crianca, x, y, size, frameHint = 0) {
     const s = this.layout.s;
     const container = this.add.container(x, y);
     const r = size * 0.36;
@@ -431,18 +435,13 @@ export class CharacterScene extends Phaser.Scene {
 
     let avatar;
     if (hasTexture(this, CHAR_HEADS_KEY)) {
-      avatar = this.add.sprite(0, 2, CHAR_HEADS_KEY, 0);
+      avatar = this.add.sprite(0, 2, CHAR_HEADS_KEY, frameHint % 4);
       avatar.setOrigin(0.5, 0.58);
-      const headH = r * 2.05;
+      const headH = r * 1.82;
       avatar.setDisplaySize(headH * 0.82, headH);
       if (this.anims.exists(CHAR_HEADS_ANIM_KEY)) {
         avatar.anims.play(CHAR_HEADS_ANIM_KEY);
       }
-
-      const maskG = this.add.graphics();
-      maskG.fillStyle(0xffffff, 1);
-      maskG.fillCircle(0, 2, r * 0.86);
-      avatar.setMask(maskG.createGeometryMask());
     } else {
       avatar = this.add.text(0, 0, crianca.genero === 'menina' ? '🌸' : '🐛', {
         fontSize: `${Math.round(r * 1.3)}px`,
@@ -450,22 +449,59 @@ export class CharacterScene extends Phaser.Scene {
     }
 
     container.add([shadow, base, ring, avatar, divider, name]);
-    container.setSize(size, size);
-    container.setInteractive(new Phaser.Geom.Circle(0, 0, r + 10), Phaser.Geom.Circle.Contains);
 
-    container.on('pointerdown', () => container.setScale(0.95));
-    container.on('pointerup', () => {
+    const hitTop = nameY - 10;
+    const hitBottom = r + 14;
+    const hitH = hitBottom - hitTop;
+    const hitZone = this.add.rectangle(0, (hitTop + hitBottom) / 2, size * 0.96, hitH, 0xffffff, 0);
+    hitZone.setInteractive({ useHandCursor: true });
+    container.add(hitZone);
+    container.bringToTop(hitZone);
+
+    hitZone.on('pointerdown', () => container.setScale(0.95));
+    hitZone.on('pointerup', () => {
       container.setScale(1);
       if (this.swipeBlockedTap) return;
-      this.selectChild(crianca);
+      this.openCharacterModal(crianca, frameHint);
     });
-    container.on('pointerout', () => container.setScale(1));
+    hitZone.on('pointerout', () => container.setScale(1));
 
     return container;
   }
 
-  selectChild(crianca) {
+  restoreSearchInput() {
+    if (!this.domSearch) return;
+    this.domSearch.style.pointerEvents = '';
+    this.domSearch.style.visibility = '';
+  }
+
+  hideSearchInput() {
+    if (!this.domSearch) return;
+    this.domSearch.style.pointerEvents = 'none';
+  }
+
+  async openCharacterModal(crianca, frameHint = 0) {
+    if (this.modalClose) return;
+
     playSound(this, 'clique');
+    this.hideSearchInput();
+
+    const { close } = await openCharacterDetailModal(this, crianca, {
+      frameHint,
+      onPlay: () => {
+        this.modalClose = null;
+        this.restoreSearchInput();
+        this.startGameWith(crianca);
+      },
+      onClose: () => {
+        this.modalClose = null;
+        this.restoreSearchInput();
+      },
+    });
+    this.modalClose = close;
+  }
+
+  startGameWith(crianca) {
     GameState.setChild(this, crianca);
     GameState.setCustom(this, defaultCustom(crianca));
     GameState.initRun(this);
@@ -473,5 +509,9 @@ export class CharacterScene extends Phaser.Scene {
     this.time.delayedCall(250, () => {
       this.scene.start(SceneKeys.TRUNK_INTRO);
     });
+  }
+
+  selectChild(crianca) {
+    this.openCharacterModal(crianca);
   }
 }
