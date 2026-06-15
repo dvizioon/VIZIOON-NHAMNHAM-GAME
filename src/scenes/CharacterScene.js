@@ -10,11 +10,10 @@ import { Icon } from '../ui/iconify.js';
 import { hasTexture } from '../systems/AssetLoader.js';
 import {
   UI_LOGO_PERSONAGENS_KEY,
-  CHAR_HEADS_KEY,
-  CHAR_HEADS_ANIM_KEY,
   CHAR_PER_PAGE,
   CHAR_GRID_COLS,
 } from '../config/characterUiConfig.js';
+import { createCharacterFace } from '../ui/characterAvatar.js';
 import { openCharacterDetailModal } from '../ui/characterModal.js';
 
 const NAV_GREEN = '#1E6A30';
@@ -438,22 +437,9 @@ export class CharacterScene extends Phaser.Scene {
     ring.fillCircle(0, 0, r);
     ring.strokeCircle(0, 0, r);
 
-    let avatar;
-    if (hasTexture(this, CHAR_HEADS_KEY)) {
-      avatar = this.add.sprite(0, 2, CHAR_HEADS_KEY, frameHint % 4);
-      avatar.setOrigin(0.5, 0.58);
-      const headH = r * 1.82;
-      avatar.setDisplaySize(headH * 0.82, headH);
-      if (this.anims.exists(CHAR_HEADS_ANIM_KEY)) {
-        avatar.anims.play(CHAR_HEADS_ANIM_KEY);
-      }
-    } else {
-      avatar = this.add.text(0, 0, crianca.genero === 'menina' ? '🌸' : '🐛', {
-        fontSize: `${Math.round(r * 1.3)}px`,
-      }).setOrigin(0.5);
-    }
+    let avatar = createCharacterFace(this, crianca, r, frameHint);
 
-    container.add([shadow, base, ring, avatar, divider, name]);
+    container.add([shadow, base, avatar, ring, divider, name]);
 
     const hitTop = nameY - 10;
     const hitBottom = r + 14;

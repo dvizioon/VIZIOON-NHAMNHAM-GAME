@@ -13,7 +13,13 @@ import { FOOD_FRUTAS } from '../config/foodConfig.js';
 import {
   CHAR_HEADS_KEY,
   CHAR_HEADS_ANIM_KEY,
+  CHAR_HEAD_FRAME_W,
+  CHAR_HEAD_FRAME_H,
   CHAR_HEAD_FRAME_COUNT,
+  getCharacterHeadAnimKey,
+  getCharacterHeadSheetKey,
+  listCharacterHeadAssets,
+  listCharacterFaceAssets,
 } from '../config/characterUiConfig.js';
 import {
   ENV_SKY_KEY,
@@ -86,6 +92,15 @@ export class PreloadScene extends Phaser.Scene {
     });
     this.load.image(GAME_TRUNK_KEY, 'assets/textures/ui/tronco_game.png');
     this.load.image(INTRO_TRUNK_KEY, 'assets/textures/ui/tronco_intro.png');
+    for (const { key, path } of listCharacterHeadAssets(criancasData)) {
+      this.load.spritesheet(key, path, {
+        frameWidth: CHAR_HEAD_FRAME_W,
+        frameHeight: CHAR_HEAD_FRAME_H,
+      });
+    }
+    for (const { key, path } of listCharacterFaceAssets(criancasData)) {
+      this.load.image(key, path);
+    }
     for (const [key, url] of Object.entries(REQUIRED_SOUNDS)) {
       this.load.audio(key, url);
     }
@@ -94,6 +109,19 @@ export class PreloadScene extends Phaser.Scene {
 
   async create() {
     registerSpriteAnimations(this);
+
+    // PNGs do Figma passam de 4096px — reduz p/ GPU exibir (antes das animações!)
+    capImageTexture(this, ENV_SKY_KEY);
+    capImageTexture(this, ENV_GROUND_KEY);
+    capImageTexture(this, GAME_TRUNK_KEY);
+    capImageTexture(this, INTRO_TRUNK_KEY);
+    capSpritesheet(this, FOOD_FRUTAS.key, FOOD_FRUTAS.frameWidth, FOOD_FRUTAS.frameHeight);
+    for (const { key } of listCharacterHeadAssets(criancasData)) {
+      capSpritesheet(this, key, CHAR_HEAD_FRAME_W, CHAR_HEAD_FRAME_H);
+    }
+    for (const { key } of listCharacterFaceAssets(criancasData)) {
+      capImageTexture(this, key);
+    }
 
     if (this.textures.exists(CHAR_HEADS_KEY) && !this.anims.exists(CHAR_HEADS_ANIM_KEY)) {
       this.anims.create({
@@ -107,12 +135,21 @@ export class PreloadScene extends Phaser.Scene {
       });
     }
 
-    // PNGs do Figma passam de 4096px — reduz p/ GPU exibir
-    capImageTexture(this, ENV_SKY_KEY);
-    capImageTexture(this, ENV_GROUND_KEY);
-    capImageTexture(this, GAME_TRUNK_KEY);
-    capImageTexture(this, INTRO_TRUNK_KEY);
-    capSpritesheet(this, FOOD_FRUTAS.key, FOOD_FRUTAS.frameWidth, FOOD_FRUTAS.frameHeight);
+    for (const crianca of criancasData.filter((c) => c.cabeca)) {
+      const sheetKey = getCharacterHeadSheetKey(crianca);
+      const animKey = getCharacterHeadAnimKey(crianca);
+      if (this.textures.exists(sheetKey) && !this.anims.exists(animKey)) {
+        this.anims.create({
+          key: animKey,
+          frames: this.anims.generateFrameNumbers(sheetKey, {
+            start: 0,
+            end: CHAR_HEAD_FRAME_COUNT - 1,
+          }),
+          frameRate: 7,
+          repeat: -1,
+        });
+      }
+    }
 
     const criancas = this.cache.json.exists('criancas')
       ? this.cache.json.get('criancas')
