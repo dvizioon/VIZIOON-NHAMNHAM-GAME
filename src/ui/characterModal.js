@@ -46,7 +46,7 @@ function buildModalAvatar(scene, crianca, r, frameHint) {
   if (hasTexture(scene, CHAR_HEADS_KEY)) {
     face = scene.add.sprite(0, 2, CHAR_HEADS_KEY, frame);
     face.setOrigin(0.5, 0.58);
-    const headH = r * 1.82;
+    const headH = r * 2.08;
     face.setDisplaySize(headH * 0.82, headH);
     if (scene.anims.exists(CHAR_HEADS_ANIM_KEY)) {
       face.anims.play(CHAR_HEADS_ANIM_KEY);
@@ -74,7 +74,7 @@ export async function openCharacterDetailModal(scene, crianca, {
   await Icon.preload(scene, [CLOSE_ICON, CUSTOMIZE_ICON]);
 
   const panelW = Math.min(Math.round(width * 0.88), 360);
-  const avatarR = Math.round(panelW * 0.15);
+  const avatarR = Math.round(panelW * 0.18);
   const bioFont = Math.max(15, Math.round(17 * s));
   const bioWrap = panelW * 0.82;
 
@@ -89,12 +89,14 @@ export async function openCharacterDetailModal(scene, crianca, {
 
   const btnH = 56;
   const navBtnSize = 52;
-  const actionsGap = 48;
+  const actionsGap = 28;
+  const topPad = 22;
+  const bottomPad = 20;
   const panelH = Math.min(
-    height * 0.74,
+    height * 0.68,
     Math.max(
-      Math.round(height * 0.56),
-      avatarR * 2 + 148 + bioH + btnH + actionsGap + 24,
+      Math.round(height * 0.5),
+      topPad + avatarR * 2 + 34 + 26 + 16 + 12 + bioH + actionsGap + btnH + bottomPad,
     ),
   );
 
@@ -144,10 +146,11 @@ export async function openCharacterDetailModal(scene, crianca, {
   panel.add(closeBtn);
 
   const avatar = buildModalAvatar(scene, crianca, avatarR, frameHint);
-  avatar.setY(top + avatarR + 36);
+  const avatarY = top + topPad + avatarR;
+  avatar.setY(avatarY);
   panel.add(avatar);
 
-  const nameText = scene.add.text(0, top + avatarR * 2 + 52, crianca.nome, {
+  const nameText = scene.add.text(0, avatarY + avatarR + 22, crianca.nome, {
     fontFamily: Theme.fontFamily,
     fontSize: `${Math.max(24, Math.round(28 * s))}px`,
     color: Theme.folhaEscura,
@@ -156,7 +159,7 @@ export async function openCharacterDetailModal(scene, crianca, {
   }).setOrigin(0.5);
   panel.add(nameText);
 
-  const tipoText = scene.add.text(0, nameText.y + 28, profile.tipo, {
+  const tipoText = scene.add.text(0, nameText.y + 24, profile.tipo, {
     fontFamily: Theme.fontFamily,
     fontSize: `${Math.max(14, Math.round(16 * s))}px`,
     color: crianca.genero === 'menina' ? '#D85A96' : '#4E9A2E',
@@ -166,13 +169,13 @@ export async function openCharacterDetailModal(scene, crianca, {
   }).setOrigin(0.5);
   panel.add(tipoText);
 
-  const dividerY = tipoText.y + 20;
+  const dividerY = tipoText.y + 16;
   const divider = scene.add.graphics();
   divider.lineStyle(2, Theme.texto, 0.2);
   divider.lineBetween(-panelW * 0.36, dividerY, panelW * 0.36, dividerY);
   panel.add(divider);
 
-  const bioText = scene.add.text(0, dividerY + 18, profile.personalidade, {
+  const bioText = scene.add.text(0, dividerY + 12, profile.personalidade, {
     fontFamily: Theme.fontFamily,
     fontSize: `${bioFont}px`,
     color: Theme.texto,
@@ -182,7 +185,7 @@ export async function openCharacterDetailModal(scene, crianca, {
   }).setOrigin(0.5, 0);
   panel.add(bioText);
 
-  const actionsY = bioText.y + bioText.height + actionsGap;
+  const actionsY = panelH / 2 - bottomPad - btnH / 2;
   const playW = Math.round(panelW * 0.52);
   const btnGap = 14;
   const rowW = playW + btnGap + navBtnSize;
