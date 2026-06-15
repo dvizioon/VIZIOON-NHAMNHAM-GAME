@@ -9,6 +9,10 @@ import {
   attachCharacterCabecaToClimb,
   syncCabecaToClimbBody,
 } from '../ui/characterAvatar.js';
+import {
+  CLIMB_SWAY_X,
+  CLIMB_SWAY_ROT,
+} from '../config/gameWorldConfig.js';
 
 /**
  * Lagarta em filamento — várias bolinhas empilhadas (sprites Figma).
@@ -150,7 +154,7 @@ export class CaterpillarSprite {
 
     let activeSegmentCount = segCount;
 
-    const headCfg = cfg?.head ?? {};
+    const headCfg = { ...(cfg?.head ?? {}), ...(opts.headCfg ?? {}) };
     const headOriginX = headCfg.origin?.x ?? originX;
     const headOriginY = headCfg.origin?.y ?? originY;
     const headIdleFrame = headCfg.idleFrame ?? 1;
@@ -423,6 +427,7 @@ export class CaterpillarSprite {
 
       setMoving(moving) {
         if (useClimb) {
+          if (api.isMoving === moving) return;
           api.isMoving = moving;
           playClimbOnVisibleSegments(moving ? 60 : 80);
           return;
@@ -495,13 +500,50 @@ export class CaterpillarSprite {
         bringHeadToFront();
       },
 
-      updateWave(fase, moving) {
+      updateWave(fase, moving, moveDelta = 0) {
         if (api.isRising) return;
-        segments.forEach(({ sprite, index }) => {
-          if (useClimb && layout === 'vertical') {
-            sprite.x = 0;
-            return;
+
+        if (useClimb && layout === 'vertical') {
+          const isActive = moving || Math.abs(moveDelta) > 0.8;
+          const firstVisible = segments.length - activeSegmentCount;
+          const swayX = headCfg.swayX ?? CLIMB_SWAY_X;
+          const swayRot = headCfg.swayRot ?? CLIMB_SWAY_ROT;
+
+          segments.forEach(({ sprite, index }) => {
+            if (!sprite.visible) {
+              sprite.x = 0;
+              sprite.rotation = 0;
+              return;
+            }
+            const rel = index - firstVisible;
+            if (isActive) {
+              sprite.x = Math.sin(fase * 6 + rel * 0.9) * swayX;
+              sprite.rotation = Math.sin(fase * 5 + rel * 0.75) * swayRot;
+            } else {
+              sprite.x = Phaser.Math.Linear(sprite.x, 0, 0.14);
+              sprite.rotation = Phaser.Math.Linear(sprite.rotation, 0, 0.14);
+            }
+          });
+
+          if (isActive) {
+            const lean = Phaser.Math.Clamp(moveDelta * 0.0011, -0.09, 0.09);
+            container.rotation = lean + Math.sin(fase * 7) * 0.035;
+          } else {
+            container.rotation = Phaser.Math.Linear(container.rotation, 0, 0.12);
           }
+
+          syncChildHead();
+          if (childHeadSprite?.active) {
+            if (isActive) {
+              childHeadSprite.rotation = Math.sin(fase * 6.5) * 0.05;
+            } else {
+              childHeadSprite.rotation = Phaser.Math.Linear(childHeadSprite.rotation, 0, 0.12);
+            }
+          }
+          return;
+        }
+
+        segments.forEach(({ sprite, index }) => {
           const wave = moving ? Math.sin(fase * 0.55 + index * 0.65) * 4 : 0;
           if (layout === 'horizontal') {
             const base = basePos(index);

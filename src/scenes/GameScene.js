@@ -12,7 +12,11 @@ import {
   TRUNK_PLAY_WIDTH_RATIO,
   FRUIT_EAT_RADIUS_X,
   MAX_BODY_SEGMENTS,
-  CLIMB_FRAME_WIDTH,
+  CLIMB_FRAME_HEIGHT,
+  CLIMB_BODY_TRUNK_RATIO,
+  CLIMB_HEAD_SCALE_MUL,
+  CLIMB_SWAY_X,
+  CLIMB_SWAY_ROT,
   DEPTH_LAGARTA,
   DEPTH_FRUIT,
   FRUIT_FALL_INTERVAL_MIN,
@@ -155,7 +159,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   buildClimber(width) {
-    const climbScale = (this.trunkPlayW * 0.55) / CLIMB_FRAME_WIDTH;
+    const bodySize = this.trunkW * CLIMB_BODY_TRUNK_RATIO;
+    const climbScale = bodySize / CLIMB_FRAME_HEIGHT;
 
     this.caterpillarApi = CaterpillarSprite.create(
       this,
@@ -170,6 +175,7 @@ export class GameScene extends Phaser.Scene {
         hideHead: true,
         segmentCount: MAX_BODY_SEGMENTS,
         displayScale: climbScale,
+        headCfg: { scaleMul: CLIMB_HEAD_SCALE_MUL },
       },
     );
 
@@ -179,7 +185,7 @@ export class GameScene extends Phaser.Scene {
     this.lagarta = {
       x: this.trunkCX,
       alvoX: this.trunkCX,
-      raio: 28,
+      raio: Math.round(bodySize * 0.42),
       segmentos: 1,
     };
   }
@@ -449,7 +455,8 @@ export class GameScene extends Phaser.Scene {
     const segs = Math.min(MAX_BODY_SEGMENTS, this.pontos + 1);
     this.caterpillarApi?.setActiveSegmentCount(segs);
     this.lagarta.segmentos = segs;
-    this.lagarta.raio = Math.min(38, 24 + this.pontos * 2);
+    const bodySize = this.trunkW * CLIMB_BODY_TRUNK_RATIO;
+    this.lagarta.raio = Math.min(bodySize * 0.55, bodySize * 0.42 + this.pontos * 2);
   }
 
   ativarSapo() {
@@ -601,10 +608,12 @@ export class GameScene extends Phaser.Scene {
     this.lagarta.x += (this.lagarta.alvoX - this.lagarta.x) * 0.14;
 
     if (this.caterpillarApi) {
+      const moveDelta = this.lagarta.alvoX - this.lagarta.x;
+      const isMoving = Math.abs(moveDelta) > 0.6;
       this.caterpillarApi.setPosition(this.lagarta.x, this.getClimberY());
       const alpha = this.invulneravel > 0 && Math.floor(this.invulneravel / 6) % 2 ? 0.45 : 1;
       this.caterpillarApi.setAlpha(alpha);
-      this.caterpillarApi.updateWave(this.time.now * 0.001, this.lagarta.alvoX !== this.lagarta.x);
+      this.caterpillarApi.updateWave(this.time.now * 0.001, isMoving, moveDelta);
     }
 
     for (let i = this.comidas.length - 1; i >= 0; i--) {

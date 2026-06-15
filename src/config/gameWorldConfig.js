@@ -7,6 +7,14 @@ export const CLIMB_TEX = 'char_default_climb';
 export const CLIMB_ANIM = 'char_default_climb';
 /** Dimensões de um frame em subindo.png — p/ escala na tela */
 export const CLIMB_FRAME_WIDTH = 1028;
+export const CLIMB_FRAME_HEIGHT = 738;
+/** Corpo da lagarta no tronco ≈ tamanho da fruta (trunkW × ratio) */
+export const CLIMB_BODY_TRUNK_RATIO = 0.17;
+/** Cabeça da criança maior que cada bolinha do corpo */
+export const CLIMB_HEAD_SCALE_MUL = 1.55;
+/** Balanço lateral ao mover no tronco */
+export const CLIMB_SWAY_X = 9;
+export const CLIMB_SWAY_ROT = 0.075;
 /** Frame do subindo.png com olho fechado (1 = embaixo) */
 export const CLIMB_EYES_CLOSED_FRAME = 1;
 
