@@ -303,7 +303,7 @@ export class SplashScene extends Phaser.Scene {
   placeLogo(width, depth) {
     const y = layoutY(this, LOGO_Y_RATIO);
     const maxW = isPortrait(this)
-      ? Math.min(Math.round(this.scale.height * 0.38), LOGO_MAX_WIDTH)
+      ? Math.min(Math.round(width * 0.95), Math.round(this.scale.height * 0.55), 580)
       : responsiveWidth(this, LOGO_MAX_WIDTH_RATIO, LOGO_MAX_WIDTH);
 
     if (this.textures.exists(UI_LOGO_KEY)) {
@@ -315,16 +315,19 @@ export class SplashScene extends Phaser.Scene {
 
   placeSplashButtons(width) {
     const scale = uiScale(this);
-    const btnSize = isPortrait(this) ? Math.round(SPLASH_BTN_SIZE * 1.12) : SPLASH_BTN_SIZE;
-    const iconSize = isPortrait(this) ? Math.round(SPLASH_ICON_SIZE * 1.1) : SPLASH_ICON_SIZE;
-    const { btnW } = getIconButtonSize(this, btnSize);
+    const portrait = isPortrait(this);
+    const configSize = portrait ? Math.round(SPLASH_BTN_SIZE * 1.05) : SPLASH_BTN_SIZE;
+    const configIcon = portrait ? Math.round(SPLASH_ICON_SIZE * 1.05) : SPLASH_ICON_SIZE;
+    const playSize = portrait ? Math.round(SPLASH_BTN_SIZE * 1.55) : SPLASH_BTN_SIZE;
+    const playIcon = portrait ? Math.round(SPLASH_ICON_SIZE * 1.35) : SPLASH_ICON_SIZE;
+    const { btnW } = getIconButtonSize(this, playSize);
     const gap = Math.round(28 * scale);
     const rowY = layoutY(this, SPLASH_BUTTONS_Y_RATIO);
 
     placeTopRightButton(this, SPLASH_ICONS.config, {
       margin: 24,
-      size: btnSize,
-      iconSize,
+      size: configSize,
+      iconSize: configIcon,
       depth: DEPTH_UI,
       onClick: () => {
         playSound(this, 'clique');
@@ -337,8 +340,8 @@ export class SplashScene extends Phaser.Scene {
     const rankX = width / 2 + (btnW + gap) / 2;
 
     createIconCircleButton(this, playX, rowY, SPLASH_ICONS.play, {
-      size: btnSize,
-      iconSize,
+      size: playSize,
+      iconSize: playIcon,
       depth: DEPTH_UI,
       onClick: () => {
         playSound(this, 'clique');
@@ -348,8 +351,8 @@ export class SplashScene extends Phaser.Scene {
     });
 
     createIconCircleButton(this, rankX, rowY, SPLASH_ICONS.ranking, {
-      size: btnSize,
-      iconSize,
+      size: playSize,
+      iconSize: playIcon,
       depth: DEPTH_UI,
       onClick: () => playSound(this, 'clique'),
     });

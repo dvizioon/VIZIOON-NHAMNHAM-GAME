@@ -106,17 +106,20 @@ export function drawSkyBackground(scene) {
   return null;
 }
 
-/** Grama + chão — na frente das frutas, atrás da lagarta */
+/** Grama + chão — altura = tela, largura proporcional, base na borda inferior (sem esticar) */
 export function drawGroundForeground(scene, depth = DEPTH_GROUND_FG) {
   const { width, height } = scene.scale;
-  const cover = coverDisplaySize(width, height, DESIGN_SIZE.width, DESIGN_SIZE.height);
-
   if (!hasTexture(scene, GROUND_KEY)) return null;
 
-  return scene.add.image(width / 2, height / 2, GROUND_KEY)
+  const tex = scene.textures.get(GROUND_KEY).getSourceImage();
+  const displayH = height;
+  const displayW = displayH * (tex.width / tex.height);
+
+  return scene.add.image(width / 2, height, GROUND_KEY)
     .setDepth(depth)
     .setScrollFactor(0)
-    .setDisplaySize(cover.w, cover.h);
+    .setOrigin(0.5, 1)
+    .setDisplaySize(displayW, displayH);
 }
 
 /** Linha do chão — pés da lagarta */

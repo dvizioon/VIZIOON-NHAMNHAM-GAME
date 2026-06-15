@@ -1,9 +1,11 @@
-/** Escala UI — portrait usa altura (botões maiores); landscape proporcional 1280×720 */
+/** Escala UI — portrait equilibra largura e altura (sem estourar nem encolher demais) */
 export function uiScale(scene) {
   const { width, height } = scene.scale;
 
   if (height > width) {
-    return Math.min(height / 720, 1);
+    const byWidth = width / 720;
+    const byHeight = height / 720;
+    return Math.min(Math.max(byWidth, byHeight * 0.82), 1);
   }
 
   return Math.min(width / 1280, height / 720, 1);
