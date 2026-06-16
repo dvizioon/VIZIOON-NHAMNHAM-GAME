@@ -26,7 +26,7 @@ import { FOOD_FRUTAS } from '../config/foodConfig.js';
 const FOOD_KEY = FOOD_FRUTAS.key;
 const SPLASH_BTN_SIZE = 142;
 const SPLASH_ICON_RATIO = 0.42;
-const SPLASH_CATERPILLAR_SCALE = 0.095;
+const SPLASH_CATERPILLAR_SCALE = 0.108;
 const SPLASH_GROUND_OFFSET_RATIO = 0.055;
 const SPLASH_LAYOUT = {
   portrait: {
