@@ -9,7 +9,7 @@ import { createIconCircleButton } from './splashUi.js';
 
 import { Icon } from './iconify.js';
 
-import { getCharacterProfile } from '../config/characterUiConfig.js';
+import { getCharacterProfile, CHAR_TEXT_COLOR } from '../config/characterUiConfig.js';
 
 import { createCharacterFace } from './characterAvatar.js';
 
@@ -263,7 +263,7 @@ export async function openCharacterDetailModal(scene, crianca, {
 
     fontSize: `${Math.max(24, Math.round(28 * s))}px`,
 
-    color: Theme.folhaEscura,
+    color: CHAR_TEXT_COLOR,
 
     fontStyle: 'bold',
 
@@ -281,7 +281,7 @@ export async function openCharacterDetailModal(scene, crianca, {
 
     fontSize: `${Math.max(14, Math.round(16 * s))}px`,
 
-    color: crianca.genero === 'menina' ? '#D85A96' : '#4E9A2E',
+    color: CHAR_TEXT_COLOR,
 
     fontStyle: 'bold',
 
@@ -299,7 +299,7 @@ export async function openCharacterDetailModal(scene, crianca, {
 
   const divider = scene.add.graphics();
 
-  divider.lineStyle(2, Theme.texto, 0.2);
+  divider.lineStyle(2, CHAR_TEXT_COLOR, 0.2);
 
   divider.lineBetween(-panelW * 0.36, dividerY, panelW * 0.36, dividerY);
 
@@ -313,7 +313,7 @@ export async function openCharacterDetailModal(scene, crianca, {
 
     fontSize: `${bioFont}px`,
 
-    color: Theme.texto,
+    color: CHAR_TEXT_COLOR,
 
     align: 'center',
 

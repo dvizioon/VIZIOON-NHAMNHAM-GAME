@@ -1,5 +1,7 @@
 /** Tela Personagens — grid 2×2, 4 por página */
 
+export const CHAR_TEXT_COLOR = '#490808';
+
 export const UI_LOGO_PERSONAGENS_KEY = 'ui_logo_personagens';
 
 export const CHAR_HEADS_KEY = 'char_heads_kids';
@@ -9,6 +11,14 @@ export const CHAR_HEADS_ANIM_KEY = 'char_heads_wiggle';
 export const CHAR_HEAD_FRAME_W = 641;
 
 export const CHAR_HEAD_FRAME_H = 804;
+
+/** Cabeças das crianças (childs/*.png): 4 frames colados, sem spacing */
+export function getCharacterHeadSheetLoadOpts() {
+  return {
+    frameWidth: CHAR_HEAD_FRAME_W,
+    frameHeight: CHAR_HEAD_FRAME_H,
+  };
+}
 
 export const CHAR_HEAD_FRAME_COUNT = 4;
 export const CHAR_HEADS_ANIM_FRAME_RATE = 7;

@@ -12,6 +12,7 @@ import {
   UI_LOGO_PERSONAGENS_KEY,
   CHAR_PER_PAGE,
   CHAR_GRID_COLS,
+  CHAR_TEXT_COLOR,
   filterCriancasAtivas,
 } from '../config/characterUiConfig.js';
 import { createCharacterFace } from '../ui/characterAvatar.js';
@@ -442,14 +443,14 @@ export class CharacterScene extends Phaser.Scene {
     const name = this.add.text(0, nameY, crianca.nome, {
       fontFamily: Theme.fontFamily,
       fontSize: `${Math.max(16, Math.round(19 * s))}px`,
-      color: Theme.texto,
+      color: CHAR_TEXT_COLOR,
       fontStyle: 'bold',
       align: 'center',
       wordWrap: { width: size * 0.98 },
     }).setOrigin(0.5, 1);
 
     const divider = this.add.graphics();
-    divider.lineStyle(2, Theme.texto, 0.28);
+    divider.lineStyle(2, CHAR_TEXT_COLOR, 0.28);
     divider.lineBetween(-size * 0.38, nameY + 6, size * 0.38, nameY + 6);
 
     const shadow = this.add.graphics();
@@ -469,7 +470,7 @@ export class CharacterScene extends Phaser.Scene {
     ring.fillCircle(0, 0, r);
     ring.strokeCircle(0, 0, r);
 
-    let avatar = createCharacterFace(this, crianca, r, frameHint);
+    let avatar = createCharacterFace(this, crianca, r, frameHint, { headHeightRatio: 2.32 });
 
     container.add([shadow, base, ring, avatar, divider, name]);
 

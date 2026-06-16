@@ -45,11 +45,20 @@ function loadImageIfExists(scene, key, relativePath) {
 
 function loadSpritesheet(scene, key, cfg) {
   if (!cfg?.spritesheet || !cfg.frameWidth || !cfg.frameHeight) return false;
-  scene.load.spritesheet(key, assetUrl(cfg.spritesheet), {
+  const sheetOpts = {
     frameWidth: cfg.frameWidth,
     frameHeight: cfg.frameHeight,
-  });
+  };
+  if (cfg.spacing) sheetOpts.spacing = cfg.spacing;
+  scene.load.spritesheet(key, assetUrl(cfg.spritesheet), sheetOpts);
   return true;
+}
+
+function textureHasFrames(scene, key) {
+  if (!scene.textures.exists(key)) return false;
+  const tex = scene.textures.get(key);
+  if (tex.frameTotal <= 1) return false;
+  return tex.has(0);
 }
 
 function loadCharacterSheets(scene, charId, cfg) {
@@ -94,7 +103,7 @@ function registerCharacterAnimations(scene, charId, cfg) {
     for (const [animName, def] of Object.entries(cfg.animations)) {
       const sheetName = def.sheet ?? animName;
       const texKey = `${baseKey}_${sheetName}`;
-      if (!scene.textures.exists(texKey)) continue;
+      if (!textureHasFrames(scene, texKey)) continue;
 
       const fullKey = `${baseKey}_${animName}`;
       if (scene.anims.exists(fullKey)) continue;
@@ -108,6 +117,7 @@ function registerCharacterAnimations(scene, charId, cfg) {
         frames,
         frameRate: def.frameRate ?? 8,
         repeat: def.repeat ?? -1,
+        yoyo: def.yoyo ?? false,
       });
     }
     return;
@@ -149,6 +159,7 @@ export function getCharacterTextureKeys(childId) {
       rise: `${base}_rise`,
       climb: `${base}_climb`,
       headWalk: `${base}_headWalk`,
+      headIdle: `${base}_headIdle`,
       headRise: `${base}_headRise`,
       defaultTex: `${base}_idle`,
     };

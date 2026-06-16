@@ -21,6 +21,7 @@ import {
   getCharacterHeadAnimKey,
   getCharacterHeadFrameRate,
   getCharacterHeadSheetKey,
+  getCharacterHeadSheetLoadOpts,
   listCharacterHeadAssets,
   listCharacterFaceAssets,
 } from '../config/characterUiConfig.js';
@@ -33,6 +34,12 @@ import {
   ENV_GROUND_PATH,
 } from '../config/environmentConfig.js';
 import { GAME_TRUNK_KEY, INTRO_TRUNK_KEY } from '../config/gameWorldConfig.js';
+import {
+  FROG_JUMP_KEY,
+  FROG_JUMP_PATH,
+  getFrogJumpSheetLoadOpts,
+  registerIntroFrogAnimations,
+} from '../config/introFrogConfig.js';
 import {
   EGG_WOBBLE_KEY,
   EGG_CRACK_KEY,
@@ -73,9 +80,8 @@ export class PreloadScene extends Phaser.Scene {
     this.load.image(ENV_GROUND_KEY, ENV_GROUND_PATH);
     this.load.image('ui_logo', 'assets/textures/ui/logo.svg');
     this.load.image('ui_logo_personagens', 'assets/textures/ui/Logo_personagens.svg');
-    this.load.spritesheet('char_heads_kids', 'assets/sprites/characters/cabe%C3%A7a_crian%C3%A7as.png', {
-      frameWidth: 641,
-      frameHeight: 804,
+    this.load.spritesheet(CHAR_HEADS_KEY, 'assets/sprites/characters/childs/anderson_gabriel.png', {
+      ...getCharacterHeadSheetLoadOpts(),
     });
     this.load.image('ui_button_border', 'assets/textures/ui/BordaButton.svg');
     this.load.image('ui_deco_3folhas', 'assets/textures/ui/3folhas.svg');
@@ -105,11 +111,9 @@ export class PreloadScene extends Phaser.Scene {
       frameWidth: EGG_HATCH_NASCENDO_FRAME_W,
       frameHeight: EGG_HATCH_NASCENDO_FRAME_H,
     });
+    this.load.spritesheet(FROG_JUMP_KEY, FROG_JUMP_PATH, getFrogJumpSheetLoadOpts());
     for (const { key, path } of listCharacterHeadAssets(criancasData)) {
-      this.load.spritesheet(key, path, {
-        frameWidth: CHAR_HEAD_FRAME_W,
-        frameHeight: CHAR_HEAD_FRAME_H,
-      });
+      this.load.spritesheet(key, path, getCharacterHeadSheetLoadOpts());
     }
     for (const { key, path } of listCharacterFaceAssets(criancasData)) {
       this.load.image(key, path);
@@ -118,7 +122,6 @@ export class PreloadScene extends Phaser.Scene {
       this.load.audio(key, url);
     }
     this.load.audio('egg_crack', OPTIONAL_SOUNDS.egg_crack);
-    this.load.audio('nascer', OPTIONAL_SOUNDS.nascer);
     queueSpriteAssets(this);
   }
 
@@ -132,21 +135,24 @@ export class PreloadScene extends Phaser.Scene {
     capImageTexture(this, INTRO_TRUNK_KEY);
     capSpritesheet(this, FOOD_FRUTAS.key, FOOD_FRUTAS.frameWidth, FOOD_FRUTAS.frameHeight);
     for (const { key } of listCharacterHeadAssets(criancasData)) {
-      capSpritesheet(this, key, CHAR_HEAD_FRAME_W, CHAR_HEAD_FRAME_H);
+      if (this.textures.exists(key) && this.textures.get(key).getSourceImage().width > 4096) {
+        capSpritesheet(this, key, CHAR_HEAD_FRAME_W, CHAR_HEAD_FRAME_H);
+      }
     }
     for (const { key } of listCharacterFaceAssets(criancasData)) {
       capImageTexture(this, key);
     }
-    capSpritesheet(this, EGG_WOBBLE_KEY, EGG_WOBBLE_FRAME_W, EGG_WOBBLE_FRAME_H);
-    capSpritesheet(this, EGG_CRACK_KEY, EGG_CRACK_FRAME_W, EGG_CRACK_FRAME_H);
-    capSpritesheet(this, EGG_OPEN_KEY, EGG_OPEN_FRAME_W, EGG_OPEN_FRAME_H);
-    capSpritesheet(
-      this,
-      EGG_HATCH_NASCENDO_KEY,
-      EGG_HATCH_NASCENDO_FRAME_W,
-      EGG_HATCH_NASCENDO_FRAME_H,
-    );
+    if (this.textures.exists(EGG_HATCH_NASCENDO_KEY)
+      && this.textures.get(EGG_HATCH_NASCENDO_KEY).getSourceImage().width > 4096) {
+      capSpritesheet(
+        this,
+        EGG_HATCH_NASCENDO_KEY,
+        EGG_HATCH_NASCENDO_FRAME_W,
+        EGG_HATCH_NASCENDO_FRAME_H,
+      );
+    }
     registerEggAnimations(this);
+    registerIntroFrogAnimations(this);
 
     if (this.textures.exists(CHAR_HEADS_KEY) && !this.anims.exists(CHAR_HEADS_ANIM_KEY)) {
       this.anims.create({

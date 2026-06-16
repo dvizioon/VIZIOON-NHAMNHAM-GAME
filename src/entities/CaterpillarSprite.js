@@ -63,9 +63,17 @@ export class CaterpillarSprite {
     const hideHead = opts.hideHead ?? useClimb;
     const scale = opts.displayScale ?? cfg?.displayScale ?? 1;
     const climbFrameH = cfg?.sheets?.climb?.frameHeight ?? 738;
+    const walkSheet = cfg?.sheets?.walk;
+    const idleSheet = cfg?.sheets?.idle;
     const frameH = useClimb
       ? climbFrameH
-      : (cfg?.sheets?.idle?.frameHeight ?? cfg?.frameHeight ?? 128);
+      : (walkSheet?.frameHeight ?? idleSheet?.frameHeight ?? cfg?.frameHeight ?? 128);
+    const headWalkFrameH = cfg?.sheets?.headWalk?.frameHeight ?? frameH;
+    const normSegH = frameH * scale;
+    const normSegW = walkSheet
+      ? (walkSheet.frameWidth / walkSheet.frameHeight) * normSegH
+      : normSegH;
+    const normHeadH = headWalkFrameH * scale;
     const segCount = Math.max(6, opts.segmentCount ?? cfg?.segmentCount ?? 6);
     const spacing = frameH * scale * (cfg?.segmentSpacing ?? 0.46);
     const originX = cfg?.origin?.x ?? 0.5;
@@ -75,12 +83,22 @@ export class CaterpillarSprite {
 
     const walkAnimKey = `${texKeys.base}_walk`;
     const idleAnimKey = `${texKeys.base}_idle`;
+    const idleBreatheAnimKey = `${texKeys.base}_idleBreathe`;
     const eatAnimKey = `${texKeys.base}_eat`;
     const riseAnimKey = `${texKeys.base}_rising`;
+    const riseMoveAnimKey = `${texKeys.base}_risingMove`;
     const climbAnimKey = `${texKeys.base}_climb`;
     const headWalkAnimKey = `${texKeys.base}_headWalk`;
+    const headIdleAnimKey = `${texKeys.base}_headIdle`;
     const headRiseAnimKey = `${texKeys.base}_headRise`;
-    const riseFrontCount = cfg?.riseFrontCount ?? 2;
+    const headRiseMoveAnimKey = `${texKeys.base}_headRiseMove`;
+    const hasHeadIdleSheet = () => scene.textures.exists(texKeys.headIdle);
+    const riseFrontCount = cfg?.riseFrontCount ?? 3;
+    const riseHoldFrames = cfg?.riseHoldFrames ?? 3;
+    const riseMoveFrames = cfg?.riseMoveFrames ?? 2;
+    const bodyIdleFrame = cfg?.bodyIdleFrame ?? cfg?.animations?.idle?.start ?? 0;
+    const idleBreatheSpeed = cfg?.idleBreatheSpeed ?? 0.28;
+    let idleWavePhase = 0;
     let defaultTex = scene.textures.exists(texKeys.defaultTex)
       ? texKeys.defaultTex
       : texKeys.walk;
@@ -97,16 +115,40 @@ export class CaterpillarSprite {
 
     let facingRight = true;
 
+    const RISE_DIAG_ANGLE = cfg?.riseDiagAngle ?? 0.48;
+    const RISE_DIAG_STEP = cfg?.riseDiagStep ?? 0.98;
+
     const risePos = (index) => {
-      const base = basePos(index);
+      if (index >= riseFrontCount) return basePos(index);
       const face = facingRight ? 1 : -1;
-      const lifts = [1.35, 0.72];
-      const lift = lifts[index] ?? 0.65;
+      const pivot = basePos(riseFrontCount);
+      const stepsUp = riseFrontCount - index;
+      const dist = spacing * RISE_DIAG_STEP * stepsUp;
       return {
-        x: base.x + spacing * 0.14 * face,
-        y: base.y - spacing * lift,
+        x: pivot.x + face * dist * Math.cos(RISE_DIAG_ANGLE),
+        y: pivot.y - dist * Math.sin(RISE_DIAG_ANGLE),
       };
     };
+
+    const riseRotFor = (index) => {
+      const face = facingRight ? 1 : -1;
+      const stepsUp = riseFrontCount - index;
+      return -RISE_DIAG_ANGLE * (stepsUp / riseFrontCount) * face;
+    };
+
+    function playSegErguendo(sprite, playAnim = true) {
+      if (!sprite?.active) return;
+      if (scene.textures.exists(texKeys.rise)) {
+        sprite.setTexture(texKeys.rise);
+      }
+      normalizeSegmentDisplay(sprite, 'rise');
+      sprite.anims?.stop();
+      if (playAnim && scene.anims.exists(riseMoveAnimKey)) {
+        sprite.play(riseMoveAnimKey);
+      } else if (sprite.texture?.has(0)) {
+        sprite.setFrame(0);
+      }
+    }
 
     function playClimbOnSegment(sprite, staggerMs = 0) {
       if (!sprite?.active) return;
@@ -133,23 +175,140 @@ export class CaterpillarSprite {
       });
     }
 
+    function segmentSheetForSprite(sprite) {
+      const key = sprite?.texture?.key;
+      if (key === texKeys.idle) return 'idle';
+      if (key === texKeys.rise) return 'rise';
+      if (key === texKeys.climb) return 'climb';
+      return 'walk';
+    }
+
+    function normalizeSegmentDisplay(sprite, sheetName) {
+      if (!sprite?.frame?.height) return;
+      const name = sheetName ?? segmentSheetForSprite(sprite);
+      const sheet = cfg?.sheets?.[name] ?? walkSheet ?? idleSheet;
+      if (!sheet) {
+        sprite.setDisplaySize(normSegW, normSegH);
+        return;
+      }
+      const w = (sheet.frameWidth / sheet.frameHeight) * normSegH;
+      sprite.setDisplaySize(w, normSegH);
+    }
+
+    function getSheetAnchorOffsetX(moving) {
+      if (useClimb) return 0;
+      const key = moving ? 'walk' : 'idle';
+      return (cfg?.sheets?.[key]?.anchorOffsetX ?? 0) * spacing;
+    }
+
+    function normalizeHeadDisplay(sprite) {
+      if (!sprite?.frame?.height) return;
+      const fh = sprite.frame.height;
+      const fw = sprite.frame.width;
+      sprite.setDisplaySize((fw / fh) * normHeadH, normHeadH);
+    }
+
+    function snapSegmentToBase(sprite, index, waveY = 0, moving = api?.isMoving ?? false) {
+      const pos = basePos(index);
+      const anchorOx = getSheetAnchorOffsetX(moving);
+      if (layout === 'horizontal') {
+        sprite.setPosition(pos.x + anchorOx, pos.y + waveY);
+      } else {
+        sprite.setPosition(pos.x + waveY + anchorOx, pos.y);
+      }
+    }
+
+    function playSegmentAnim(sprite, animKey, fallbackFrame = 0) {
+      if (!sprite?.active) return;
+      if (scene.anims.exists(animKey)) {
+        const anim = scene.anims.get(animKey);
+        if (anim?.frames?.length) {
+          sprite.play(animKey);
+          return;
+        }
+      }
+      if (scene.textures.exists(sprite.texture.key) && sprite.texture.has(fallbackFrame)) {
+        sprite.anims?.stop();
+        sprite.setFrame(fallbackFrame);
+      }
+    }
+
+    function holdSegIdle(sprite) {
+      if (scene.textures.exists(texKeys.idle)) {
+        sprite.setTexture(texKeys.idle);
+      }
+      sprite.anims?.stop();
+      if (sprite.texture?.has(bodyIdleFrame)) {
+        sprite.setFrame(bodyIdleFrame);
+      }
+      normalizeSegmentDisplay(sprite, 'idle');
+    }
+
+    function playSegParada(sprite, startFrame = 0) {
+      if (!sprite?.active) return;
+      if (scene.textures.exists(texKeys.idle)) {
+        sprite.setTexture(texKeys.idle);
+      }
+      normalizeSegmentDisplay(sprite, 'idle');
+      if (scene.anims.exists(idleBreatheAnimKey)) {
+        const anim = scene.anims.get(idleBreatheAnimKey);
+        if (anim?.frames?.length) {
+          sprite.play(idleBreatheAnimKey, true, startFrame);
+          return;
+        }
+      }
+      holdSegIdle(sprite);
+    }
+
+    function holdSegRise(sprite) {
+      if (!sprite?.active) return;
+      if (scene.textures.exists(texKeys.rise)) {
+        sprite.setTexture(texKeys.rise);
+      }
+      normalizeSegmentDisplay(sprite, 'rise');
+      sprite.anims?.stop();
+      if (scene.anims.exists(riseAnimKey)) {
+        sprite.play(riseAnimKey);
+      } else {
+        sprite.setFrame(0);
+      }
+    }
+
+    function freezeSegRise(sprite, endFrame = 3) {
+      if (!sprite?.active) return;
+      sprite.anims?.stop();
+      if (sprite.texture?.has(endFrame)) {
+        sprite.setFrame(endFrame);
+      }
+      normalizeSegmentDisplay(sprite, 'rise');
+    }
+
+    function syncAllSegParada() {
+      segments.forEach(({ sprite }) => playSegParada(sprite, 0));
+    }
+
+    function playSegIdle(sprite) {
+      playSegParada(sprite, 0);
+    }
+
     for (let i = 0; i < segCount; i++) {
       const fromEnd = segCount - 1 - i;
       const sx = layout === 'horizontal' ? fromEnd * spacing : 0;
       const sy = layout === 'vertical' ? -fromEnd * spacing : 0;
-      const seg = scene.add.sprite(sx, sy, defaultTex).setScale(scale);
-      seg.setOrigin(originX, originY);
+      const seg = scene.add.sprite(sx, sy, defaultTex).setOrigin(originX, originY);
 
       if (useClimb && scene.textures.exists(texKeys.climb)) {
         playClimbOnSegment(seg, i * 80);
-      } else if (scene.anims.exists(idleAnimKey)) {
-        seg.play(idleAnimKey);
-      } else {
-        seg.setFrame(cfg?.animations?.idle?.start ?? 0);
+      } else if (scene.textures.exists(defaultTex) && scene.textures.get(defaultTex).has(0)) {
+        holdSegIdle(seg);
       }
 
       container.add(seg);
       segments.push({ sprite: seg, index: i });
+    }
+
+    if (!useClimb && segments.length > 0) {
+      syncAllSegParada();
     }
 
     let activeSegmentCount = segCount;
@@ -161,12 +320,18 @@ export class CaterpillarSprite {
     const headBlinkFrame = headCfg.blinkFrame ?? 3;
     let headBlinkTimer = null;
     let headIsMoving = false;
+    let risingFlag = false;
+    let headParadaX = null;
+    let headParadaY = null;
     let headSprite = null;
 
-    if (!hideHead && scene.textures.exists(texKeys.headWalk)) {
-      headSprite = scene.add.sprite(0, 0, texKeys.headWalk, headIdleFrame);
+    if (!hideHead && (scene.textures.exists(texKeys.headWalk) || scene.textures.exists(texKeys.headIdle))) {
+      const startTex = scene.textures.exists(texKeys.headIdle)
+        ? texKeys.headIdle
+        : texKeys.headWalk;
+      headSprite = scene.add.sprite(0, 0, startTex, 0);
       headSprite.setOrigin(headOriginX, headOriginY);
-      headSprite.setScale(scale);
+      normalizeHeadDisplay(headSprite);
       container.add(headSprite);
     }
 
@@ -179,60 +344,122 @@ export class CaterpillarSprite {
       return segments.find(({ index }) => index === 0)?.sprite;
     };
 
-    const syncHeadToSegment = (seg, cfgOverride = {}) => {
-      if (!headSprite?.active || !seg) return;
-      const w = seg.displayWidth;
-      const h = seg.displayHeight;
-      const ballTop = cfgOverride.ballTopRatio ?? headCfg.ballTopRatio ?? 0.54;
-      const oy = (cfgOverride.offsetY ?? headCfg.offsetY ?? 0.12) * h;
-      const tipPush = (cfgOverride.tipOffset ?? headCfg.tipOffset ?? 0.65) * spacing;
-      const fineX = (cfgOverride.offsetX ?? headCfg.offsetX ?? 0) * w;
-      headSprite.setPosition(seg.x + tipPush + fineX, seg.y - h * ballTop + oy);
+    const clearHeadParadaLock = () => {
+      headParadaX = null;
+      headParadaY = null;
     };
 
-    const syncHeadToFront = () => syncHeadToSegment(frontSegment());
+    const lockHeadParadaPosition = () => {
+      if (!headSprite?.active || !hasHeadIdleSheet()) return;
+      syncHeadToSegment(frontSegment());
+      headParadaX = headSprite.x;
+      headParadaY = headSprite.y;
+    };
+
+    const syncHeadToRiseFront = () => {
+      const seg = frontSegment();
+      if (!headSprite?.active || !seg) return;
+      const riseCfg = headCfg.rise ?? {};
+      const h = normSegH;
+      const w = seg.displayWidth;
+      const tipPush = (riseCfg.tipOffset ?? 0.42) * spacing;
+      const fineX = (riseCfg.offsetX ?? 0.05) * w;
+      const ballTop = riseCfg.ballTopRatio ?? 0.50;
+      const oy = (riseCfg.offsetY ?? 0.02) * h;
+      const rot = seg.rotation ?? 0;
+      const lx = tipPush + fineX;
+      const ly = -h * ballTop + oy;
+      const cos = Math.cos(rot);
+      const sin = Math.sin(rot);
+      headSprite.setPosition(
+        seg.x + lx * cos - ly * sin,
+        seg.y + lx * sin + ly * cos,
+      );
+      headSprite.rotation = rot;
+    };
+
+    const syncHeadToSegment = (seg, cfgOverride = {}) => {
+      if (!headSprite?.active || !seg) return;
+      const h = normSegH;
+      const w = seg.displayWidth;
+      const moving = cfgOverride.moving ?? headIsMoving;
+      const ballTop = moving
+        ? (cfgOverride.ballTopRatio ?? headCfg.ballTopRatio ?? 0.54)
+        : (cfgOverride.ballTopRatio ?? headCfg.ballTopRatioIdle ?? headCfg.ballTopRatio ?? 0.54);
+      const oyMul = moving
+        ? (headCfg.offsetY ?? 0.12)
+        : (headCfg.offsetYIdle ?? headCfg.offsetY ?? 0.12);
+      const oy = (cfgOverride.offsetY ?? oyMul) * h;
+      const tipBase = moving
+        ? (headCfg.tipOffset ?? 0.68)
+        : (headCfg.tipOffsetIdle ?? headCfg.tipOffset ?? 0.68);
+      const tipPush = (cfgOverride.tipOffset ?? tipBase) * spacing;
+      const fineXKey = moving ? 'offsetX' : 'offsetXIdle';
+      const fineX = (cfgOverride.offsetX ?? headCfg[fineXKey] ?? headCfg.offsetX ?? 0) * w;
+      const useParadaHead = !moving && hasHeadIdleSheet();
+      const idleBob = useParadaHead || moving
+        ? 0
+        : Math.sin(idleWavePhase * idleBreatheSpeed) * h * (headCfg.idleBobMul ?? 0);
+      headSprite.setPosition(seg.x + tipPush + fineX, seg.y - h * ballTop + oy + idleBob);
+      if (useParadaHead || moving) {
+        headSprite.rotation = Phaser.Math.Linear(headSprite.rotation, 0, 0.2);
+      } else {
+        const swayRot = headCfg.idleSwayRot ?? 0;
+        headSprite.rotation = Math.sin(idleWavePhase * idleBreatheSpeed * 1.1) * swayRot;
+      }
+    };
+
+    const syncHeadToFront = () => {
+      if (
+        !headIsMoving
+        && !risingFlag
+        && hasHeadIdleSheet()
+        && headParadaX != null
+        && headParadaY != null
+      ) {
+        headSprite.setPosition(headParadaX, headParadaY);
+        headSprite.rotation = 0;
+        return;
+      }
+      syncHeadToSegment(frontSegment());
+    };
 
     const resetHeadFromRise = () => {
       if (!headSprite?.active) return;
       scene.tweens.killTweensOf(headSprite);
-      if (scene.textures.exists(texKeys.headWalk)) {
-        headSprite.setTexture(texKeys.headWalk, headIdleFrame);
-        headSprite.setOrigin(headOriginX, headOriginY);
-        headSprite.setScale(scale);
-      }
+      headSprite.setOrigin(headOriginX, headOriginY);
+      clearHeadParadaLock();
+      holdHeadIdle();
+      lockHeadParadaPosition();
     };
 
-    const playHeadRise = () => {
-      if (!headSprite?.active || !scene.textures.exists(texKeys.headRise)) {
-        setHeadVisible(false);
-        return;
-      }
+    const playHeadRise = (movePhase = false) => {
+      if (!headSprite?.active) return;
       clearHeadBlink();
+      clearHeadParadaLock();
       headIsMoving = false;
       headSprite.setVisible(true);
-      headSprite.setTexture(texKeys.headRise, 0);
-      headSprite.setOrigin(headOriginX, headOriginY);
-      headSprite.setScale(scale);
-      if (scene.anims.exists(headRiseAnimKey)) {
-        headSprite.play(headRiseAnimKey);
-      }
-      const riseCfg = headCfg.rise ?? {};
-      const target = risePos(0);
-      const front = frontSegment();
-      const h = front?.displayHeight ?? frameH * scale;
-      const w = front?.displayWidth ?? frameH * scale;
-      const ballTop = riseCfg.ballTopRatio ?? headCfg.ballTopRatio ?? 0.54;
-      const oy = (riseCfg.offsetY ?? headCfg.offsetY ?? 0.12) * h;
-      const tipPush = (riseCfg.tipOffset ?? headCfg.tipOffset ?? 0.65) * spacing;
-      const fineX = (riseCfg.offsetX ?? headCfg.offsetX ?? 0) * w;
       scene.tweens.killTweensOf(headSprite);
-      scene.tweens.add({
-        targets: headSprite,
-        x: target.x + tipPush + fineX,
-        y: target.y - h * ballTop + oy,
-        duration: 550,
-        ease: 'Back.easeOut',
-      });
+      headSprite.setOrigin(headOriginX, headOriginY);
+
+      if (!movePhase) return;
+
+      const riseCfg = headCfg.rise ?? {};
+      if (scene.textures.exists(texKeys.headRise)) {
+        headSprite.setTexture(texKeys.headRise, 0);
+        headSprite.setOrigin(headOriginX, riseCfg.originY ?? headOriginY);
+        normalizeHeadDisplay(headSprite);
+        const moveKey = scene.anims.exists(headRiseMoveAnimKey)
+          ? headRiseMoveAnimKey
+          : headRiseAnimKey;
+        if (scene.anims.exists(moveKey)) {
+          headSprite.play(moveKey);
+        }
+      } else if (scene.textures.exists(texKeys.headWalk)) {
+        headSprite.setTexture(texKeys.headWalk, 0);
+        normalizeHeadDisplay(headSprite);
+      }
+      syncHeadToRiseFront();
       bringHeadToFront();
     };
 
@@ -241,13 +468,53 @@ export class CaterpillarSprite {
       headBlinkTimer = null;
     };
 
-    const resumeHeadAnim = () => {
+    const headIdleWalkTimeScale = headCfg.idleWalkTimeScale ?? 0.42;
+
+    const playHeadWalkAnim = (timeScale = 1) => {
       if (!headSprite?.active || !headSprite.visible) return;
-      if (headIsMoving && scene.anims.exists(headWalkAnimKey)) {
+      if (scene.textures.exists(texKeys.headWalk)) {
+        headSprite.setTexture(texKeys.headWalk);
+      }
+      if (scene.anims.exists(headWalkAnimKey)) {
         headSprite.play(headWalkAnimKey);
+        if (headSprite.anims) headSprite.anims.timeScale = timeScale;
       } else {
         headSprite.anims?.stop();
-        headSprite.setFrame(headIdleFrame);
+        headSprite.setFrame(0);
+      }
+      normalizeHeadDisplay(headSprite);
+    };
+
+    const playHeadParadaAnim = () => {
+      if (!headSprite?.active || !headSprite.visible) return;
+      if (hasHeadIdleSheet()) {
+        headSprite.setTexture(texKeys.headIdle);
+        if (scene.anims.exists(headIdleAnimKey)) {
+          const anim = scene.anims.get(headIdleAnimKey);
+          if (anim?.frames?.length) {
+            headSprite.play(headIdleAnimKey);
+            if (headSprite.anims) headSprite.anims.timeScale = 1;
+            normalizeHeadDisplay(headSprite);
+            return;
+          }
+        }
+        headSprite.anims?.stop();
+        headSprite.setFrame(headCfg.paradaFrame ?? 0);
+      } else {
+        playHeadWalkAnim(headIdleWalkTimeScale);
+        return;
+      }
+      normalizeHeadDisplay(headSprite);
+    };
+
+    const holdHeadIdle = () => playHeadParadaAnim();
+
+    const resumeHeadAnim = () => {
+      if (!headSprite?.active || !headSprite.visible) return;
+      if (headIsMoving) {
+        playHeadWalkAnim(1);
+      } else {
+        holdHeadIdle();
       }
     };
 
@@ -256,6 +523,11 @@ export class CaterpillarSprite {
         onDone?.();
         return;
       }
+      if (!scene.textures.exists(texKeys.headWalk)) {
+        onDone?.();
+        return;
+      }
+      headSprite.setTexture(texKeys.headWalk);
       headSprite.anims?.stop();
       headSprite.setFrame(headBlinkFrame);
       scene.time.delayedCall(headCfg.blinkHoldMs ?? 220, () => {
@@ -274,6 +546,7 @@ export class CaterpillarSprite {
     const scheduleHeadBlink = () => {
       clearHeadBlink();
       if (!headSprite?.active || !headSprite.visible) return;
+      if (!headIsMoving && hasHeadIdleSheet()) return;
       const wait = Phaser.Math.Between(
         headCfg.blinkMinMs ?? 2400,
         headCfg.blinkMaxMs ?? 5200,
@@ -287,12 +560,15 @@ export class CaterpillarSprite {
       if (!headSprite?.active) return;
       clearHeadBlink();
       headIsMoving = moving;
-      if (moving && scene.anims.exists(headWalkAnimKey)) {
-        headSprite.play(headWalkAnimKey);
+      if (moving) {
+        clearHeadParadaLock();
+        playHeadWalkAnim(1);
+        headSprite.rotation = 0;
       } else {
-        headSprite.anims?.stop();
-        headSprite.setFrame(headIdleFrame);
+        holdHeadIdle();
+        lockHeadParadaPosition();
       }
+      syncHeadToFront();
       scheduleHeadBlink();
     };
 
@@ -307,6 +583,8 @@ export class CaterpillarSprite {
     };
 
     if (headSprite) {
+      holdHeadIdle();
+      lockHeadParadaPosition();
       syncHeadToFront();
       bringHeadToFront();
       scheduleHeadBlink();
@@ -335,43 +613,23 @@ export class CaterpillarSprite {
       }
     }
 
-    function playSegIdle(sprite) {
-      if (scene.textures.exists(texKeys.idle)) {
-        sprite.setTexture(texKeys.idle);
-      }
-      if (scene.anims.exists(idleAnimKey)) {
-        sprite.play(idleAnimKey);
-      } else {
-        sprite.setFrame(cfg?.animations?.idle?.start ?? 0);
-      }
-    }
-
     function playSegAnim(sprite, moving, staggerMs = 0, index = 0) {
       const run = () => {
         if (!sprite.active) return;
 
         if (moving && scene.textures.exists(texKeys.walk)) {
+          sprite.anims?.stop();
           sprite.setTexture(texKeys.walk);
-          if (scene.anims.exists(walkAnimKey)) {
-            sprite.play(walkAnimKey);
-          } else {
-            sprite.setFrame(cfg?.animations?.walk?.start ?? 0);
-          }
-          return;
-        }
-
-        if (scene.textures.exists(texKeys.idle)) {
-          sprite.setTexture(texKeys.idle);
-        }
-        if (scene.anims.exists(idleAnimKey)) {
-          sprite.play(idleAnimKey);
-        } else {
-          sprite.setFrame(cfg?.animations?.idle?.start ?? 0);
+          playSegmentAnim(sprite, walkAnimKey, cfg?.animations?.walk?.start ?? 0);
+          normalizeSegmentDisplay(sprite, 'walk');
+        } else if (scene.textures.exists(texKeys.idle)) {
+          playSegParada(sprite, 0);
         }
       };
 
-      if (staggerMs > 0 && index > 0) {
-        scene.time.delayedCall(index * staggerMs, run);
+      const delay = moving && index > 0 ? index * staggerMs : 0;
+      if (delay > 0) {
+        scene.time.delayedCall(delay, run);
       } else {
         run();
       }
@@ -381,18 +639,12 @@ export class CaterpillarSprite {
       return index < riseFrontCount;
     }
 
+    /** Frente (index 0) desenha por cima — erguendo na frente do parada */
     function sortSegmentDepth() {
-      segments.forEach(({ sprite, index }) => {
-        if (isFrontSegment(index)) {
-          container.bringToTop(sprite);
-        } else {
-          container.sendToBack(sprite);
-        }
-      });
       segments
-        .filter(({ index }) => isFrontSegment(index))
+        .slice()
         .sort((a, b) => a.index - b.index)
-        .forEach(({ sprite }) => container.bringToTop(sprite));
+        .forEach(({ sprite }) => container.sendToBack(sprite));
       bringHeadToFront();
     }
 
@@ -403,9 +655,12 @@ export class CaterpillarSprite {
       texKeys,
       headOffsetY,
       headOffsetX,
+      displayScale: scale,
+      segmentFrameH: frameH,
       layout,
       isMoving: false,
-      isRising: false,
+      get isRising() { return risingFlag; },
+      set isRising(v) { risingFlag = v; },
       isPetting: false,
       facingRight: true,
       headSprite,
@@ -438,70 +693,131 @@ export class CaterpillarSprite {
         setHeadVisible(true);
         segments.forEach(({ sprite, index }) => {
           playSegAnim(sprite, moving, moving ? 70 : 0, index);
-          if (layout === 'horizontal' && moving) {
-            const pos = basePos(index);
-            sprite.setPosition(pos.x, pos.y);
-          }
+          snapSegmentToBase(sprite, index, 0, moving);
         });
+        if (!moving) {
+          syncAllSegParada();
+          lockHeadParadaPosition();
+        }
         setHeadMoving(moving);
-        syncHeadToFront();
       },
 
-      /** 2 da frente erguem; 4 de trás ficam paradas — erguendo desenha por cima */
+      /** Frente ergue em diagonal: 3 frames parado → 2 frames erguendo + cabeça */
       playRise() {
         if (layout !== 'horizontal') return;
-        api.isRising = true;
+        risingFlag = true;
         api.isMoving = false;
-        playHeadRise();
+        clearHeadBlink();
+
+        const riseFr = cfg?.animations?.risingMove?.frameRate
+          ?? cfg?.animations?.rising?.frameRate
+          ?? 7;
+        const holdMs = Math.ceil((riseHoldFrames / riseFr) * 1000);
+        const riseMs = Math.ceil((riseMoveFrames / riseFr) * 1000);
+        const riseEndFrame = cfg?.animations?.risingMove?.frames?.at(-1) ?? 1;
 
         segments.forEach(({ sprite, index }) => {
           scene.tweens.killTweensOf(sprite);
           sprite.anims?.stop();
+          sprite.rotation = 0;
+          holdSegIdle(sprite);
+          snapSegmentToBase(sprite, index, 0, false);
+        });
+        sortSegmentDepth();
 
-          if (isFrontSegment(index)) {
-            if (scene.textures.exists(texKeys.rise)) {
-              sprite.setTexture(texKeys.rise);
-            }
-            if (scene.anims.exists(riseAnimKey)) {
-              sprite.play(riseAnimKey, true);
-            }
+        if (headSprite?.active) {
+          if (hasHeadIdleSheet()) {
+            headSprite.setTexture(texKeys.headIdle);
+            headSprite.anims?.stop();
+            headSprite.setFrame(headCfg.paradaFrame ?? 0);
+            normalizeHeadDisplay(headSprite);
+          } else {
+            holdHeadIdle();
+          }
+          lockHeadParadaPosition();
+        }
+
+        scene.time.delayedCall(holdMs, () => {
+          if (!risingFlag) return;
+          playHeadRise(true);
+
+          segments.forEach(({ sprite, index }) => {
+            if (!isFrontSegment(index)) return;
+
+            playSegErguendo(sprite, index === 0);
+
             const target = risePos(index);
             scene.tweens.add({
               targets: sprite,
               x: target.x,
               y: target.y,
-              duration: 550,
-              ease: 'Back.easeOut',
-              delay: (riseFrontCount - 1 - index) * 100,
+              rotation: riseRotFor(index),
+              duration: riseMs,
+              ease: 'Sine.easeOut',
+              onUpdate: () => {
+                if (index === 0) syncHeadToRiseFront();
+                sortSegmentDepth();
+              },
+              onComplete: () => sortSegmentDepth(),
             });
-          } else {
-            playSegIdle(sprite);
-            const target = basePos(index);
-            sprite.setPosition(target.x, target.y);
-          }
+          });
+
+          sortSegmentDepth();
         });
 
-        sortSegmentDepth();
+        scene.time.delayedCall(holdMs + riseMs + 40, () => {
+          if (!risingFlag) return;
+          segments.forEach(({ sprite, index }) => {
+            if (isFrontSegment(index)) freezeSegRise(sprite, riseEndFrame);
+          });
+          if (headSprite?.active) {
+            headSprite.anims?.stop();
+            if (scene.textures.exists(texKeys.headRise)) {
+              headSprite.setFrame(riseEndFrame);
+            }
+            normalizeHeadDisplay(headSprite);
+            syncHeadToRiseFront();
+          }
+        });
       },
 
       resetPose() {
-        api.isRising = false;
+        risingFlag = false;
         api.isMoving = false;
         resetHeadFromRise();
         setHeadVisible(true);
         segments.forEach(({ sprite, index }) => {
           scene.tweens.killTweensOf(sprite);
+          sprite.rotation = 0;
           playSegIdle(sprite);
-          const pos = basePos(index);
-          sprite.setPosition(pos.x, pos.y);
+          snapSegmentToBase(sprite, index, 0, false);
         });
+        syncAllSegParada();
         setHeadMoving(false);
+        lockHeadParadaPosition();
         syncHeadToFront();
         bringHeadToFront();
       },
 
       updateWave(fase, moving, moveDelta = 0) {
-        if (api.isRising) return;
+        if (risingFlag) {
+          const front = frontSegment();
+          const baseY = basePos(0).y;
+          const stillHolding = front && Math.abs(front.y - baseY) < 1.5;
+          if (
+            stillHolding
+            && headParadaX != null
+            && headParadaY != null
+            && headSprite?.active
+          ) {
+            headSprite.setPosition(headParadaX, headParadaY);
+            headSprite.rotation = 0;
+          } else {
+            syncHeadToRiseFront();
+          }
+          return;
+        }
+        idleWavePhase = fase;
 
         if (useClimb && layout === 'vertical') {
           const isActive = moving || Math.abs(moveDelta) > 0.8;
@@ -544,13 +860,13 @@ export class CaterpillarSprite {
         }
 
         segments.forEach(({ sprite, index }) => {
-          const wave = moving ? Math.sin(fase * 0.55 + index * 0.65) * 4 : 0;
+          const wave = moving
+            ? Math.sin(fase * 0.55 + index * 0.65) * 4
+            : 0;
           if (layout === 'horizontal') {
-            const base = basePos(index);
-            sprite.y = base.y + wave;
-            sprite.x = base.x;
+            snapSegmentToBase(sprite, index, wave, moving);
           } else {
-            sprite.x = wave;
+            sprite.x = wave + getSheetAnchorOffsetX(moving);
           }
         });
         syncHeadToFront();
@@ -630,6 +946,9 @@ export class CaterpillarSprite {
         const maxX = screenW + offScreen;
         const speed = opts.speed ?? 90;
         const pauseMs = opts.pauseMs ?? 2500;
+        const alternateWithFrog = opts.alternateWithFrog ?? false;
+        const frogChance = opts.frogChance ?? 0.32;
+        const scaredSpeed = opts.scaredSpeed ?? speed * 2.5;
         let moveTween = null;
         let wanderTimer = null;
 
@@ -659,41 +978,78 @@ export class CaterpillarSprite {
           return 'rise';
         };
 
-        const walkTo = (targetX, onComplete) => {
+        const walkTo = (targetX, onComplete, walkSpeed = speed, ease = 'Linear') => {
           if (!container.active) return;
           api.isRising = false;
           api.setMoving(true);
-          const duration = (Math.abs(targetX - container.x) / speed) * 1000;
+          const duration = (Math.abs(targetX - container.x) / walkSpeed) * 1000;
           moveTween = sceneRef.tweens.add({
             targets: container,
             x: targetX,
-            duration: Math.max(duration, 600),
-            ease: 'Linear',
+            duration: Math.max(duration, 400),
+            ease,
             onComplete,
           });
         };
 
         const finishExit = (fromRight) => {
+          opts.onExitStart?.({ fromRight, x: container.x });
           walkTo(fromRight ? maxX : minX, () => {
+            opts.onExitComplete?.({ fromRight });
             runCycle(!fromRight);
           });
+        };
+
+        const accelerateScaredExit = (fromRight) => {
+          api.setMoving(true);
+          opts.onScaredRun?.({ fromRight, x: container.x });
+          opts.onExitStart?.({ fromRight, x: container.x, scared: true });
+
+          walkTo(fromRight ? maxX : minX, () => {
+            container.setVisible(false);
+            opts.onExitComplete?.({ fromRight, scared: true });
+            opts.onCaterpillarGone?.({ fromRight });
+          }, scaredSpeed, 'Linear');
         };
 
         const runCycle = (fromRight) => {
           if (!container.active) return;
 
+          opts.onReenter?.({ fromRight });
           setFacing(fromRight);
           const enterX = fromRight ? minX : maxX;
           const centerX = pauseCenterX(fromRight);
-          const behavior = pickBehavior();
 
+          container.setVisible(true);
           if (Math.abs(container.x - enterX) > spacing * 0.5) {
             container.setX(enterX);
           }
           api.resetPose();
 
+          if (alternateWithFrog) {
+            walkTo(centerX, () => {
+              api.setMoving(false);
+              wanderTimer = sceneRef.time.delayedCall(pauseMs, () => {
+                api.resetPose();
+                const showFrog = Phaser.Math.FloatBetween(0, 1) < frogChance;
+                if (showFrog) {
+                  accelerateScaredExit(fromRight);
+                } else {
+                  finishExit(fromRight);
+                }
+              });
+            });
+            return;
+          }
+
+          const behavior = pickBehavior();
+
           if (behavior === 'pass') {
-            walkTo(fromRight ? maxX : minX, () => runCycle(!fromRight));
+            opts.onExitStart?.({ fromRight, x: container.x });
+            walkTo(fromRight ? maxX : minX, () => {
+              opts.onExitComplete?.({ fromRight });
+              runCycle(!fromRight);
+            });
             return;
           }
 
@@ -711,8 +1067,13 @@ export class CaterpillarSprite {
           });
         };
 
+        api.resumeAfterFrogTurn = (fromRight) => {
+          if (!container.active) return;
+          runCycle(fromRight);
+        };
+
         container.setX(minX);
-        runCycle(true);
+        runCycle(opts.startRight ?? true);
         api._stopWander = clearWander;
         api._pauseWander = () => {
           clearWander();
@@ -721,7 +1082,11 @@ export class CaterpillarSprite {
         };
         api._resumeWander = () => {
           if (!container.active) return;
-          finishExit(facingRight);
+          if (alternateWithFrog) {
+            accelerateScaredExit(facingRight);
+          } else {
+            finishExit(facingRight);
+          }
         };
         return clearWander;
       },
@@ -736,14 +1101,6 @@ export class CaterpillarSprite {
         api._pauseWander?.();
         api.setMoving(false);
         api.playRise();
-
-        clearHeadBlink();
-        if (headSprite?.active) {
-          headSprite.anims?.stop();
-          headSprite.setFrame(headBlinkFrame);
-          headSprite.setVisible(true);
-          bringHeadToFront();
-        }
 
         const petTimer = scene.time.delayedCall(holdMs, () => {
           api.isPetting = false;

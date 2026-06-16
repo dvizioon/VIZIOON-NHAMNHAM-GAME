@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { SceneKeys } from '../config/constants.js';
-import { drawSkyBackground, getGroundY, getGrassTopY, DEPTH_FRUIT, DEPTH_CATERPILLAR } from '../ui/createUI.js';
+import { drawSkyBackground, getGroundY, getGrassTopY, DEPTH_FRUIT } from '../ui/createUI.js';
 import {
   UI_LOGO_KEY,
   SPLASH_ICONS,
@@ -22,12 +22,16 @@ import {
 } from '../utils/debug.js';
 
 import { FOOD_FRUTAS } from '../config/foodConfig.js';
+import { SplashFrogChase } from '../systems/SplashFrogChase.js';
+import { SPLASH_FROG_SCALE_MUL, SPLASH_FROG_CHANCE } from '../config/introFrogConfig.js';
+import { DEPTH_CATERPILLAR } from '../ui/createUI.js';
 
 const FOOD_KEY = FOOD_FRUTAS.key;
 const SPLASH_BTN_SIZE = 142;
 const SPLASH_ICON_RATIO = 0.42;
-const SPLASH_CATERPILLAR_SCALE = 0.108;
-const SPLASH_GROUND_OFFSET_RATIO = 0.055;
+const SPLASH_CATERPILLAR_SCALE = 0.172;
+/** Pés da lagarta no chão do terreno.png (maior = mais embaixo) */
+const SPLASH_CATERPILLAR_GROUND_OFFSET_RATIO = 0.054;
 const SPLASH_LAYOUT = {
   portrait: {
     logoY: 0.4,
@@ -63,14 +67,26 @@ export class SplashScene extends Phaser.Scene {
     drawSkyBackground(this);
     ensureBgmPlaying(this);
 
-    const groundLine = getGroundY(this) + height * SPLASH_GROUND_OFFSET_RATIO;
+    const groundLine = getGroundY(this);
+    const caterpillarY = groundLine + height * SPLASH_CATERPILLAR_GROUND_OFFSET_RATIO;
     const splashChild = { id: 'default' };
     const splashCustom = { cor: { clara: 0x7CB342, escura: 0x5C8F2E }, chapeu: false, oculos: false };
 
     this.caterpillar = CaterpillarSprite.create(
-      this, -120, groundLine, splashChild, splashCustom, DEPTH_CATERPILLAR,
+      this, -120, caterpillarY, splashChild, splashCustom, DEPTH_CATERPILLAR,
       { layout: 'horizontal', segmentCount: 6, displayScale: SPLASH_CATERPILLAR_SCALE },
     );
+
+    this.splashFrog = new SplashFrogChase(this, {
+      groundY: caterpillarY + height * 0.014,
+      depth: DEPTH_CATERPILLAR - 1,
+      getMatchScale: () => (
+        (this.caterpillar?.displayScale ?? SPLASH_CATERPILLAR_SCALE) * SPLASH_FROG_SCALE_MUL
+      ),
+      onTurnComplete: ({ nextFromRight }) => {
+        this.caterpillar?.resumeAfterFrogTurn?.(nextFromRight);
+      },
+    });
 
     this.setupFallingFood(this.scale.width);
 
@@ -92,20 +108,26 @@ export class SplashScene extends Phaser.Scene {
 
     if (caterpillar.mode === 'filament') {
       caterpillar.startWander(this, {
+        alternateWithFrog: true,
+        frogChance: SPLASH_FROG_CHANCE,
         edgePad: isPortrait(this) ? Math.max(48, width * 0.06) : Math.max(100, width * 0.08),
         speed: 85,
-        pauseMs: 2800,
+        scaredSpeed: 240,
+        pauseMs: 2200,
         startRight: true,
+        onCaterpillarGone: ({ fromRight }) => {
+          this.splashFrog?.startTurn({ exitToRight: fromRight });
+        },
       });
       caterpillar.enablePetInteraction?.(() => playSound(this, 'clique'));
       this.events.on('update', () => {
-        if (!caterpillar.isRising) {
-          caterpillar.updateWave(this.time.now * 0.001, caterpillar.isMoving);
-        }
+        caterpillar.updateWave(this.time.now * 0.001, caterpillar.isMoving);
       });
     }
 
     this.events.once('shutdown', () => {
+      this.splashFrog?.destroy();
+      this.splashFrog = null;
       caterpillar.destroy?.();
       this.caterpillar = null;
       this.fruitSpawnTimer?.destroy();
@@ -374,6 +396,7 @@ export class SplashScene extends Phaser.Scene {
       depth: DEPTH_UI,
       onClick: () => {
         playSound(this, 'clique');
+        this.splashFrog?.destroy();
         this.caterpillar?.destroy?.();
         this.scene.start(SceneKeys.CHARACTER);
       },

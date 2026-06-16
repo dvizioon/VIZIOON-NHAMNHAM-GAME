@@ -3,7 +3,6 @@ import { SceneKeys, RegistryKeys } from '../config/constants.js';
 import { ProceduralAudio } from '../systems/ProceduralAudio.js';
 import {
   queueLoadingUiAssets,
-  registerLoadingHeadAnim,
 } from '../ui/loadingUi.js';
 
 export class BootScene extends Phaser.Scene {
@@ -16,7 +15,6 @@ export class BootScene extends Phaser.Scene {
   }
 
   create() {
-    registerLoadingHeadAnim(this);
     this.registry.set(RegistryKeys.AUDIO, new ProceduralAudio(this));
     this.scene.start(SceneKeys.PRELOAD);
   }
