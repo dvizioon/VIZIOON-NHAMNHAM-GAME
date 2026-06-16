@@ -3,6 +3,7 @@ import { Theme } from '../config/theme.js';
 import { uiScale } from '../utils/responsive.js';
 
 export const LOADING_UI_KEYS = {
+  logo: 'ui_logo_sem_tronco',
   ring: 'ui_loading',
   trunkTop: 'ui_trunk_top',
   trunkBottom: 'ui_trunk_bottom',
@@ -14,6 +15,7 @@ const HEAD_FRAME_W = 641;
 const HEAD_FRAME_H = 804;
 
 export function queueLoadingUiAssets(scene) {
+  scene.load.image(LOADING_UI_KEYS.logo, 'assets/textures/ui/LogoSemTronco.svg');
   scene.load.image(LOADING_UI_KEYS.ring, 'assets/textures/ui/Loading.svg');
   scene.load.image(LOADING_UI_KEYS.trunkTop, 'assets/textures/ui/Tronco_Top_Horinzontal.svg');
   scene.load.image(LOADING_UI_KEYS.trunkBottom, 'assets/textures/ui/Tronco_Bottom_Horinzontal.svg');
@@ -58,13 +60,11 @@ export function buildLoadingScreen(scene) {
     .setDepth(1);
   fitImageWidth(bottomLog, logW);
 
-  const titleSize = Math.max(34, Math.round(width * 0.1 * s));
-  scene.add.text(width / 2, topH + Math.max(18, height * 0.022), 'Nhoc Nhoc!', {
-    fontFamily: Theme.fontFamily,
-    fontSize: `${titleSize}px`,
-    color: '#4E9A2E',
-    fontStyle: 'bold',
-  }).setOrigin(0.5, 0).setDepth(2);
+  const logoW = width * 0.72;
+  const logo = scene.add.image(width / 2, topH + Math.max(14, height * 0.018), LOADING_UI_KEYS.logo)
+    .setOrigin(0.5, 0)
+    .setDepth(2);
+  fitImageWidth(logo, logoW);
 
   const centerY = height * 0.5;
   const ringSize = Math.min(width * 0.56, height * 0.3);
