@@ -501,6 +501,7 @@ export class CharacterScene extends Phaser.Scene {
 
   hideSearchInput() {
     if (!this.domSearch) return;
+    this.domSearch.blur();
     this.domSearch.style.pointerEvents = 'none';
     this.domSearch.style.visibility = 'hidden';
     this.domSearch.style.opacity = '0';
@@ -516,7 +517,6 @@ export class CharacterScene extends Phaser.Scene {
       frameHint,
       onPlay: () => {
         this.modalClose = null;
-        this.restoreSearchInput();
         this.startGameWith(crianca);
       },
       onClose: () => {
@@ -531,6 +531,7 @@ export class CharacterScene extends Phaser.Scene {
     GameState.setChild(this, crianca);
     GameState.setCustom(this, defaultCustom(crianca));
     GameState.initRun(this);
+    this.hideSearchInput();
     this.cameras.main.fadeOut(250, 0, 0, 0);
     this.time.delayedCall(250, () => {
       this.scene.start(SceneKeys.EGG);

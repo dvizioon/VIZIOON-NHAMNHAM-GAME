@@ -43,6 +43,9 @@ import {
   EGG_CRACK_FRAME_H,
   EGG_OPEN_FRAME_W,
   EGG_OPEN_FRAME_H,
+  EGG_HATCH_NASCENDO_KEY,
+  EGG_HATCH_NASCENDO_FRAME_W,
+  EGG_HATCH_NASCENDO_FRAME_H,
   registerEggAnimations,
 } from '../config/eggConfig.js';
 import criancasData from '../../public/assets/data/criancas.json';
@@ -98,6 +101,10 @@ export class PreloadScene extends Phaser.Scene {
       frameWidth: EGG_OPEN_FRAME_W,
       frameHeight: EGG_OPEN_FRAME_H,
     });
+    this.load.spritesheet(EGG_HATCH_NASCENDO_KEY, 'assets/sprites/characters/nascendo.png', {
+      frameWidth: EGG_HATCH_NASCENDO_FRAME_W,
+      frameHeight: EGG_HATCH_NASCENDO_FRAME_H,
+    });
     for (const { key, path } of listCharacterHeadAssets(criancasData)) {
       this.load.spritesheet(key, path, {
         frameWidth: CHAR_HEAD_FRAME_W,
@@ -133,6 +140,12 @@ export class PreloadScene extends Phaser.Scene {
     capSpritesheet(this, EGG_WOBBLE_KEY, EGG_WOBBLE_FRAME_W, EGG_WOBBLE_FRAME_H);
     capSpritesheet(this, EGG_CRACK_KEY, EGG_CRACK_FRAME_W, EGG_CRACK_FRAME_H);
     capSpritesheet(this, EGG_OPEN_KEY, EGG_OPEN_FRAME_W, EGG_OPEN_FRAME_H);
+    capSpritesheet(
+      this,
+      EGG_HATCH_NASCENDO_KEY,
+      EGG_HATCH_NASCENDO_FRAME_W,
+      EGG_HATCH_NASCENDO_FRAME_H,
+    );
     registerEggAnimations(this);
 
     if (this.textures.exists(CHAR_HEADS_KEY) && !this.anims.exists(CHAR_HEADS_ANIM_KEY)) {
@@ -172,7 +185,7 @@ export class PreloadScene extends Phaser.Scene {
       : {
           metaComida: 24,
           maxVidas: 3,
-          cliquesOvo: 3,
+          cliquesOvo: 4,
           cliquesCasulo: 2,
           intervaloSapo: 12000,
           delayInicioSapo: 25000,

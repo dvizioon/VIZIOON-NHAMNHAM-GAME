@@ -36,11 +36,13 @@ export function capSpritesheet(scene, key, frameWidth, frameHeight, maxDim = DEF
   canvas.height = Math.round(h * scale);
   canvas.getContext('2d').drawImage(source, 0, 0, canvas.width, canvas.height);
 
-  const fw = Math.round(frameWidth * scale);
-  const fh = Math.round(frameHeight * scale);
+  const cols = Math.max(1, Math.round(w / frameWidth));
+  const rows = Math.max(1, Math.round(h / frameHeight));
+  const fw = Math.floor(canvas.width / cols);
+  const fh = Math.floor(canvas.height / rows);
 
   scene.textures.remove(key);
   scene.textures.addSpriteSheet(key, canvas, { frameWidth: fw, frameHeight: fh });
 
-  return { frameWidth: fw, frameHeight: fh };
+  return { frameWidth: fw, frameHeight: fh, frameCount: cols * rows };
 }
