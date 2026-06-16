@@ -59,5 +59,7 @@ export const FRUIT_FALL_INTERVAL_MAX = 4800;
 /** Máximo de frutas caindo ao mesmo tempo */
 export const MAX_FALLING_FRUITS = 3;
 export const FRUIT_SPAWN_COOLDOWN_MS = 1600;
-/** Frutas nascem dentro da largura útil do tronco (0–1) */
-export const FRUIT_TRUNK_INSET = 0.32;
+/** Margem interna nas bordas da faixa de queda (0–1 de meia-largura útil) */
+export const FRUIT_TRUNK_INSET = 0.08;
+/** Faixas horizontais p/ espalhar frutas (não cair tudo no meio) */
+export const FRUIT_SPAWN_SLOTS = 5;

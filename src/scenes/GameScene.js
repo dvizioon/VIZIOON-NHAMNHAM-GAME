@@ -26,6 +26,7 @@ import {
   MAX_FALLING_FRUITS,
   FRUIT_SPAWN_COOLDOWN_MS,
   FRUIT_TRUNK_INSET,
+  FRUIT_SPAWN_SLOTS,
 } from '../config/gameWorldConfig.js';
 import {
   drawBoundsHit,
@@ -238,14 +239,21 @@ export class GameScene extends Phaser.Scene {
     return this.comidas.filter((c) => c.falling && c.sprite?.active).length;
   }
 
+  fruitSpawnBounds() {
+    const halfPlay = this.trunkPlayW * 0.5;
+    const pad = halfPlay * FRUIT_TRUNK_INSET;
+    return {
+      minX: Math.round(this.trunkCX - halfPlay + pad),
+      maxX: Math.round(this.trunkCX + halfPlay - pad),
+    };
+  }
+
   fruitMinSeparation() {
-    return Math.round(this.trunkW * 0.21);
+    return Math.round(this.trunkW * CLIMB_BODY_TRUNK_RATIO * 0.9);
   }
 
   pickFruitSpawnX(blockedExtra = []) {
-    const inner = this.trunkPlayW * FRUIT_TRUNK_INSET;
-    const minX = Math.round(this.trunkCX - inner);
-    const maxX = Math.round(this.trunkCX + inner);
+    const { minX, maxX } = this.fruitSpawnBounds();
     const minSep = this.fruitMinSeparation();
 
     const blocked = [
@@ -255,7 +263,21 @@ export class GameScene extends Phaser.Scene {
         .map((c) => c.sprite.x),
     ];
 
-    for (let attempt = 0; attempt < 24; attempt++) {
+    const slots = FRUIT_SPAWN_SLOTS;
+    const span = maxX - minX;
+    const slotW = span / Math.max(1, slots - 1);
+    const order = Phaser.Utils.Array.Shuffle(Array.from({ length: slots }, (_, i) => i));
+
+    for (const slot of order) {
+      const cx = minX + slot * slotW;
+      const jitter = slotW > 0
+        ? Phaser.Math.Between(-Math.round(slotW * 0.22), Math.round(slotW * 0.22))
+        : 0;
+      const x = Phaser.Math.Clamp(Math.round(cx + jitter), minX, maxX);
+      if (!blocked.some((bx) => Math.abs(bx - x) < minSep)) return x;
+    }
+
+    for (let attempt = 0; attempt < 32; attempt++) {
       const x = Phaser.Math.Between(minX, maxX);
       if (!blocked.some((bx) => Math.abs(bx - x) < minSep)) return x;
     }
