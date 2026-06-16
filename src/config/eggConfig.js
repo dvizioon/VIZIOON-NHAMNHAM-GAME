@@ -63,6 +63,8 @@ export const EGG_HATCH_BODY_ORIGIN_Y = 0.58;
 export const EGG_HATCH_BODY_STACK_GAP = 0.20;
 /** Casca aberta no mesmo ponto do ovo; personagem sobe dentro dela */
 export const EGG_HATCH_SHELL_Y = 0;
+export const EGG_HATCH_SHELL_X = -0.04;
+export const EGG_HATCH_CHAR_X = -0.19;
 
 /** Personagem dentro da casca — valores negativos sobem (em relação ao ovo) */
 export const EGG_HATCH_CHAR_START_Y = -0.35;

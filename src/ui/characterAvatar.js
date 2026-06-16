@@ -4,6 +4,11 @@ import {
   CHAR_HEAD_FRAME_COUNT,
   CHAR_HEAD_FRAME_W,
   CHAR_HEAD_FRAME_H,
+  CHAR_HEAD_TEXTURE_SCALE_MUL,
+  CHAR_HEAD_FACE_ORIGIN_X,
+  CHAR_HEAD_FACE_ORIGIN_Y,
+  CHAR_HEAD_FACE_OFFSET_X,
+  CHAR_HEAD_FACE_OFFSET_Y,
   getCharacterHeadAnimKey,
   getCharacterHeadTextureKey,
 } from '../config/characterUiConfig.js';
@@ -16,9 +21,17 @@ function headDisplaySize(r, headHeightRatio, headWidthRatio) {
 
 /** Cabeça animada — padrão ou spritesheet própria da criança (criancas.json → cabeca) */
 export function createCharacterFace(scene, crianca, r, frameHint = 0, options = {}) {
-  const { headHeightRatio = 2.0, headWidthRatio = null } = options;
+  const {
+    headHeightRatio = 2.0,
+    headWidthRatio = null,
+    originX = CHAR_HEAD_FACE_ORIGIN_X,
+    originY = CHAR_HEAD_FACE_ORIGIN_Y,
+    offsetX = CHAR_HEAD_FACE_OFFSET_X,
+    offsetY = CHAR_HEAD_FACE_OFFSET_Y,
+    animate = true,
+  } = options;
 
-  const wrap = scene.add.container(0, 2);
+  const wrap = scene.add.container(0, 0);
   const frame = Phaser.Math.Wrap(frameHint, 0, CHAR_HEAD_FRAME_COUNT);
   const textureKey = getCharacterHeadTextureKey(crianca);
   const animKey = getCharacterHeadAnimKey(crianca);
@@ -27,10 +40,11 @@ export function createCharacterFace(scene, crianca, r, frameHint = 0, options = 
     const texture = scene.textures.get(textureKey);
     const safeFrame = texture.has(frame) ? frame : 0;
     const head = scene.add.sprite(0, 0, textureKey, safeFrame);
-    head.setOrigin(0.5, 0.58);
     const { w, h } = headDisplaySize(r, headHeightRatio, headWidthRatio);
+    head.setOrigin(originX, originY);
     head.setDisplaySize(w, h);
-    if (scene.anims.exists(animKey) && texture.has(safeFrame)) {
+    head.setPosition(w * offsetX, h * offsetY);
+    if (animate && scene.anims.exists(animKey) && texture.has(safeFrame)) {
       head.anims.play(animKey);
     }
     wrap.add(head);
@@ -50,7 +64,7 @@ export function attachCharacterCabecaToClimb(scene, container, bodySprite, crian
   const animKey = getCharacterHeadAnimKey(crianca);
   if (!hasTexture(scene, textureKey) || !bodySprite?.displayHeight) return null;
 
-  const headScaleMul = headCfg.scaleMul ?? 1.48;
+  const headScaleMul = (headCfg.scaleMul ?? 1.48) * CHAR_HEAD_TEXTURE_SCALE_MUL;
   const headScale = scale * headScaleMul;
   const ballTop = headCfg.ballTopRatio ?? 0.54;
   const oy = (headCfg.offsetY ?? 0.12) * bodySprite.displayHeight;
@@ -79,7 +93,8 @@ export function attachCharacterCabecaToClimb(scene, container, bodySprite, crian
 
 export function syncCabecaToClimbBody(headSprite, bodySprite, scale, headCfg = {}) {
   if (!headSprite?.active || !bodySprite?.active) return;
-  const headScaleMul = headSprite.getData('cabecaScaleMul') ?? headCfg.scaleMul ?? 1.48;
+  const headScaleMul = headSprite.getData('cabecaScaleMul')
+    ?? (headCfg.scaleMul ?? 1.48) * CHAR_HEAD_TEXTURE_SCALE_MUL;
   const headScale = scale * headScaleMul;
   const ballTop = headCfg.ballTopRatio ?? 0.54;
   const oy = (headCfg.offsetY ?? 0.12) * bodySprite.displayHeight;

@@ -8,16 +8,27 @@ export const CHAR_HEADS_KEY = 'char_heads_kids';
 
 export const CHAR_HEADS_ANIM_KEY = 'char_heads_wiggle';
 
-export const CHAR_HEAD_FRAME_W = 641;
+/** childs/*.png @3x — 4 frames 480×603 colados (folha 1923×603) */
+export const CHAR_HEAD_FRAME_W = 480;
+export const CHAR_HEAD_FRAME_H = 603;
+export const CHAR_HEAD_FRAME_SPACING = 0;
 
-export const CHAR_HEAD_FRAME_H = 804;
+/** Compensa setScale: antes @4x (804px alto), mesmo tamanho na tela */
+export const CHAR_HEAD_TEXTURE_SCALE_MUL = 804 / CHAR_HEAD_FRAME_H;
 
-/** Cabeças das crianças (childs/*.png): 4 frames colados, sem spacing */
+/** Rosto no círculo verde do PNG — origin > 0.5 puxa foto pro centro do card */
+export const CHAR_HEAD_FACE_ORIGIN_X = 0.53;
+export const CHAR_HEAD_FACE_ORIGIN_Y = 0.58;
+export const CHAR_HEAD_FACE_OFFSET_X = 0.022;
+export const CHAR_HEAD_FACE_OFFSET_Y = -0.028;
+
 export function getCharacterHeadSheetLoadOpts() {
-  return {
+  const opts = {
     frameWidth: CHAR_HEAD_FRAME_W,
     frameHeight: CHAR_HEAD_FRAME_H,
   };
+  if (CHAR_HEAD_FRAME_SPACING > 0) opts.spacing = CHAR_HEAD_FRAME_SPACING;
+  return opts;
 }
 
 export const CHAR_HEAD_FRAME_COUNT = 4;

@@ -15,7 +15,10 @@ export const FROG_JUMP_ORIGIN_Y = 0.92;
 
 /** Splash: escala base da lagarta × este fator */
 export const SPLASH_FROG_SCALE_MUL = 1.22;
+/** Sapo na splash — desligado por enquanto */
+export const SPLASH_FROG_ENABLED = false;
 /** Pés no chão — um pouco abaixo da lagarta (origin diferente) */
+export const SPLASH_FROG_GROUND_EXTRA_RATIO = 0.022;
 export const SPLASH_FROG_Y_OFFSET_RATIO = 0.068;
 /** Chance do sapo aparecer depois que a lagarta sai (0–1) */
 export const SPLASH_FROG_CHANCE = 0.32;

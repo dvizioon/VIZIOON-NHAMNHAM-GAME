@@ -41,6 +41,8 @@ import {
   EGG_HATCH_BODY_ORIGIN_Y,
   EGG_HATCH_BODY_STACK_GAP,
   EGG_HATCH_SHELL_Y,
+  EGG_HATCH_SHELL_X,
+  EGG_HATCH_CHAR_X,
   EGG_HATCH_CHAR_START_Y,
   EGG_HATCH_CHAR_END_Y,
   EGG_HATCH_INSIDE_PAUSE_MS,
@@ -221,6 +223,8 @@ export class EggScene extends Phaser.Scene {
     const bodyInsideH = Math.round(eggH * EGG_HATCH_BODY_INSIDE_MUL);
     const bodyOutH = Math.round(eggH * EGG_HATCH_BODY_OUT_MUL);
     const shellY = eggH * EGG_HATCH_SHELL_Y;
+    const shellX = eggH * EGG_HATCH_SHELL_X;
+    const charX = eggH * EGG_HATCH_CHAR_X;
     const startY = eggH * EGG_HATCH_CHAR_START_Y;
     const endY = eggH * EGG_HATCH_CHAR_END_Y;
 
@@ -234,7 +238,7 @@ export class EggScene extends Phaser.Scene {
     let shellSprite = null;
 
     if (this.textures.exists(EGG_HATCH_NASCENDO_KEY)) {
-      charWrap = this.add.container(0, startY);
+      charWrap = this.add.container(charX, startY);
       bodyStack = this.add.container(0, 0);
 
       bodyDown = this.add
@@ -254,6 +258,10 @@ export class EggScene extends Phaser.Scene {
       const faceR = faceH / EGG_HATCH_FACE_HEAD_RATIO;
       faceWrap = createCharacterFace(this, child, faceR, 0, {
         headHeightRatio: EGG_HATCH_FACE_HEAD_RATIO,
+        originX: 0.5,
+        originY: 0.58,
+        offsetX: 0,
+        offsetY: 0,
       });
       this.syncHatchFace(bodyUp, faceWrap, bodyInsideH);
 
@@ -263,7 +271,7 @@ export class EggScene extends Phaser.Scene {
 
     if (this.textures.exists(EGG_OPEN_KEY)) {
       shellSprite = this.add
-        .sprite(0, shellY, EGG_OPEN_KEY, 0)
+        .sprite(shellX, shellY, EGG_OPEN_KEY, 0)
         .setOrigin(EGG_HATCH_EGG_ORIGIN_X, EGG_HATCH_EGG_ORIGIN_Y);
       this.fitEggDisplay(shellSprite, shellH);
       this.hatchContainer.add(shellSprite);

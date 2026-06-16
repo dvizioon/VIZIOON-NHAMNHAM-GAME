@@ -23,7 +23,7 @@ import {
 
 import { FOOD_FRUTAS } from '../config/foodConfig.js';
 import { SplashFrogChase } from '../systems/SplashFrogChase.js';
-import { SPLASH_FROG_SCALE_MUL, SPLASH_FROG_CHANCE } from '../config/introFrogConfig.js';
+import { SPLASH_FROG_ENABLED, SPLASH_FROG_GROUND_EXTRA_RATIO, SPLASH_FROG_SCALE_MUL } from '../config/introFrogConfig.js';
 import { DEPTH_CATERPILLAR } from '../ui/createUI.js';
 
 const FOOD_KEY = FOOD_FRUTAS.key;
@@ -77,16 +77,18 @@ export class SplashScene extends Phaser.Scene {
       { layout: 'horizontal', segmentCount: 6, displayScale: SPLASH_CATERPILLAR_SCALE },
     );
 
-    this.splashFrog = new SplashFrogChase(this, {
-      groundY: caterpillarY + height * 0.014,
-      depth: DEPTH_CATERPILLAR - 1,
-      getMatchScale: () => (
-        (this.caterpillar?.displayScale ?? SPLASH_CATERPILLAR_SCALE) * SPLASH_FROG_SCALE_MUL
-      ),
-      onTurnComplete: ({ nextFromRight }) => {
-        this.caterpillar?.resumeAfterFrogTurn?.(nextFromRight);
-      },
-    });
+    if (SPLASH_FROG_ENABLED) {
+      this.splashFrog = new SplashFrogChase(this, {
+        groundY: caterpillarY + height * (0.014 + SPLASH_FROG_GROUND_EXTRA_RATIO),
+        depth: DEPTH_CATERPILLAR - 1,
+        getMatchScale: () => (
+          (this.caterpillar?.displayScale ?? SPLASH_CATERPILLAR_SCALE) * SPLASH_FROG_SCALE_MUL
+        ),
+        onTurnComplete: ({ nextFromRight }) => {
+          this.caterpillar?.resumeAfterFrogTurn?.(nextFromRight);
+        },
+      });
+    }
 
     this.setupFallingFood(this.scale.width);
 
@@ -108,16 +110,16 @@ export class SplashScene extends Phaser.Scene {
 
     if (caterpillar.mode === 'filament') {
       caterpillar.startWander(this, {
-        alternateWithFrog: true,
-        frogChance: SPLASH_FROG_CHANCE,
+        alternateWithFrog: SPLASH_FROG_ENABLED,
+        frogChance: 0,
         edgePad: isPortrait(this) ? Math.max(48, width * 0.06) : Math.max(100, width * 0.08),
         speed: 85,
         scaredSpeed: 240,
         pauseMs: 2200,
         startRight: true,
-        onCaterpillarGone: ({ fromRight }) => {
-          this.splashFrog?.startTurn({ exitToRight: fromRight });
-        },
+        onCaterpillarGone: SPLASH_FROG_ENABLED
+          ? ({ fromRight }) => { this.splashFrog?.startTurn({ exitToRight: fromRight }); }
+          : undefined,
       });
       caterpillar.enablePetInteraction?.(() => playSound(this, 'clique'));
       this.events.on('update', () => {
