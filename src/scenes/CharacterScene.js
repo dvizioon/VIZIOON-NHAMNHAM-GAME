@@ -533,7 +533,7 @@ export class CharacterScene extends Phaser.Scene {
     GameState.initRun(this);
     this.cameras.main.fadeOut(250, 0, 0, 0);
     this.time.delayedCall(250, () => {
-      this.scene.start(SceneKeys.TRUNK_INTRO);
+      this.scene.start(SceneKeys.EGG);
     });
   }
 

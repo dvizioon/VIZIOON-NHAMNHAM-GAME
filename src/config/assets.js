@@ -50,6 +50,7 @@ export const REQUIRED_SOUNDS = {
  */
 export const OPTIONAL_SOUNDS = {
   crack: `${ASSET_BASE}/sounds/sfx/crack.mp3`,
+  egg_crack: `${ASSET_BASE}/sounds/sfx/egg_crack.mp3`,
   nascer: `${ASSET_BASE}/sounds/sfx/nascer.mp3`,
   comer: `${ASSET_BASE}/sounds/sfx/comer.mp3`,
   fruta: `${ASSET_BASE}/sounds/sfx/fruta.mp3`,

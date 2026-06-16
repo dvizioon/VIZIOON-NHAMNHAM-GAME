@@ -15,6 +15,7 @@ const COLLECTION_LOADERS = {
 };
 
 const iconSetCache = new Map();
+const pendingTextureLoads = new Map();
 const ICON_COLOR = '#4E9A2E';
 
 async function getIconSet(collection) {
@@ -45,23 +46,33 @@ export function buildIconSvg(iconSet, name, { size = 24, color = ICON_COLOR } = 
 /** SVG string → textura Phaser */
 export function loadIconTexture(scene, key, svgRaw, { size = 48 } = {}) {
   if (scene.textures.exists(key)) return Promise.resolve(key);
+  if (pendingTextureLoads.has(key)) return pendingTextureLoads.get(key);
 
-  return new Promise((resolve, reject) => {
+  const promise = new Promise((resolve, reject) => {
     const img = new Image();
     const encoded = encodeURIComponent(svgRaw).replace(/'/g, '%27').replace(/"/g, '%22');
 
     img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = size;
-      canvas.height = size;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, size, size);
-      scene.textures.addCanvas(key, canvas);
+      if (!scene.textures.exists(key)) {
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, size, size);
+        scene.textures.addCanvas(key, canvas);
+      }
+      pendingTextureLoads.delete(key);
       resolve(key);
     };
-    img.onerror = () => reject(new Error(`Falha ao carregar ícone: ${key}`));
+    img.onerror = () => {
+      pendingTextureLoads.delete(key);
+      reject(new Error(`Falha ao carregar ícone: ${key}`));
+    };
     img.src = `data:image/svg+xml,${encoded}`;
   });
+
+  pendingTextureLoads.set(key, promise);
+  return promise;
 }
 
 export class Icon {

@@ -168,12 +168,15 @@ const CLOUD_SCALE_MIN = 0.48;
 const CLOUD_SCALE_MAX = 1.65;
 
 const CLOUD_LANE_COUNT = 5;
-const CLOUD_MIN_GAP_MS = 2800;
-const CLOUD_MIN_VERTICAL_GAP = 28;
+const CLOUD_MIN_VERTICAL_GAP = 22;
+const CLOUD_WAVE_MIN_MS = 7000;
+const CLOUD_WAVE_MAX_MS = 13000;
+const CLOUD_STAGGER_MS = 850;
 
 function cloudsOverlap(spec, other) {
-  const yGap = (spec.displayH + other.displayH) * 0.5 + CLOUD_MIN_VERTICAL_GAP;
-  return Math.abs(spec.y - other.y) < yGap;
+  if (spec.lane === other.lane) return true;
+  const minSep = CLOUD_MIN_VERTICAL_GAP + Math.min(spec.displayH, other.displayH) * 0.28;
+  return Math.abs(spec.y - other.y) < minSep;
 }
 
 function cloudLaneY(height, laneIndex) {
@@ -310,45 +313,54 @@ function createDriftingCloud(scene, spec) {
   return cloud;
 }
 
-function spawnCloudLoop(scene, delayMs = 0) {
-  const spawn = () => {
-    if (!scene.sys?.isActive()) return;
+function spawnSingleCloud(scene) {
+  if (!scene.sys?.isActive()) return;
 
-    const spec = findCloudSpec(scene);
-    if (!spec) {
-      scene.time.delayedCall(Phaser.Math.Between(1800, 3200), () => spawnCloudLoop(scene));
-      return;
-    }
+  const spec = findCloudSpec(scene);
+  if (!spec) return;
 
-    const entry = trackCloud(scene, spec);
-    const cloud = createDriftingCloud(scene, spec);
+  const entry = trackCloud(scene, spec);
+  const cloud = createDriftingCloud(scene, spec);
 
-    scene.tweens.add({
-      targets: cloud,
-      x: cloudExitX(scene, spec.displayW),
-      duration: spec.duration,
-      onComplete: () => {
-        untrackCloud(scene, entry);
-        cloud.destroy();
-        if (scene.sys?.isActive()) {
-          scene.time.delayedCall(Phaser.Math.Between(2500, 6500), () => spawnCloudLoop(scene));
-        }
-      },
-    });
-  };
-
-  if (delayMs > 0) scene.time.delayedCall(delayMs, spawn);
-  else spawn();
+  scene.tweens.add({
+    targets: cloud,
+    x: cloudExitX(scene, spec.displayW),
+    duration: spec.duration,
+    onComplete: () => {
+      untrackCloud(scene, entry);
+      cloud.destroy();
+    },
+  });
 }
 
-/** Nuvens — entram pela esquerda, sem sobrepor outra */
-export function spawnEnvironmentClouds(scene) {
-  scene._cloudTracker = { active: [], lastSpawn: 0 };
-  const initial = Phaser.Math.Between(1, 2);
+function spawnCloudWave(scene) {
+  if (!scene.sys?.isActive()) return;
 
-  for (let i = 0; i < initial; i++) {
-    spawnCloudLoop(scene, i * Phaser.Math.Between(CLOUD_MIN_GAP_MS, CLOUD_MIN_GAP_MS + 4200));
+  const count = Phaser.Math.Between(1, 3);
+  for (let i = 0; i < count; i++) {
+    scene.time.delayedCall(i * CLOUD_STAGGER_MS, () => spawnSingleCloud(scene));
   }
+
+  scene._cloudWaveTimer = scene.time.delayedCall(
+    Phaser.Math.Between(CLOUD_WAVE_MIN_MS, CLOUD_WAVE_MAX_MS),
+    () => spawnCloudWave(scene),
+  );
+}
+
+/** Nuvens — entram pela esquerda, 1–3 por leva, faixas diferentes */
+export function spawnEnvironmentClouds(scene) {
+  scene._cloudTracker = { active: [] };
+  scene._cloudWaveTimer?.remove(false);
+
+  const initial = Phaser.Math.Between(1, 3);
+  for (let i = 0; i < initial; i++) {
+    scene.time.delayedCall(i * CLOUD_STAGGER_MS, () => spawnSingleCloud(scene));
+  }
+
+  scene._cloudWaveTimer = scene.time.delayedCall(
+    Phaser.Math.Between(CLOUD_WAVE_MIN_MS, CLOUD_WAVE_MAX_MS),
+    () => spawnCloudWave(scene),
+  );
 }
 
 /** terreno.png — chão mobile ancorado embaixo */

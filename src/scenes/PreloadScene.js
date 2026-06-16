@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { SceneKeys, RegistryKeys, defaultSettings } from '../config/constants.js';
-import { REQUIRED_SOUNDS } from '../config/assets.js';
+import { REQUIRED_SOUNDS, OPTIONAL_SOUNDS } from '../config/assets.js';
 import { queueOptionalAssets } from '../systems/AssetLoader.js';
 import { queueSpriteAssets, registerSpriteAnimations } from '../systems/SpriteLoader.js';
 import { capImageTexture, capSpritesheet } from '../systems/TextureScaler.js';
@@ -8,6 +8,7 @@ import { startBgm } from '../systems/MusicManager.js';
 import { preloadSplashIcons } from '../ui/splashUi.js';
 import { preloadSettingsIcons } from '../ui/settingsUi.js';
 import { preloadGameIcons } from '../ui/gameUi.js';
+import { preloadEggIcons } from '../ui/eggUi.js';
 import { buildLoadingScreen } from '../ui/loadingUi.js';
 import { FOOD_FRUTAS } from '../config/foodConfig.js';
 import {
@@ -32,6 +33,18 @@ import {
   ENV_GROUND_PATH,
 } from '../config/environmentConfig.js';
 import { GAME_TRUNK_KEY, INTRO_TRUNK_KEY } from '../config/gameWorldConfig.js';
+import {
+  EGG_WOBBLE_KEY,
+  EGG_CRACK_KEY,
+  EGG_OPEN_KEY,
+  EGG_WOBBLE_FRAME_W,
+  EGG_WOBBLE_FRAME_H,
+  EGG_CRACK_FRAME_W,
+  EGG_CRACK_FRAME_H,
+  EGG_OPEN_FRAME_W,
+  EGG_OPEN_FRAME_H,
+  registerEggAnimations,
+} from '../config/eggConfig.js';
 import criancasData from '../../public/assets/data/criancas.json';
 
 export class PreloadScene extends Phaser.Scene {
@@ -73,6 +86,18 @@ export class PreloadScene extends Phaser.Scene {
     });
     this.load.image(GAME_TRUNK_KEY, 'assets/textures/ui/tronco_game.png');
     this.load.image(INTRO_TRUNK_KEY, 'assets/textures/ui/tronco_intro.png');
+    this.load.spritesheet(EGG_WOBBLE_KEY, 'assets/sprites/ui/ovo_mexendo.png', {
+      frameWidth: EGG_WOBBLE_FRAME_W,
+      frameHeight: EGG_WOBBLE_FRAME_H,
+    });
+    this.load.spritesheet(EGG_CRACK_KEY, 'assets/sprites/ui/ovo_quebrando.png', {
+      frameWidth: EGG_CRACK_FRAME_W,
+      frameHeight: EGG_CRACK_FRAME_H,
+    });
+    this.load.spritesheet(EGG_OPEN_KEY, 'assets/sprites/ui/ovo_aberto.png', {
+      frameWidth: EGG_OPEN_FRAME_W,
+      frameHeight: EGG_OPEN_FRAME_H,
+    });
     for (const { key, path } of listCharacterHeadAssets(criancasData)) {
       this.load.spritesheet(key, path, {
         frameWidth: CHAR_HEAD_FRAME_W,
@@ -85,6 +110,8 @@ export class PreloadScene extends Phaser.Scene {
     for (const [key, url] of Object.entries(REQUIRED_SOUNDS)) {
       this.load.audio(key, url);
     }
+    this.load.audio('egg_crack', OPTIONAL_SOUNDS.egg_crack);
+    this.load.audio('nascer', OPTIONAL_SOUNDS.nascer);
     queueSpriteAssets(this);
   }
 
@@ -103,6 +130,10 @@ export class PreloadScene extends Phaser.Scene {
     for (const { key } of listCharacterFaceAssets(criancasData)) {
       capImageTexture(this, key);
     }
+    capSpritesheet(this, EGG_WOBBLE_KEY, EGG_WOBBLE_FRAME_W, EGG_WOBBLE_FRAME_H);
+    capSpritesheet(this, EGG_CRACK_KEY, EGG_CRACK_FRAME_W, EGG_CRACK_FRAME_H);
+    capSpritesheet(this, EGG_OPEN_KEY, EGG_OPEN_FRAME_W, EGG_OPEN_FRAME_H);
+    registerEggAnimations(this);
 
     if (this.textures.exists(CHAR_HEADS_KEY) && !this.anims.exists(CHAR_HEADS_ANIM_KEY)) {
       this.anims.create({
@@ -161,6 +192,7 @@ export class PreloadScene extends Phaser.Scene {
       preloadSplashIcons(this),
       preloadSettingsIcons(this),
       preloadGameIcons(this),
+      preloadEggIcons(this),
     ]);
     startBgm(this);
     this.scene.start(SceneKeys.SPLASH);

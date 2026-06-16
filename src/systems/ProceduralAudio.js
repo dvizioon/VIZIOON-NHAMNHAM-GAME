@@ -52,6 +52,7 @@ export class ProceduralAudio {
     const handlers = {
       clique: () => tocar(600, 800, 0.08),
       crack: () => tocar(200, 80, 0.15, 0.3, 'square'),
+      egg_crack: () => tocar(200, 80, 0.15, 0.3, 'square'),
       nascer: () => {
         tocar(400, 800, 0.2);
         tocar(600, 1200, 0.25, 0.2, 'sine', 0.15);
