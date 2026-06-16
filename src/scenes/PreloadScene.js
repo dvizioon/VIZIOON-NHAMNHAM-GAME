@@ -1,8 +1,6 @@
 import Phaser from 'phaser';
 import { SceneKeys, RegistryKeys, defaultSettings } from '../config/constants.js';
 import { REQUIRED_SOUNDS } from '../config/assets.js';
-import { Theme } from '../config/theme.js';
-import { uiScale, isPortrait } from '../utils/responsive.js';
 import { queueOptionalAssets } from '../systems/AssetLoader.js';
 import { queueSpriteAssets, registerSpriteAnimations } from '../systems/SpriteLoader.js';
 import { capImageTexture, capSpritesheet } from '../systems/TextureScaler.js';
@@ -10,6 +8,7 @@ import { startBgm } from '../systems/MusicManager.js';
 import { preloadSplashIcons } from '../ui/splashUi.js';
 import { preloadSettingsIcons } from '../ui/settingsUi.js';
 import { preloadGameIcons } from '../ui/gameUi.js';
+import { buildLoadingScreen } from '../ui/loadingUi.js';
 import { FOOD_FRUTAS } from '../config/foodConfig.js';
 import {
   CHAR_HEADS_KEY,
@@ -41,31 +40,10 @@ export class PreloadScene extends Phaser.Scene {
   }
 
   preload() {
-    const { width, height } = this.scale;
-    const portrait = isPortrait(this);
-    const barW = portrait ? Math.round(width * 0.78) : Math.min(400, Math.round(width * 0.55));
-    const barH = Math.max(18, Math.round(barW * 0.07));
-    const titleSize = Math.max(28, Math.round((portrait ? width * 0.11 : 42) * (portrait ? 1 : uiScale(this))));
-    const titleY = height * (portrait ? 0.42 : 0.5) - 60;
-
-    this.add.text(width / 2, titleY, 'Nhoc Nhoc!', {
-      fontFamily: Theme.fontFamily,
-      fontSize: `${titleSize}px`,
-      color: '#4E9A2E',
-      fontStyle: 'bold',
-    }).setOrigin(0.5);
-
-    const barY = height * (portrait ? 0.48 : 0.5);
-    const box = this.add.graphics();
-    box.fillStyle(0x222222, 0.8);
-    box.fillRoundedRect(width / 2 - barW / 2 - 10, barY - 10, barW + 20, barH + 20, 8);
-
-    const bar = this.add.graphics();
+    this.loadingUi = buildLoadingScreen(this);
 
     this.load.on('progress', (value) => {
-      bar.clear();
-      bar.fillStyle(Theme.sol, 1);
-      bar.fillRoundedRect(width / 2 - barW / 2, barY, barW * value, barH, 6);
+      this.loadingUi.setProgress(value);
     });
 
     this.load.on('loaderror', () => {
@@ -176,6 +154,8 @@ export class PreloadScene extends Phaser.Scene {
     this.registry.set(RegistryKeys.POINTS, 0);
     this.registry.set(RegistryKeys.LIVES, gameConfig.maxVidas ?? 3);
     this.registry.set(RegistryKeys.SETTINGS, { ...defaultSettings });
+
+    this.loadingUi?.setProgress(1);
 
     await Promise.all([
       preloadSplashIcons(this),
