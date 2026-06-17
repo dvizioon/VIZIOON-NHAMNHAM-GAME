@@ -87,19 +87,14 @@ export function getCharacterHeadFrameRate(crianca) {
 
 
 export function listCharacterHeadAssets(criancas = []) {
-
   return criancas
-
     .filter((c) => c.cabeca)
-
     .map((c) => ({
-
       key: getCharacterHeadSheetKey(c),
-
-      path: c.cabeca.startsWith('assets/') ? c.cabeca : `assets/${c.cabeca}`,
-
+      path: c.cabeca.startsWith('http') ? c.cabeca : (
+        c.cabeca.startsWith('assets/') ? c.cabeca : `assets/${c.cabeca}`
+      ),
     }));
-
 }
 
 

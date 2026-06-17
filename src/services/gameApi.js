@@ -93,6 +93,16 @@ export const GameApi = {
     const json = await request(`/api/v1/game/ranking?limit=${limit}`);
     return json.data ?? [];
   },
+
+  async fetchCharacters() {
+    const json = await request('/api/v1/game/characters');
+    return json.data ?? [];
+  },
+
+  async fetchGameRules() {
+    const json = await request('/api/v1/game/rules');
+    return json.data ?? null;
+  },
 };
 
 const STORAGE_KEY = 'nhamnham_session_token';

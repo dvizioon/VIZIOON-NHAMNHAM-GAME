@@ -57,8 +57,8 @@ import {
   EGG_HATCH_NASCENDO_FRAME_H,
   registerEggAnimations,
 } from '../config/eggConfig.js';
-import criancasData from '../../public/assets/data/criancas.json';
 import { getInitialSceneKey } from '../debug/screenInit.js';
+import { DEFAULT_GAME_RULES } from '../services/gameRules.js';
 
 export class PreloadScene extends Phaser.Scene {
   constructor() {
@@ -67,6 +67,7 @@ export class PreloadScene extends Phaser.Scene {
 
   preload() {
     this.loadingUi = buildLoadingScreen(this);
+    this.criancasData = this.registry.get(RegistryKeys.CRIANCAS) ?? [];
 
     this.load.on('progress', (value) => {
       this.loadingUi.setProgress(value);
@@ -120,10 +121,10 @@ export class PreloadScene extends Phaser.Scene {
       frameHeight: EGG_HATCH_NASCENDO_FRAME_H,
     });
     this.load.spritesheet(FROG_JUMP_KEY, FROG_JUMP_PATH, getFrogJumpSheetLoadOpts());
-    for (const { key, path } of listCharacterHeadAssets(criancasData)) {
+    for (const { key, path } of listCharacterHeadAssets(this.criancasData)) {
       this.load.spritesheet(key, path, getCharacterHeadSheetLoadOpts());
     }
-    for (const { key, path } of listCharacterFaceAssets(criancasData)) {
+    for (const { key, path } of listCharacterFaceAssets(this.criancasData)) {
       this.load.image(key, path);
     }
     for (const [key, url] of Object.entries(REQUIRED_SOUNDS)) {
@@ -138,6 +139,8 @@ export class PreloadScene extends Phaser.Scene {
     registerSpriteAnimations(this);
 
     // PNGs do Figma passam de 4096px — reduz p/ GPU exibir (antes das animações!)
+    const criancasData = this.criancasData ?? this.registry.get(RegistryKeys.CRIANCAS) ?? [];
+
     capImageTexture(this, ENV_SKY_KEY);
     capImageTexture(this, ENV_GROUND_KEY);
     capImageTexture(this, GAME_TRUNK_KEY);
@@ -192,22 +195,9 @@ export class PreloadScene extends Phaser.Scene {
       }
     }
 
-    const criancas = this.cache.json.exists('criancas')
-      ? this.cache.json.get('criancas')
-      : criancasData;
+    const criancas = criancasData;
 
-    const gameConfig = this.cache.json.exists('config')
-      ? this.cache.json.get('config')
-      : {
-          metaComida: 24,
-          maxVidas: 3,
-          cliquesOvo: 4,
-          cliquesCasulo: 2,
-          intervaloSapo: 12000,
-          delayInicioSapo: 25000,
-          minComidaAntesSapo: 4,
-          invulneravelFrames: 120,
-        };
+    const gameConfig = this.registry.get(RegistryKeys.GAME_CONFIG) ?? { ...DEFAULT_GAME_RULES };
 
     this.registry.set(RegistryKeys.CRIANCAS, criancas);
     this.registry.set(RegistryKeys.GAME_CONFIG, gameConfig);

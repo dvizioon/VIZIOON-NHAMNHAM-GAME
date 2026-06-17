@@ -63,10 +63,7 @@ export const OPTIONAL_SOUNDS = {
 
 export const SOUNDS = { ...REQUIRED_SOUNDS, ...OPTIONAL_SOUNDS };
 
-export const DATA = {
-  criancas: `${ASSET_BASE}/data/criancas.json`,
-  config: `${ASSET_BASE}/data/config.json`,
-};
+export const DATA = {};
 
 /** Lista plana para o PreloadScene */
 export function getLoadQueue() {
