@@ -88,6 +88,7 @@ export class PreloadScene extends Phaser.Scene {
     this.load.image('ui_cabeca_largata', 'assets/textures/ui/Cabe%C3%A7a_Largata.svg');
     this.load.image('ui_logo_personagens', 'assets/textures/ui/Logo_personagens.svg');
     this.load.image('ui_logo_jogador', 'assets/textures/ui/Cadastrar.svg');
+    this.load.image('ui_logo_configuracao', 'assets/textures/ui/Configura%C3%A7%C3%A3o.svg');
     this.load.image('ui_user_jogador', 'assets/textures/ui/userJogador.svg');
     this.load.spritesheet(CHAR_HEADS_KEY, 'assets/sprites/characters/childs/anderson_gabriel.png', {
       ...getCharacterHeadSheetLoadOpts(),

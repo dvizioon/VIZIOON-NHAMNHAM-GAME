@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { Theme } from '../config/theme.js';
 import { uiScale } from '../utils/responsive.js';
 import { Icon } from './iconify.js';
-import { createIconCircleButton } from './splashUi.js';
+import { createIconCircleButton, getIconButtonSize, SPLASH_CORNER_BTN_OPTS, SPLASH_ICON_RATIO } from './splashUi.js';
 import { playSound } from '../systems/ProceduralAudio.js';
 import { GameState } from '../utils/GameState.js';
 import { logoutPlayerSession } from '../services/playerSession.js';
@@ -11,61 +11,67 @@ import { hasTexture } from '../systems/AssetLoader.js';
 import { GUEST_PLAYER_NAME, UI_USER_JOGADOR_KEY } from './playerNameUi.js';
 
 const MODAL_DEPTH = 220;
+const CHIP_LABEL_COLOR = '#1E6A30';
+const CHIP_BORDER_TINT = 0x1E6A30;
 const ICON_GREEN = '#4E9A2E';
 const CLOSE_ICON = Icon.from('solar:close-circle-bold', { designSize: 24, color: ICON_GREEN });
-const USER_ICON = Icon.from('solar:user-circle-bold', { designSize: 24, color: ICON_GREEN });
+const USER_ICON = Icon.from('solar:user-circle-bold', { designSize: 24, color: CHIP_LABEL_COLOR });
 const LOGOUT_ICON = Icon.from('solar:logout-2-bold', { designSize: 22, color: '#ffffff' });
 const CONNECT_ICON = Icon.from('solar:add-circle-broken', { designSize: 22, color: '#ffffff' });
 const BTN_RED = 0xE84545;
 const BTN_RED_DARK = 0xB71C1C;
 
 /** Chip no canto superior esquerdo — conta conectada */
-export async function createSplashUserChip(scene, x, y, { onClick, size = 52 } = {}) {
+export async function createSplashUserChip(scene, x, y, { onClick, size = 52, iconSize, absoluteSize } = {}) {
   const session = GameState.getPlayerSession(scene);
   if (!session || session.isGuest) return null;
 
   return createSplashSessionChip(scene, x, y, {
     onClick,
     size,
+    iconSize,
+    absoluteSize,
     name: session.displayName ?? 'Jogador',
   });
 }
 
 /** Chip no canto superior esquerdo — visitante ativo */
-export async function createSplashGuestChip(scene, x, y, { onClick, size = 52 } = {}) {
+export async function createSplashGuestChip(scene, x, y, { onClick, size = 52, iconSize, absoluteSize } = {}) {
   if (!GameState.hasActiveGuestSession(scene)) return null;
 
   return createSplashSessionChip(scene, x, y, {
     onClick,
     size,
+    iconSize,
+    absoluteSize,
     name: GUEST_PLAYER_NAME,
   });
 }
 
-async function createSplashSessionChip(scene, x, y, { onClick, size, name }) {
+async function createSplashSessionChip(scene, x, y, { onClick, size, iconSize, absoluteSize = true, name }) {
   const s = uiScale(scene);
   await Icon.preload(scene, [USER_ICON]);
   const fontSize = Math.max(15, Math.round(18 * s));
   const gap = Math.round(8 * s);
-  const iconPx = Math.round(size * 0.46);
+  const iconPx = iconSize ?? Math.round(size * SPLASH_ICON_RATIO);
+  const { btnW, btnH } = getIconButtonSize(scene, size, { absolute: absoluteSize });
 
   const root = scene.add.container(x, y).setDepth(200);
 
   const btn = createIconCircleButton(scene, 0, 0, USER_ICON, {
     size,
     iconSize: iconPx,
-    absoluteSize: true,
+    absoluteSize,
     depth: 201,
-    fillRatio: 0.48,
-    simpleBorder: true,
-    borderColor: Theme.folhaEscura,
+    ...SPLASH_CORNER_BTN_OPTS,
+    borderTint: CHIP_BORDER_TINT,
     onClick: () => onClick?.(),
   });
 
-  const label = scene.add.text(size / 2 + gap, 0, name, {
+  const label = scene.add.text(btnW / 2 + gap, 0, name, {
     fontFamily: Theme.fontFamily,
     fontSize: `${fontSize}px`,
-    color: ICON_GREEN,
+    color: CHIP_LABEL_COLOR,
     fontStyle: 'bold',
   }).setOrigin(0, 0.5);
 
@@ -78,9 +84,9 @@ async function createSplashSessionChip(scene, x, y, { onClick, size, name }) {
   }
 
   root.add([btn, label]);
-  root.setSize(size + gap + label.width, size);
+  root.setSize(btnW + gap + label.width, btnH);
   root.setInteractive(
-    new Phaser.Geom.Rectangle(-size / 2, -size / 2, root.width, size),
+    new Phaser.Geom.Rectangle(-btnW / 2, -btnH / 2, root.width, btnH),
     Phaser.Geom.Rectangle.Contains,
   );
   root.input.cursor = 'pointer';
@@ -300,12 +306,12 @@ export async function openGuestProfileModal(scene, { onClose, onLogout, onConnec
   const bottomPad = Math.max(28, Math.round(32 * s));
   const bodySize = Math.max(15, Math.round(17 * s));
   const btnGap = Math.max(14, Math.round(16 * s));
-  const sectionGap = Math.max(24, Math.round(28 * s));
+  const btnTopGap = Math.max(44, Math.round(52 * s));
   const btnH = 52;
   const hintLinesH = bodySize * 2.4 + 8;
   const panelH = Math.min(
     Math.round(height * 0.52),
-    topPad + Math.max(22, Math.round(28 * s)) + 14 + hintLinesH + sectionGap + btnH + btnGap + btnH + bottomPad,
+    topPad + Math.max(22, Math.round(28 * s)) + 14 + hintLinesH + btnTopGap + btnH + btnGap + btnH + bottomPad,
   );
 
   let closed = false;
@@ -343,12 +349,13 @@ export async function openGuestProfileModal(scene, { onClose, onLogout, onConnec
     },
   ).setOrigin(0.5, 0);
   panel.add(hint);
-  y += hint.height + sectionGap;
 
   const btnW = Math.min(panelW - 48, 280);
   const btnFont = Math.max(17, Math.round(20 * s));
+  const logoutY = panelH / 2 - bottomPad - btnH / 2;
+  const connectY = logoutY - btnH - btnGap;
 
-  const connectBtn = createModalIconButton(scene, 0, y, 'Conectar', CONNECT_ICON, {
+  const connectBtn = createModalIconButton(scene, 0, connectY, 'Conectar', CONNECT_ICON, {
     color: Theme.botaoVerde,
     darkColor: Theme.folhaEscura,
     width: btnW,
@@ -360,9 +367,8 @@ export async function openGuestProfileModal(scene, { onClose, onLogout, onConnec
     },
   });
   panel.add(connectBtn);
-  y += btnH + btnGap;
 
-  const logoutBtn = createModalIconButton(scene, 0, y, 'Sair', LOGOUT_ICON, {
+  const logoutBtn = createModalIconButton(scene, 0, logoutY, 'Sair', LOGOUT_ICON, {
     color: BTN_RED,
     darkColor: BTN_RED_DARK,
     width: btnW,

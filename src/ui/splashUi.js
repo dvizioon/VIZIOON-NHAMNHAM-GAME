@@ -17,6 +17,14 @@ export const SPLASH_BTN_LAYOUT = {
 /** Borda dos botões circulares (voltar/salvar) — aumente p/ borda maior */
 export const SETTINGS_BTN_BORDER_SCALE = 1;
 
+/** Botão Config da splash — chips do canto usam as mesmas medidas visuais */
+export const SPLASH_CORNER_BTN_OPTS = {
+  borderScale: 0.88,
+  fillRatio: 0.42,
+  fillColor: Theme.papel,
+  showBorder: true,
+};
+
 /** Ajuste fino — centralizar círculo interno na BordaButton.svg */
 export const SETTINGS_BTN_CONTENT_OFFSET_X = -1;
 export const SETTINGS_BTN_CONTENT_OFFSET_Y = -2;

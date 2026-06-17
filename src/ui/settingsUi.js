@@ -13,8 +13,10 @@ import {
 
 export const UI_DECO_3FOLHAS_KEY = 'ui_deco_3folhas';
 export const UI_DECO_FOLHAS_RAIZES_KEY = 'ui_deco_folhas_raizes';
+export const UI_LOGO_SETTINGS_KEY = 'ui_logo_configuracao';
 
-const LABEL_COLOR = '#3B3024';
+const LABEL_COLOR = '#6B4226';
+const ICON_BROWN = '#6B4226';
 const VOLUME_ZERO_THRESHOLD = 0.005;
 
 function normalizeVolumeValue(raw) {
@@ -31,11 +33,10 @@ function isVolumeMuted(v) {
 }
 
 export const SETTINGS_ICONS = {
-  controller: Icon.from('mynaui:controller'),
-  volumeHigh: Icon.from('mynaui:volume-high'),
-  volumeOff: Icon.from('mynaui:volume-off'),
-  back: Icon.from('solar:map-arrow-left-outline', { color: '#FFFFFF', designSize: 32 }),
-  save: Icon.from('mynaui:save', { designSize: 32 }),
+  controller: Icon.from('mynaui:controller', { color: ICON_BROWN }),
+  volumeHigh: Icon.from('mynaui:volume-high', { color: ICON_BROWN }),
+  volumeOff: Icon.from('mynaui:volume-off', { color: ICON_BROWN }),
+  home: Icon.from('mynaui:home', { designSize: 24, color: '#ffffff' }),
   touch: Icon.from('hugeicons:tap-05', { color: '#FFF8E7' }),
   arrowLeft: Icon.from('solar:alt-arrow-left-bold', { color: '#FFF8E7' }),
   arrowRight: Icon.from('solar:alt-arrow-right-bold', { color: '#FFF8E7' }),
@@ -149,27 +150,30 @@ export function createSettingsSlider(
   const iconPx = Math.round(32 * scale);
   const iconGap = Math.round(12 * scale);
   const labelSize = Math.max(16, Math.round(22 * scale));
+  const headerY = -Math.round(28 * scale);
+  const trackY = Math.round(6 * scale);
 
   const row = attach(parent, scene.add.container(0, 0), x, y);
   let value = normalizeVolumeValue(initial);
   let isDragging = false;
 
-  const labelText = scene.add.text(0, -Math.round(32 * scale), label, {
+  const iconX = -innerW / 2 + Math.round(15 * scale);
+  const labelText = scene.add.text(iconX, headerY, label, {
     fontFamily: Theme.fontFamily,
     fontSize: `${labelSize}px`,
     color: LABEL_COLOR,
     fontStyle: 'bold',
-  }).setOrigin(0.5);
+  }).setOrigin(0, 0.5);
 
-  const leftPadding = volumeIcon ? Math.round(65 * scale) : 0;
+  const leftPadding = volumeIcon ? Math.round(65 * scale) : Math.round(8 * scale);
   const trackX = -innerW / 2 + leftPadding;
   const trackW = innerW / 2 - trackX;
   const trackInset = knobR + Math.round(4 * scale);
   const trackInnerX = trackX + trackInset;
   const trackInnerW = Math.max(1, trackW - trackInset * 2);
 
-  const indicatorX = -innerW / 2 + Math.round(15 * scale);
-  const indicatorY = trackH / 2;
+  const indicatorX = iconX;
+  const indicatorY = headerY;
 
   let iconImg;
   let percentText;
@@ -182,9 +186,15 @@ export function createSettingsSlider(
     iconImg = scene.add
       .image(indicatorX, indicatorY, startKey)
       .setDisplaySize(iconPx, iconPx)
-      .setOrigin(0.5);
+      .setOrigin(0, 0.5);
 
-    percentText = scene.add.text(indicatorX, indicatorY - Math.round(28 * scale), '', {
+    labelText.setX(indicatorX + iconPx + iconGap);
+  }
+
+  const trackCenterY = trackY + trackH / 2;
+
+  if (volumeIcon) {
+    percentText = scene.add.text(trackInnerX + trackInnerW / 2, trackCenterY - Math.round(22 * scale), '', {
       fontFamily: Theme.fontFamily,
       fontSize: `${Math.max(14, Math.round(18 * scale))}px`,
       color: LABEL_COLOR,
@@ -217,20 +227,20 @@ export function createSettingsSlider(
   const redraw = () => {
     trackBg.clear();
     trackBg.fillStyle(0xE8F5DC, 1);
-    trackBg.fillRoundedRect(trackInnerX, 0, trackInnerW, trackH, trackH / 2);
+    trackBg.fillRoundedRect(trackInnerX, trackY, trackInnerW, trackH, trackH / 2);
 
     trackFill.clear();
     if (value > 0) {
       trackFill.fillStyle(Theme.folhaEscura, 1);
-      trackFill.fillRoundedRect(trackInnerX, 0, trackInnerW * value, trackH, trackH / 2);
+      trackFill.fillRoundedRect(trackInnerX, trackY, trackInnerW * value, trackH, trackH / 2);
     }
 
     const kx = knobX();
     knob.clear();
     knob.fillStyle(Theme.sol, 1);
-    knob.lineStyle(2, Theme.texto, 1);
-    knob.fillCircle(kx, trackH / 2, knobR);
-    knob.strokeCircle(kx, trackH / 2, knobR);
+    knob.lineStyle(2, Theme.troncoEscuro, 1);
+    knob.fillCircle(kx, trackCenterY, knobR);
+    knob.strokeCircle(kx, trackCenterY, knobR);
 
     updateIndicator();
   };
@@ -238,7 +248,7 @@ export function createSettingsSlider(
   redraw();
 
   const zone = scene.add
-    .zone(trackInnerX + trackInnerW / 2, trackH / 2, trackInnerW, Math.max(40, trackH + 20))
+    .zone(trackInnerX + trackInnerW / 2, trackCenterY, trackInnerW, Math.max(40, trackH + 20))
     .setInteractive({ useHandCursor: true });
 
   const update = (localX) => {
@@ -373,6 +383,43 @@ const settingsCircleBtnOpts = {
   contentOffsetY: SETTINGS_BTN_CONTENT_OFFSET_Y,
 };
 
+export function createSettingsTitleLogo(scene, x, y, { maxWidth = 420 } = {}) {
+  if (!scene.textures.exists(UI_LOGO_SETTINGS_KEY)) return null;
+
+  const tex = scene.textures.get(UI_LOGO_SETTINGS_KEY).getSourceImage();
+  const aspect = tex.height / tex.width;
+  let logoW = maxWidth;
+  let logoH = logoW * aspect;
+  const maxH = scene.scale.height * 0.12;
+  if (logoH > maxH) {
+    logoH = maxH;
+    logoW = logoH / aspect;
+  }
+
+  return scene.add
+    .image(x, y, UI_LOGO_SETTINGS_KEY)
+    .setDisplaySize(logoW, logoH)
+    .setOrigin(0.5)
+    .setDepth(150);
+}
+
+export function createSettingsHomeButton(scene, x, y, onClick) {
+  const portrait = isPortrait(scene);
+  const { size, icon } = settingsButtonSize(scene);
+  return createIconCircleButton(scene, x, y, SETTINGS_ICONS.home, {
+    size,
+    iconSize: icon,
+    absoluteSize: portrait,
+    depth: 200,
+    fillColor: Theme.botaoVerde,
+    ...settingsCircleBtnOpts,
+    onClick: () => {
+      playSound(scene, 'clique');
+      onClick?.();
+    },
+  });
+}
+
 export function createSettingsBackButton(scene, onClick, { x, y, absoluteSize } = {}) {
   const scale = uiScale(scene);
   const portrait = isPortrait(scene);
@@ -385,7 +432,7 @@ export function createSettingsBackButton(scene, onClick, { x, y, absoluteSize } 
   const px = x ?? m + btnW / 2;
   const py = y ?? m + btnH / 2;
 
-  return createIconCircleButton(scene, px, py, SETTINGS_ICONS.back, {
+  return createIconCircleButton(scene, px, py, SETTINGS_ICONS.home, {
     size,
     iconSize: icon,
     absoluteSize: abs,
@@ -396,24 +443,16 @@ export function createSettingsBackButton(scene, onClick, { x, y, absoluteSize } 
   });
 }
 
+/** @deprecated use createSettingsHomeButton */
 export function createSettingsSaveButton(scene, x, y, onClick) {
-  const portrait = isPortrait(scene);
-  const { size, icon } = settingsButtonSize(scene);
-  return createIconCircleButton(scene, x, y, SETTINGS_ICONS.save, {
-    size,
-    iconSize: icon,
-    absoluteSize: portrait,
-    depth: 200,
-    fillColor: Theme.papel,
-    ...settingsCircleBtnOpts,
-    onClick,
-  });
+  return createSettingsHomeButton(scene, x, y, onClick);
 }
 
 /** Linha Modo — título + controller centralizados; toggles abaixo */
 export function createModoRow(parent, x, y, { activeMode = 'toque', onChange, contentW } = {}) {
   const scene = sceneOf(parent);
   const scale = contentW ? contentW / 300 : uiScale(scene);
+  const innerW = contentW ?? Math.round(300 * scale);
   const iconPx = Math.round(28 * scale);
   const labelY = -Math.round(32 * scale);
 
@@ -424,17 +463,16 @@ export function createModoRow(parent, x, y, { activeMode = 'toque', onChange, co
     fontSize: `${Math.max(16, Math.round(22 * scale))}px`,
     color: LABEL_COLOR,
     fontStyle: 'bold',
-  }).setOrigin(0.5);
+  }).setOrigin(0, 0.5);
 
-  const totalHeaderW = label.width + iconPx + Math.round(8 * scale);
-  const headerStartX = -totalHeaderW / 2;
+  const headerStartX = -innerW / 2 + Math.round(15 * scale);
 
   const controller = scene.add
     .image(headerStartX, labelY, SETTINGS_ICONS.controller.textureKey)
     .setDisplaySize(iconPx, iconPx)
     .setOrigin(0, 0.5);
 
-  label.setX(headerStartX + iconPx + Math.round(8 * scale) + label.width / 2);
+  label.setPosition(headerStartX + iconPx + Math.round(8 * scale), labelY);
 
   const toggleY = Math.round(30 * scale);
   const btnSize = Math.round(58 * scale);

@@ -7,6 +7,7 @@ import {
   createIconCircleButton,
   placeTopRightButton,
   getIconButtonSize,
+  SPLASH_CORNER_BTN_OPTS,
 } from '../ui/splashUi.js';
 import { playSound } from '../systems/ProceduralAudio.js';
 import { GameState } from '../utils/GameState.js';
@@ -390,6 +391,7 @@ export class SplashScene extends Phaser.Scene {
         iconSize: btnIcon,
         absoluteSize: true,
         depth: DEPTH_UI,
+        ...SPLASH_CORNER_BTN_OPTS,
         onClick: () => {
           playSound(this, 'clique');
           GameState.setReturnScene(this, SceneKeys.SPLASH);
@@ -403,6 +405,7 @@ export class SplashScene extends Phaser.Scene {
         iconSize: btnIcon,
         absoluteSize: portrait,
         depth: DEPTH_UI,
+        ...SPLASH_CORNER_BTN_OPTS,
         onClick: () => {
           playSound(this, 'clique');
           GameState.setReturnScene(this, SceneKeys.SPLASH);
@@ -411,8 +414,8 @@ export class SplashScene extends Phaser.Scene {
       });
     }
 
-    const playX = width / 2 - (btnW + gap) / 2;
-    const rankX = width / 2 + (btnW + gap) / 2;
+    const showRanking = GameState.isOnlineConnected(this);
+    const playX = showRanking ? width / 2 - (btnW + gap) / 2 : width / 2;
 
     createIconCircleButton(this, playX, rowY, SPLASH_ICONS.play, {
       size: btnSize,
@@ -427,35 +430,39 @@ export class SplashScene extends Phaser.Scene {
       },
     });
 
-    createIconCircleButton(this, rankX, rowY, SPLASH_ICONS.ranking, {
-      size: btnSize,
-      iconSize: btnIcon,
-      absoluteSize: portrait,
-      depth: DEPTH_UI,
-      onClick: async () => {
-        playSound(this, 'clique');
-        await openRankingModal(this);
-      },
-    });
+    if (showRanking) {
+      const rankX = width / 2 + (btnW + gap) / 2;
+      createIconCircleButton(this, rankX, rowY, SPLASH_ICONS.ranking, {
+        size: btnSize,
+        iconSize: btnIcon,
+        absoluteSize: portrait,
+        depth: DEPTH_UI,
+        onClick: async () => {
+          playSound(this, 'clique');
+          await openRankingModal(this);
+        },
+      });
+    }
   }
 
   async placeUserChip(width) {
     const portrait = isPortrait(this);
     const layout = portrait ? SPLASH_LAYOUT.portrait : SPLASH_LAYOUT.landscape;
     const btnSize = mobileBtnSize(this, layout.playBtn ?? 0.19, SPLASH_BTN_SIZE);
-    const { btnH } = getIconButtonSize(this, btnSize, { absolute: portrait });
+    const btnIcon = Math.round(btnSize * SPLASH_ICON_RATIO);
+    const { btnW, btnH } = getIconButtonSize(this, btnSize, { absolute: portrait });
     const topM = Math.max(10, Math.round(this.scale.height * (layout.configTop ?? 0.045)));
     const sideM = Math.max(10, Math.round(width * (layout.sideMargin ?? 0.05)));
-    const chipSize = Math.max(46, Math.round(btnSize * 0.72));
-    const chipX = sideM + chipSize / 2 + 8;
+    const chipX = sideM + btnW / 2;
     const chipY = topM + btnH / 2;
+    const chipOpts = { size: btnSize, iconSize: btnIcon, absoluteSize: portrait };
 
     this.userChip?.destroy();
     this.userChip = null;
 
     if (GameState.isOnlineConnected(this)) {
       this.userChip = await createSplashUserChip(this, chipX, chipY, {
-        size: chipSize,
+        ...chipOpts,
         onClick: () => this.openUserProfile(),
       });
       return;
@@ -463,14 +470,14 @@ export class SplashScene extends Phaser.Scene {
 
     if (GameState.hasActiveGuestSession(this)) {
       this.userChip = await createSplashGuestChip(this, chipX, chipY, {
-        size: chipSize,
+        ...chipOpts,
         onClick: () => this.openGuestProfile(),
       });
       return;
     }
 
     this.userChip = await createSplashConnectChip(this, chipX, chipY, {
-      size: chipSize,
+      ...chipOpts,
       onClick: () => {
         playSound(this, 'clique');
         this.scene.start(SceneKeys.LOGIN);

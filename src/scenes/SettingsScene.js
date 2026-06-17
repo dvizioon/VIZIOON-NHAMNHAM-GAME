@@ -1,25 +1,27 @@
 import Phaser from 'phaser';
 import { SceneKeys } from '../config/constants.js';
-import { drawSkyBackground, createTitle } from '../ui/createUI.js';
+import { drawSkyBackground } from '../ui/createUI.js';
 import {
   createSettingsPanel,
   createSettingsDecorations,
   createSettingsSlider,
-  createSettingsBackButton,
-  createSettingsSaveButton,
+  createSettingsTitleLogo,
+  createSettingsHomeButton,
   createModoRow,
   getSettingsPanelSize,
+  settingsButtonSize,
 } from '../ui/settingsUi.js';
-import { playSound } from '../systems/ProceduralAudio.js';
 import { GameState } from '../utils/GameState.js';
 import { syncPlayerConfig } from '../services/playerSession.js';
 import { applyMusicVolume } from '../systems/MusicManager.js';
 import { layoutY, uiScale, isPortrait } from '../utils/responsive.js';
+import { getIconButtonSize } from '../ui/splashUi.js';
 
-/** Configurações — layout Figma */
+/** Configurações — logo SVG + painel + home; salva ao alterar */
 export class SettingsScene extends Phaser.Scene {
   constructor() {
     super(SceneKeys.SETTINGS);
+    this._syncTimer = null;
   }
 
   create() {
@@ -34,28 +36,23 @@ export class SettingsScene extends Phaser.Scene {
 
     drawSkyBackground(this);
 
-    createSettingsBackButton(this, () => this.goBack());
+    const logoMaxW = Math.min(width * 0.88, 420);
+    createSettingsTitleLogo(this, width / 2, layoutY(this, portrait ? 0.1 : 0.095), {
+      maxWidth: logoMaxW,
+    });
 
-    const title = createTitle(
-      this,
-      width / 2,
-      layoutY(this, portrait ? 0.095 : 0.085),
-      'Configurações',
-      Math.round((portrait ? 36 : 42) * (portrait ? 1 : scale)),
-    );
-    title.setDepth(150);
-
-    const panelCy = layoutY(this, portrait ? 0.53 : 0.48);
+    const panelCy = layoutY(this, portrait ? 0.54 : 0.5);
     const panel = createSettingsPanel(this, width / 2, panelCy, panelW, panelH, { depth: 10 });
     createSettingsDecorations(this, width / 2, panelCy, panelW, panelH);
 
-    createSettingsSlider(panel, 0, -panelH * 0.30, 'Volume', this.settings.volumeMusica, {
+    const persist = () => this.persistSettings();
+
+    createSettingsSlider(panel, 0, -panelH * 0.28, 'Volume', this.settings.volumeMusica, {
       volumeIcon: true,
       contentW,
       onChange: (v) => {
         this.settings.volumeMusica = v;
-        GameState.setSettings(this, this.settings);
-        applyMusicVolume(this);
+        persist();
       },
     });
 
@@ -64,33 +61,53 @@ export class SettingsScene extends Phaser.Scene {
       contentW,
       onChange: (v) => {
         this.settings.volumeEfeitos = v;
-        GameState.setSettings(this, this.settings);
+        persist();
       },
     });
 
-    this.modoRow = createModoRow(panel, 0, panelH * 0.26, {
+    this.modoRow = createModoRow(panel, 0, panelH * 0.28, {
       activeMode: this.settings.modo,
       contentW,
       onChange: (modo) => {
         this.settings.modo = modo;
         this.modoRow._setMode(modo);
-        GameState.setSettings(this, this.settings);
+        persist();
       },
     });
 
-    createSettingsSaveButton(
-      this,
-      width / 2,
-      panelCy + panelH / 2 + Math.round(12 * scale),
-      () => this.goBack(),
-    );
+    const { size } = settingsButtonSize(this);
+    const { btnH } = getIconButtonSize(this, size, { absolute: portrait });
+    const homeY = panelCy + panelH / 2 + Math.round(18 * scale) + btnH / 2;
+
+    createSettingsHomeButton(this, width / 2, homeY, () => this.goBack());
+  }
+
+  persistSettings() {
+    GameState.setSettings(this, this.settings);
+    applyMusicVolume(this);
+
+    if (this._syncTimer) clearTimeout(this._syncTimer);
+    this._syncTimer = setTimeout(() => {
+      syncPlayerConfig(this, this.settings);
+      this._syncTimer = null;
+    }, 350);
   }
 
   goBack() {
+    if (this._syncTimer) {
+      clearTimeout(this._syncTimer);
+      this._syncTimer = null;
+    }
     GameState.setSettings(this, this.settings);
     applyMusicVolume(this);
     syncPlayerConfig(this, this.settings);
-    playSound(this, 'clique');
     this.scene.start(GameState.getReturnScene(this));
+  }
+
+  shutdown() {
+    if (this._syncTimer) {
+      clearTimeout(this._syncTimer);
+      this._syncTimer = null;
+    }
   }
 }

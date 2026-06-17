@@ -4,7 +4,10 @@ import { uiScale } from '../utils/responsive.js';
 import { Icon } from './iconify.js';
 import {
   createIconCircleButton,
+  getIconButtonSize,
   getSplashButtonMetrics,
+  SPLASH_CORNER_BTN_OPTS,
+  SPLASH_ICON_RATIO,
 } from './splashUi.js';
 import { playSound } from '../systems/ProceduralAudio.js';
 
@@ -22,6 +25,9 @@ const BTN_BORDER_COLOR = Theme.folhaEscura;
 const BTN_BORDER_SCALE = 1;
 const BTN_ICON_RATIO = 0.5;
 
+const CHIP_LABEL_COLOR = '#1E6A30';
+const CHIP_BORDER_TINT = 0x1E6A30;
+const SPLASH_CONNECT_ICON = Icon.from('solar:add-circle-broken', { designSize: 24, color: CHIP_LABEL_COLOR });
 const GUEST_LINK_COLOR = '#6B4226';
 const GUEST_LINK_HOVER = '#3B3024';
 const INFO_TEXT_COLOR = '#6B4226';
@@ -338,37 +344,38 @@ export function createLoginNavButtons(scene, width, y, btnMetrics, { onHome, onR
   });
 }
 
-export async function createSplashConnectChip(scene, x, y, { onClick, size = 52 } = {}) {
+export async function createSplashConnectChip(scene, x, y, { onClick, size = 52, iconSize, absoluteSize = true } = {}) {
   const s = uiScale(scene);
-  await Icon.preload(scene, [LOGIN_ICONS.add]);
+  await Icon.preload(scene, [SPLASH_CONNECT_ICON]);
 
   const fontSize = Math.max(15, Math.round(18 * s));
   const gap = Math.round(8 * s);
-  const iconPx = Math.round(size * 0.46);
+  const iconPx = iconSize ?? Math.round(size * SPLASH_ICON_RATIO);
+  const { btnW, btnH } = getIconButtonSize(scene, size, { absolute: absoluteSize });
 
   const root = scene.add.container(x, y).setDepth(200);
 
-  const btn = createIconCircleButton(scene, 0, 0, LOGIN_ICONS.add, {
+  const btn = createIconCircleButton(scene, 0, 0, SPLASH_CONNECT_ICON, {
     size,
     iconSize: iconPx,
-    absoluteSize: true,
+    absoluteSize,
     depth: 201,
-    fillRatio: 0.48,
-    fillColor: BTN_ADD_FILL,
+    ...SPLASH_CORNER_BTN_OPTS,
+    borderTint: CHIP_BORDER_TINT,
     onClick: () => onClick?.(),
   });
 
-  const label = scene.add.text(size / 2 + gap, 0, 'Conectar', {
+  const label = scene.add.text(btnW / 2 + gap, 0, 'Conectar', {
     fontFamily: Theme.fontFamily,
     fontSize: `${fontSize}px`,
-    color: '#1E6A30',
+    color: CHIP_LABEL_COLOR,
     fontStyle: 'bold',
   }).setOrigin(0, 0.5);
 
   root.add([btn, label]);
-  root.setSize(size + gap + label.width, size);
+  root.setSize(btnW + gap + label.width, btnH);
   root.setInteractive(
-    new Phaser.Geom.Rectangle(-size / 2, -size / 2, root.width, size),
+    new Phaser.Geom.Rectangle(-btnW / 2, -btnH / 2, root.width, btnH),
     Phaser.Geom.Rectangle.Contains,
   );
   root.input.cursor = 'pointer';
