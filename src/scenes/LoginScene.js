@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { SceneKeys } from '../config/constants.js';
 import { Theme } from '../config/theme.js';
-import { showThematicAlert } from '../ui/createUI.js';
+import { showErrorAlert } from '../ui/createUI.js';
 import { drawSkyBackground, getGrassTopY } from '../ui/createUI.js';
 import { playSound } from '../systems/ProceduralAudio.js';
 import { uiScale } from '../utils/responsive.js';
@@ -90,8 +90,6 @@ export class LoginScene extends Phaser.Scene {
 
     const goCharacter = () => this.scene.start(SceneKeys.CHARACTER);
 
-    const usernameField = createLoginUsernameField(this, width / 2, layout.fieldY, layout.contentW);
-
     const connect = async () => {
       const username = usernameField.getValue();
       if (username.length < 2) return;
@@ -101,8 +99,12 @@ export class LoginScene extends Phaser.Scene {
         goCharacter();
         return;
       }
-      showThematicAlert(this, 'Usuário não encontrado.\nCrie uma conta com o botão (+).');
+      await showErrorAlert(this, 'Usuário não encontrado.\nCrie uma conta com o botão (+).');
     };
+
+    const usernameField = createLoginUsernameField(this, width / 2, layout.fieldY, layout.contentW, {
+      onSubmit: () => connect(),
+    });
 
     createLoginInfoBox(this, width / 2, layout.infoY, layout.contentW);
 

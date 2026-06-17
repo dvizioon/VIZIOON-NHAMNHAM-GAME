@@ -17,6 +17,7 @@ const FIELD_GREEN = Theme.modoVerde;
 const FIELD_BORDER = Theme.folhaEscura;
 const BTN_HOME_FILL = Theme.botaoVerde;
 const BTN_ADD_FILL = 0xFBF7E8;
+const BTN_SEND_FILL = 0xFBF7E8;
 const BTN_BORDER_COLOR = Theme.folhaEscura;
 const BTN_BORDER_SCALE = 1;
 const BTN_ICON_RATIO = 0.5;
@@ -33,6 +34,7 @@ export const GUEST_EXTERNAL_ICON = Icon.from('mynaui:external-link', {
 export const LOGIN_ICONS = {
   home: Icon.from('mynaui:home', { designSize: 24, color: '#ffffff' }),
   add: Icon.from('solar:add-circle-broken', { designSize: 24, color: '#4E9A2E' }),
+  send: Icon.from('solar:plain-2-linear', { designSize: 24, color: '#4E9A2E' }),
 };
 
 export async function preloadLoginUiIcons(scene) {
@@ -47,16 +49,22 @@ export function createLoginAvatar(scene, x, y, size) {
     .setOrigin(0.5);
 }
 
-export function createLoginUsernameField(scene, x, y, contentW, { onChange } = {}) {
+export function createLoginUsernameField(scene, x, y, contentW, { onChange, onSubmit } = {}) {
   const scale = uiScale(scene);
   const fieldW = contentW ?? Math.min(scene.scale.width * 0.86, 420);
   const fieldH = Math.max(52, Math.round(56 * scale));
   const labelSize = Math.max(18, Math.round(24 * scale));
   const textSize = Math.max(18, Math.round(22 * scale));
   const labelGap = Math.round(12 * scale);
+  const btnInset = Math.round(6 * scale);
+  const btnSize = Math.round(fieldH * 0.78);
+  const textPadLeft = Math.round(22 * scale);
+  const textPadRight = btnSize + btnInset * 2 + Math.round(8 * scale);
+  const maxTextW = Math.max(40, fieldW - textPadLeft - textPadRight);
 
   const root = scene.add.container(x, y);
   let value = '';
+  let submitEnabled = false;
 
   const label = scene.add.text(-fieldW / 2, -fieldH / 2 - labelGap - labelSize / 2, 'Usuário', {
     fontFamily: Theme.fontFamily,
@@ -75,7 +83,7 @@ export function createLoginUsernameField(scene, x, y, contentW, { onChange } = {
   };
   drawBg();
 
-  const display = scene.add.text(-fieldW / 2 + Math.round(22 * scale), 0, 'Digite seu usuário ...', {
+  const display = scene.add.text(-fieldW / 2 + textPadLeft, 0, 'Digite seu usuário ...', {
     fontFamily: Theme.fontFamily,
     fontSize: `${textSize}px`,
     color: '#ffffff',
@@ -91,13 +99,28 @@ export function createLoginUsernameField(scene, x, y, contentW, { onChange } = {
   `;
   document.body.appendChild(domInput);
 
+  const updateSubmitState = () => {
+    const enabled = value.trim().length >= 2;
+    if (enabled !== submitEnabled) {
+      submitEnabled = enabled;
+      sendBtn.setAlpha(enabled ? 1 : 0.82);
+    }
+  };
+
   const syncDisplay = () => {
     if (value.length === 0) {
       display.setText('Digite seu usuário ...').setColor('#ffffff');
+      display.setCrop();
     } else {
       display.setText(value).setColor('#ffffff');
+      if (display.width > maxTextW) {
+        display.setCrop(0, 0, maxTextW, display.height);
+      } else {
+        display.setCrop();
+      }
     }
     onChange?.(value);
+    updateSubmitState();
   };
 
   domInput.addEventListener('input', () => {
@@ -107,10 +130,31 @@ export function createLoginUsernameField(scene, x, y, contentW, { onChange } = {
 
   scene.events.once('shutdown', () => domInput.remove());
 
-  const hit = scene.add.zone(0, 0, fieldW, fieldH).setInteractive({ useHandCursor: true });
+  const hitW = Math.max(40, fieldW - btnSize - btnInset * 2);
+  const hit = scene.add
+    .zone(-(btnSize + btnInset * 2) / 2, 0, hitW, fieldH)
+    .setInteractive({ useHandCursor: true });
   hit.on('pointerdown', () => domInput.focus());
 
-  root.add([label, bg, display, hit]);
+  const sendBtnX = fieldW / 2 - btnInset - btnSize / 2;
+  const sendBtn = createIconCircleButton(scene, sendBtnX, 0, LOGIN_ICONS.send, {
+    size: btnSize,
+    iconSize: Math.round(btnSize * 0.46),
+    absoluteSize: true,
+    depth: 22,
+    fillRatio: 0.48,
+    showBorder: true,
+    borderTint: BTN_BORDER_COLOR,
+    borderScale: BTN_BORDER_SCALE,
+    fillColor: BTN_SEND_FILL,
+    onClick: () => {
+      if (value.trim().length < 2) return;
+      onSubmit?.();
+    },
+  });
+  sendBtn.setAlpha(0.82);
+
+  root.add([label, bg, display, hit, sendBtn]);
   root.setDepth(20);
 
   return {
@@ -121,6 +165,10 @@ export function createLoginUsernameField(scene, x, y, contentW, { onChange } = {
       value = next ?? '';
       domInput.value = value;
       syncDisplay();
+    },
+    setSubmitEnabled(enabled) {
+      submitEnabled = enabled;
+      sendBtn.setAlpha(enabled ? 1 : 0.82);
     },
     destroy: () => {
       domInput.remove();

@@ -3,7 +3,7 @@ import { Theme } from '../config/theme.js';
 
 import { uiScale } from '../utils/responsive.js';
 
-import { createButton, showThematicAlert } from './createUI.js';
+import { createButton, showWarningAlert } from './createUI.js';
 
 import { createIconCircleButton } from './splashUi.js';
 
@@ -387,11 +387,11 @@ export async function openCharacterDetailModal(scene, crianca, {
 
       playSound(scene, 'clique');
 
-      showThematicAlert(
+      void showWarningAlert(
 
         scene,
 
-        'Customização ainda não está disponível!\nEm breve você poderá deixar sua lagartinha ainda mais especial. 🎨',
+        'Customização ainda não está disponível!\nEm breve você poderá deixar sua lagartinha ainda mais especial.',
 
         { depth: MODAL_DEPTH + 20 },
 

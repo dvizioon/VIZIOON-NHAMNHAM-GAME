@@ -2,7 +2,13 @@ import Phaser from 'phaser';
 import { Theme } from '../config/theme.js';
 import { uiScale, coverDisplaySize } from '../utils/responsive.js';
 import { hasTexture } from '../systems/AssetLoader.js';
-import { playSound } from '../systems/ProceduralAudio.js';
+export {
+  showThematicAlert,
+  showSuccessAlert,
+  showErrorAlert,
+  showWarningAlert,
+  showInfoAlert,
+} from './thematicAlert.js';
 import {
   ENV_SKY_KEY,
   ENV_CLOUD_KEY,
@@ -70,68 +76,6 @@ export function createSpeechBubble(scene, x, y, message, maxWidth = 560) {
   bg.strokeRoundedRect(-w / 2, -h / 2, w, h, 24);
 
   return scene.add.container(x, y, [bg, text]);
-}
-
-/** Alerta temático — balão + botão OK */
-export function showThematicAlert(scene, message, { depth = 260, onClose } = {}) {
-  const { width, height } = scene.scale;
-  const s = uiScale(scene);
-  const root = scene.add.container(0, 0).setDepth(depth);
-
-  const dim = scene.add.rectangle(width / 2, height / 2, width, height, 0x061018, 0.42);
-  dim.setInteractive({ useHandCursor: false });
-
-  const panel = scene.add.container(width / 2, height * 0.44);
-  const maxW = Math.min(width * 0.84, 330);
-  const padX = 22;
-  const padTop = 22;
-
-  const body = scene.add.text(0, padTop, message, {
-    fontFamily: Theme.fontFamily,
-    fontSize: `${Math.max(16, Math.round(18 * s))}px`,
-    color: Theme.texto,
-    align: 'center',
-    wordWrap: { width: maxW - padX * 2 },
-    lineSpacing: 5,
-  }).setOrigin(0.5, 0);
-
-  const boxW = Math.max(body.width + padX * 2, 240);
-  const boxH = body.height + padTop + 88;
-  const bg = scene.add.graphics();
-  bg.fillStyle(Theme.papel, 1);
-  bg.lineStyle(4, Theme.folhaEscura, 1);
-  bg.fillRoundedRect(-boxW / 2, 0, boxW, boxH, 22);
-  bg.strokeRoundedRect(-boxW / 2, 0, boxW, boxH, 22);
-
-  const emoji = scene.add.text(0, -28, '🐛', { fontSize: `${Math.round(30 * s)}px` }).setOrigin(0.5);
-
-  const okBtn = createButton(scene, 0, boxH - 38, 'OK', {
-    width: Math.round(boxW * 0.58),
-    fontSize: Math.max(18, Math.round(22 * s)),
-    onClick: dismiss,
-  });
-
-  panel.add([bg, emoji, body, okBtn]);
-  root.add([dim, panel]);
-
-  function dismiss() {
-    playSound(scene, 'clique');
-    root.destroy();
-    onClose?.();
-  }
-
-  dim.on('pointerup', dismiss);
-
-  panel.setScale(0.9).setAlpha(0);
-  scene.tweens.add({
-    targets: panel,
-    scale: 1,
-    alpha: 1,
-    duration: 220,
-    ease: 'Back.easeOut',
-  });
-
-  return { close: dismiss };
 }
 
 /** Título com sombra */

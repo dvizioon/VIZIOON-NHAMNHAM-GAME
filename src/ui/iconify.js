@@ -18,6 +18,10 @@ const iconSetCache = new Map();
 const pendingTextureLoads = new Map();
 const ICON_COLOR = '#4E9A2E';
 
+function colorSlug(color = ICON_COLOR) {
+  return String(color).replace(/[^a-zA-Z0-9]/g, '').toLowerCase() || 'default';
+}
+
 async function getIconSet(collection) {
   if (!iconSetCache.has(collection)) {
     const mod = await COLLECTION_LOADERS[collection]();
@@ -26,9 +30,9 @@ async function getIconSet(collection) {
   return iconSetCache.get(collection);
 }
 
-export function iconTextureKey(iconId) {
+export function iconTextureKey(iconId, color = ICON_COLOR) {
   const [collection, name] = iconId.split(':');
-  return `icon_${collection}_${name.replace(/-/g, '_')}`;
+  return `icon_${collection}_${name.replace(/-/g, '_')}_${colorSlug(color)}`;
 }
 
 /** Conjunto @iconify-json → string SVG pronta para rasterizar */
@@ -80,7 +84,7 @@ export class Icon {
     this.iconId = iconId;
     this.color = color;
     this.designSize = designSize;
-    this.textureKey = iconTextureKey(iconId);
+    this.textureKey = iconTextureKey(iconId, color);
   }
 
   static from(iconId, options) {
