@@ -17,6 +17,7 @@ import {
 } from '../config/characterUiConfig.js';
 import { createCharacterFace } from '../ui/characterAvatar.js';
 import { openCharacterDetailModal } from '../ui/characterModal.js';
+import { registerSelectedPerson } from '../services/playerSession.js';
 
 const NAV_GREEN = '#1E6A30';
 const SEARCH_BORDER_COLOR = 0x1E6A30;
@@ -529,9 +530,11 @@ export class CharacterScene extends Phaser.Scene {
   }
 
   startGameWith(crianca) {
+    const custom = defaultCustom(crianca);
     GameState.setChild(this, crianca);
-    GameState.setCustom(this, defaultCustom(crianca));
+    GameState.setCustom(this, custom);
     GameState.initRun(this);
+    registerSelectedPerson(this, crianca, custom);
     this.hideSearchInput();
     this.cameras.main.fadeOut(250, 0, 0, 0);
     this.time.delayedCall(250, () => {

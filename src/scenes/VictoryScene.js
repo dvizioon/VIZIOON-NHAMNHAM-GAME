@@ -4,6 +4,7 @@ import { Theme, CONFETE_CORES } from '../config/theme.js';
 import { drawSkyBackground, createTitle, createSpeechBubble, createButton } from '../ui/createUI.js';
 import { playSound } from '../systems/ProceduralAudio.js';
 import { GameState } from '../utils/GameState.js';
+import { syncRunScore } from '../services/playerSession.js';
 
 /** Tela final — borboleta + confete */
 export class VictoryScene extends Phaser.Scene {
@@ -93,6 +94,13 @@ export class VictoryScene extends Phaser.Scene {
 
     playSound(this, 'fanfarra');
     this.spawnConfetti(width, height);
+
+    syncRunScore(this, {
+      points: GameState.getPoints(this),
+      livesLeft: GameState.getLives(this),
+      levelLabel: 'vitoria',
+      won: true,
+    });
   }
 
   spawnConfetti(width, height) {

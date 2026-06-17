@@ -49,7 +49,8 @@ function loadSpritesheet(scene, key, cfg) {
     frameWidth: cfg.frameWidth,
     frameHeight: cfg.frameHeight,
   };
-  if (cfg.spacing) sheetOpts.spacing = cfg.spacing;
+  if (cfg.spacing != null) sheetOpts.spacing = cfg.spacing;
+  if (cfg.margin != null) sheetOpts.margin = cfg.margin;
   scene.load.spritesheet(key, assetUrl(cfg.spritesheet), sheetOpts);
   return true;
 }
@@ -72,6 +73,49 @@ function loadCharacterSheets(scene, charId, cfg) {
     return any;
   }
   return loadSpritesheet(scene, `char_${charId}`, cfg);
+}
+
+/** Recorta frames do corpo e cabeça — arte vaza além da grade Phaser */
+export function patchAllCharacterBodyFrames(scene) {
+  for (const [charId, cfg] of Object.entries(spritesManifest.characters ?? {})) {
+    patchCharacterBodyFrames(scene, charId, cfg);
+    patchCharacterHeadFrames(scene, charId, cfg);
+  }
+}
+
+const BODY_SHEET_NAMES = ['idle', 'walk', 'rise'];
+const HEAD_SHEET_NAMES = ['headIdle', 'headWalk', 'headRise'];
+
+function patchSheetFrameCrops(scene, charId, sheetName, sheetCfg) {
+  const crops = sheetCfg?.frameCrops;
+  if (!crops?.length) return;
+
+  const texKey = `char_${charId}_${sheetName}`;
+  if (!scene.textures.exists(texKey)) return;
+
+  const tex = scene.textures.get(texKey);
+  crops.forEach((crop, index) => {
+    if (tex.has(index)) tex.remove(index);
+    tex.add(index, 0, crop.x, crop.y, crop.width, crop.height);
+  });
+}
+
+/** Recorta frames do corpo — a borda da bolinha vaza além dos 402px da grade Phaser */
+export function patchCharacterBodyFrames(scene, charId, cfg) {
+  if (!cfg?.sheets) return;
+
+  for (const sheetName of BODY_SHEET_NAMES) {
+    patchSheetFrameCrops(scene, charId, sheetName, cfg.sheets[sheetName]);
+  }
+}
+
+/** Recorta frames da cabeça — troca de frame sem pular posição */
+export function patchCharacterHeadFrames(scene, charId, cfg) {
+  if (!cfg?.sheets) return;
+
+  for (const sheetName of HEAD_SHEET_NAMES) {
+    patchSheetFrameCrops(scene, charId, sheetName, cfg.sheets[sheetName]);
+  }
 }
 
 /** Registra animações após o preload — chamar no create da primeira cena de jogo */

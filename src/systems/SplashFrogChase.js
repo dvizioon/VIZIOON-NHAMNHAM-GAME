@@ -2,14 +2,14 @@ import Phaser from 'phaser';
 import {
   FROG_JUMP_KEY,
   FROG_JUMP_ANIM,
-  INTRO_FROG_JUMP_ARC,
-  SPLASH_FROG_SCALE_MUL,
   SPLASH_FROG_JUMP_COUNT,
   SPLASH_FROG_JUMP_MS,
   SPLASH_FROG_JUMP_MIN_DELAY,
   SPLASH_FROG_JUMP_MAX_DELAY,
   SPLASH_FROG_START_DELAY,
-  applyFrogJumpCrop,
+  getSplashFrogDisplayScale,
+  getSplashFrogJumpArc,
+  syncFrogJumpDisplay,
   FROG_JUMP_ORIGIN_X,
   FROG_JUMP_ORIGIN_Y,
 } from '../config/introFrogConfig.js';
@@ -17,10 +17,11 @@ import { playSound } from './ProceduralAudio.js';
 
 /** Turno solo do sapo na Splash — só entra depois que a lagarta saiu da tela */
 export class SplashFrogChase {
-  constructor(scene, { groundY, getMatchScale, onTurnComplete, depth = 19 }) {
+  constructor(scene, { groundY, getMatchScale, getJumpArc, onTurnComplete, depth = 19 }) {
     this.scene = scene;
     this.groundY = groundY;
     this.getMatchScale = getMatchScale;
+    this.getJumpArc = getJumpArc;
     this.onTurnComplete = onTurnComplete;
     this.depth = depth;
     this.frog = null;
@@ -36,9 +37,9 @@ export class SplashFrogChase {
       .setVisible(false)
       .setAlpha(0);
 
-    this.syncFrogCrop = () => applyFrogJumpCrop(this.frog);
+    this.syncFrogCrop = () => syncFrogJumpDisplay(this.frog);
     this.frog.on(Phaser.Animations.Events.ANIMATION_UPDATE, this.syncFrogCrop);
-    applyFrogJumpCrop(this.frog);
+    syncFrogJumpDisplay(this.frog);
   }
 
   delay(ms, fn) {
@@ -62,7 +63,7 @@ export class SplashFrogChase {
 
     const { width } = this.scene.scale;
     const groundY = this.groundY;
-    const scale = this.getMatchScale?.() ?? 0.108 * SPLASH_FROG_SCALE_MUL;
+    const scale = this.getMatchScale?.() ?? getSplashFrogDisplayScale();
     const goingRight = exitToRight;
     const startX = goingRight ? -width * 0.12 : width * 1.12;
     const exitX = goingRight ? width * 1.14 : -width * 0.14;
@@ -75,13 +76,13 @@ export class SplashFrogChase {
     let jumpIndex = 0;
 
     this.frog
-      .setScale(scale)
+      .setData('frogDisplayScale', scale)
       .setPosition(startX, groundY)
       .setVisible(true)
       .setAlpha(1)
       .setFrame(0)
       .setFlipX(!goingRight);
-    applyFrogJumpCrop(this.frog);
+    syncFrogJumpDisplay(this.frog);
 
     const jumpAcross = () => {
       if (!this.busy || !this.frog?.active) return;
@@ -127,13 +128,15 @@ export class SplashFrogChase {
     if (!this.frog?.active) return;
 
     const groundY = this.groundY;
-    const scale = this.frog.scaleX || this.getMatchScale?.() || 0.108 * SPLASH_FROG_SCALE_MUL;
-    const jumpScale = scale / 0.108;
-    const arc = (final ? 0.85 : 1.0) * INTRO_FROG_JUMP_ARC * jumpScale;
+    const scale = this.frog.getData('frogDisplayScale')
+      ?? this.getMatchScale?.()
+      ?? getSplashFrogDisplayScale();
+    const baseArc = this.getJumpArc?.() ?? getSplashFrogJumpArc();
+    const arc = (final ? 0.82 : 1.0) * baseArc;
 
     this.frog.setFlipX(targetX < this.frog.x);
     this.frog.setFrame(0);
-    applyFrogJumpCrop(this.frog);
+    syncFrogJumpDisplay(this.frog);
 
     if (this.scene.anims.exists(FROG_JUMP_ANIM)) {
       this.frog.anims.play(FROG_JUMP_ANIM);
@@ -166,7 +169,7 @@ export class SplashFrogChase {
         if (this.frog?.active) {
           this.frog.y = groundY;
           this.frog.setFrame(0);
-          applyFrogJumpCrop(this.frog);
+          syncFrogJumpDisplay(this.frog);
         }
         yDone = true;
         tryDone();

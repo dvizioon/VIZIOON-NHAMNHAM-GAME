@@ -1,12 +1,19 @@
 import { Theme } from '../config/theme.js';
-import { uiScale, isPortrait } from '../utils/responsive.js';
+import { uiScale, isPortrait, mobileBtnSize } from '../utils/responsive.js';
 import { Icon } from './iconify.js';
 
 export const UI_LOGO_KEY = 'ui_logo';
 export const UI_BUTTON_BORDER_KEY = 'ui_button_border';
 
 export const CIRCLE_BTN_SIZE = 142;
+export const SPLASH_BTN_SIZE = CIRCLE_BTN_SIZE;
+export const SPLASH_ICON_RATIO = 0.42;
 export const CIRCLE_BTN_ICON_SIZE = 60;
+
+export const SPLASH_BTN_LAYOUT = {
+  portrait: { playBtn: 0.22, btnGap: 0.08 },
+  landscape: { playBtn: null, btnGap: 0.032 },
+};
 /** Borda dos botões circulares (voltar/salvar) — aumente p/ borda maior */
 export const SETTINGS_BTN_BORDER_SCALE = 1;
 
@@ -33,6 +40,17 @@ export function getIconButtonSize(scene, size = 142, { absolute = false } = {}) 
   const btnW = Math.round(size * scale);
   const btnH = Math.round(size * BORDER_ASPECT * scale);
   return { btnW, btnH, scale };
+}
+
+/** Mesmas medidas dos botões Jogar / Ranking da splash */
+export function getSplashButtonMetrics(scene) {
+  const portrait = isPortrait(scene);
+  const layout = portrait ? SPLASH_BTN_LAYOUT.portrait : SPLASH_BTN_LAYOUT.landscape;
+  const btnSize = mobileBtnSize(scene, layout.playBtn ?? 0.19, SPLASH_BTN_SIZE);
+  const btnIcon = Math.round(btnSize * SPLASH_ICON_RATIO);
+  const { btnW, btnH } = getIconButtonSize(scene, btnSize, { absolute: portrait });
+  const gap = Math.round(scene.scale.width * layout.btnGap);
+  return { portrait, btnSize, btnIcon, btnW, btnH, gap };
 }
 
 /**

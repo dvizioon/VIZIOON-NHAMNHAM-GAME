@@ -3,7 +3,8 @@ import { SceneKeys } from './constants.js';
 import { BootScene } from '../scenes/BootScene.js';
 import { PreloadScene } from '../scenes/PreloadScene.js';
 import { SplashScene } from '../scenes/SplashScene.js';
-import { NameScene } from '../scenes/NameScene.js';
+import { RegisterScene } from '../scenes/NameScene.js';
+import { LoginScene } from '../scenes/LoginScene.js';
 import { CharacterScene } from '../scenes/CharacterScene.js';
 import { SettingsScene } from '../scenes/SettingsScene.js';
 import { EggScene } from '../scenes/EggScene.js';
@@ -11,6 +12,8 @@ import { GameScene } from '../scenes/GameScene.js';
 import { TrunkIntroScene } from '../scenes/TrunkIntroScene.js';
 import { CocoonScene } from '../scenes/CocoonScene.js';
 import { VictoryScene } from '../scenes/VictoryScene.js';
+import { CaterpillarDebugScene } from '../debug/CaterpillarDebugScene.js';
+import { FrogDebugScene } from '../debug/FrogDebugScene.js';
 
 export function createGameConfig() {
   return {
@@ -49,7 +52,8 @@ export function createGameConfig() {
       BootScene,
       PreloadScene,
       SplashScene,
-      NameScene,
+      LoginScene,
+      RegisterScene,
       CharacterScene,
       SettingsScene,
       EggScene,
@@ -57,6 +61,8 @@ export function createGameConfig() {
       GameScene,
       CocoonScene,
       VictoryScene,
+      CaterpillarDebugScene,
+      FrogDebugScene,
     ],
   };
 }

@@ -38,6 +38,7 @@ export const EGG_ON_LEAF_Y_MUL = -0.42;
 export const EGG_DISPLAY_HEIGHT_RATIO = 0.24;
 
 export const EGG_HATCH_NASCENDO_KEY = 'egg_hatch_nascendo';
+export const EGG_HATCH_NASCENDO_PATH = 'assets/sprites/characters/caterpillar/nascendo.png';
 export const EGG_HATCH_NASCENDO_FRAME_W = 936;
 export const EGG_HATCH_NASCENDO_FRAME_H = 738;
 

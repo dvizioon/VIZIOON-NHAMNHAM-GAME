@@ -1,6 +1,7 @@
 /** Chaves do registry global — estado compartilhado entre cenas */
 export const RegistryKeys = {
   PARENT_NAME: 'parentName',
+  PLAYER_AGE: 'playerAge',
   CHILD: 'child',
   CUSTOM: 'custom',
   GAME_CONFIG: 'gameConfig',
@@ -11,13 +12,17 @@ export const RegistryKeys = {
   SETTINGS: 'settings',
   RETURN_SCENE: 'returnScene',
   BGM: 'bgm',
+  PLAYER_SESSION: 'playerSession',
+  ACTIVE_PERSON_ID: 'activePersonId',
 };
 
 export const SceneKeys = {
   BOOT: 'BootScene',
   PRELOAD: 'PreloadScene',
   SPLASH: 'SplashScene',
-  NAME: 'NameScene',
+  LOGIN: 'LoginScene',
+  REGISTER: 'RegisterScene',
+  NAME: 'RegisterScene',
   CHARACTER: 'CharacterScene',
   CUSTOMIZE: 'CustomizeScene',
   SETTINGS: 'SettingsScene',
@@ -26,6 +31,8 @@ export const SceneKeys = {
   TRUNK_INTRO: 'TrunkIntroScene',
   COCOON: 'CocoonScene',
   VICTORY: 'VictoryScene',
+  CATERPILLAR_DEBUG: 'CaterpillarDebugScene',
+  FROG_DEBUG: 'FrogDebugScene',
 };
 
 export const defaultSettings = {

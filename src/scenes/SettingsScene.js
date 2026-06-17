@@ -12,6 +12,7 @@ import {
 } from '../ui/settingsUi.js';
 import { playSound } from '../systems/ProceduralAudio.js';
 import { GameState } from '../utils/GameState.js';
+import { syncPlayerConfig } from '../services/playerSession.js';
 import { applyMusicVolume } from '../systems/MusicManager.js';
 import { layoutY, uiScale, isPortrait } from '../utils/responsive.js';
 
@@ -88,6 +89,7 @@ export class SettingsScene extends Phaser.Scene {
   goBack() {
     GameState.setSettings(this, this.settings);
     applyMusicVolume(this);
+    syncPlayerConfig(this, this.settings);
     playSound(this, 'clique');
     this.scene.start(GameState.getReturnScene(this));
   }

@@ -23,25 +23,38 @@ import {
 
 import { FOOD_FRUTAS } from '../config/foodConfig.js';
 import { SplashFrogChase } from '../systems/SplashFrogChase.js';
-import { SPLASH_FROG_ENABLED, SPLASH_FROG_GROUND_EXTRA_RATIO, SPLASH_FROG_SCALE_MUL } from '../config/introFrogConfig.js';
+import { SPLASH_FROG_ENABLED, SPLASH_FROG_CHANCE, getSplashFrogDisplayScale, getSplashFrogJumpArc, getSplashFrogGroundY } from '../config/introFrogConfig.js';
+import {
+  restoreAnyPlayerSession,
+  startPlayFromSplash,
+} from '../services/playerSession.js';
+import {
+  createSplashGuestChip,
+  createSplashUserChip,
+  openGuestProfileModal,
+  openPlayerProfileModal,
+} from '../ui/playerProfileModal.js';
+import { createSplashConnectChip } from '../ui/loginUi.js';
+import { openRankingModal } from '../ui/rankingUi.js';
+import {
+  SPLASH_CATERPILLAR_GROUND_OFFSET_RATIO,
+  getSplashCaterpillarOpts,
+} from '../config/caterpillarConfig.js';
 import { DEPTH_CATERPILLAR } from '../ui/createUI.js';
 
 const FOOD_KEY = FOOD_FRUTAS.key;
 const SPLASH_BTN_SIZE = 142;
 const SPLASH_ICON_RATIO = 0.42;
-const SPLASH_CATERPILLAR_SCALE = 0.172;
-/** Pés da lagarta no chão do terreno.png (maior = mais embaixo) */
-const SPLASH_CATERPILLAR_GROUND_OFFSET_RATIO = 0.054;
 const SPLASH_LAYOUT = {
   portrait: {
-    logoY: 0.4,
+    logoY: 0.43,
     configTop: 0.045,
-    buttonsY: 0.69,
+    buttonsY: 0.735,
     sideMargin: 0.05,
     playBtn: 0.22,
-    btnGap: 0.05,
+    btnGap: 0.08,
   },
-  landscape: { logoY: 0.28, buttonsY: 0.62, logoWidth: 0.38, playBtn: null, btnGap: 0.022 },
+  landscape: { logoY: 0.31, buttonsY: 0.64, logoWidth: 0.38, playBtn: null, btnGap: 0.032 },
 };
 const LOGO_MAX_WIDTH = 400;
 const FOOD_FRAMES = FOOD_FRUTAS.frames;
@@ -62,10 +75,16 @@ export class SplashScene extends Phaser.Scene {
     super(SceneKeys.SPLASH);
   }
 
-  create() {
+  init() {
+    this.userChip = null;
+    this.profileModalClose = null;
+  }
+
+  async create() {
     const { width, height } = this.scale;
     drawSkyBackground(this);
     ensureBgmPlaying(this);
+    await restoreAnyPlayerSession(this);
 
     const groundLine = getGroundY(this);
     const caterpillarY = groundLine + height * SPLASH_CATERPILLAR_GROUND_OFFSET_RATIO;
@@ -74,15 +93,18 @@ export class SplashScene extends Phaser.Scene {
 
     this.caterpillar = CaterpillarSprite.create(
       this, -120, caterpillarY, splashChild, splashCustom, DEPTH_CATERPILLAR,
-      { layout: 'horizontal', segmentCount: 6, displayScale: SPLASH_CATERPILLAR_SCALE },
+      getSplashCaterpillarOpts(),
     );
 
     if (SPLASH_FROG_ENABLED) {
       this.splashFrog = new SplashFrogChase(this, {
-        groundY: caterpillarY + height * (0.014 + SPLASH_FROG_GROUND_EXTRA_RATIO),
+        groundY: getSplashFrogGroundY(this),
         depth: DEPTH_CATERPILLAR - 1,
-        getMatchScale: () => (
-          (this.caterpillar?.displayScale ?? SPLASH_CATERPILLAR_SCALE) * SPLASH_FROG_SCALE_MUL
+        getMatchScale: () => getSplashFrogDisplayScale(
+          this.caterpillar?.displayScale ?? getSplashCaterpillarOpts().displayScale,
+        ),
+        getJumpArc: () => getSplashFrogJumpArc(
+          this.caterpillar?.displayScale ?? getSplashCaterpillarOpts().displayScale,
         ),
         onTurnComplete: ({ nextFromRight }) => {
           this.caterpillar?.resumeAfterFrogTurn?.(nextFromRight);
@@ -105,13 +127,14 @@ export class SplashScene extends Phaser.Scene {
 
     this.placeLogo(this.scale.width, DEPTH_UI);
     this.placeSplashButtons(width);
+    await this.placeUserChip(width);
 
     const caterpillar = this.caterpillar;
 
     if (caterpillar.mode === 'filament') {
       caterpillar.startWander(this, {
         alternateWithFrog: SPLASH_FROG_ENABLED,
-        frogChance: 0,
+        frogChance: SPLASH_FROG_CHANCE,
         edgePad: isPortrait(this) ? Math.max(48, width * 0.06) : Math.max(100, width * 0.08),
         speed: 85,
         scaredSpeed: 240,
@@ -396,11 +419,11 @@ export class SplashScene extends Phaser.Scene {
       iconSize: btnIcon,
       absoluteSize: portrait,
       depth: DEPTH_UI,
-      onClick: () => {
+      onClick: async () => {
         playSound(this, 'clique');
         this.splashFrog?.destroy();
         this.caterpillar?.destroy?.();
-        this.scene.start(SceneKeys.CHARACTER);
+        await startPlayFromSplash(this);
       },
     });
 
@@ -409,7 +432,84 @@ export class SplashScene extends Phaser.Scene {
       iconSize: btnIcon,
       absoluteSize: portrait,
       depth: DEPTH_UI,
-      onClick: () => playSound(this, 'clique'),
+      onClick: async () => {
+        playSound(this, 'clique');
+        await openRankingModal(this);
+      },
+    });
+  }
+
+  async placeUserChip(width) {
+    const portrait = isPortrait(this);
+    const layout = portrait ? SPLASH_LAYOUT.portrait : SPLASH_LAYOUT.landscape;
+    const btnSize = mobileBtnSize(this, layout.playBtn ?? 0.19, SPLASH_BTN_SIZE);
+    const { btnH } = getIconButtonSize(this, btnSize, { absolute: portrait });
+    const topM = Math.max(10, Math.round(this.scale.height * (layout.configTop ?? 0.045)));
+    const sideM = Math.max(10, Math.round(width * (layout.sideMargin ?? 0.05)));
+    const chipSize = Math.max(46, Math.round(btnSize * 0.72));
+    const chipX = sideM + chipSize / 2 + 8;
+    const chipY = topM + btnH / 2;
+
+    this.userChip?.destroy();
+    this.userChip = null;
+
+    if (GameState.isOnlineConnected(this)) {
+      this.userChip = await createSplashUserChip(this, chipX, chipY, {
+        size: chipSize,
+        onClick: () => this.openUserProfile(),
+      });
+      return;
+    }
+
+    if (GameState.hasActiveGuestSession(this)) {
+      this.userChip = await createSplashGuestChip(this, chipX, chipY, {
+        size: chipSize,
+        onClick: () => this.openGuestProfile(),
+      });
+      return;
+    }
+
+    this.userChip = await createSplashConnectChip(this, chipX, chipY, {
+      size: chipSize,
+      onClick: () => {
+        playSound(this, 'clique');
+        this.scene.start(SceneKeys.LOGIN);
+      },
+    });
+  }
+
+  openUserProfile() {
+    if (this.profileModalClose) return;
+    playSound(this, 'clique');
+    openPlayerProfileModal(this, {
+      onClose: () => {
+        this.profileModalClose = null;
+      },
+      onLogout: () => {
+        this.profileModalClose = null;
+        this.scene.restart();
+      },
+    }).then(({ close }) => {
+      this.profileModalClose = close;
+    });
+  }
+
+  openGuestProfile() {
+    if (this.profileModalClose) return;
+    playSound(this, 'clique');
+    openGuestProfileModal(this, {
+      onClose: () => {
+        this.profileModalClose = null;
+      },
+      onLogout: () => {
+        this.profileModalClose = null;
+        this.scene.restart();
+      },
+      onConnect: () => {
+        this.profileModalClose = null;
+      },
+    }).then(({ close }) => {
+      this.profileModalClose = close;
     });
   }
 }

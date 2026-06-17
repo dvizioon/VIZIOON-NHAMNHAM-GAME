@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { SceneKeys, RegistryKeys, defaultSettings } from '../config/constants.js';
 import { REQUIRED_SOUNDS, OPTIONAL_SOUNDS } from '../config/assets.js';
 import { queueOptionalAssets } from '../systems/AssetLoader.js';
-import { queueSpriteAssets, registerSpriteAnimations } from '../systems/SpriteLoader.js';
+import { queueSpriteAssets, registerSpriteAnimations, patchAllCharacterBodyFrames } from '../systems/SpriteLoader.js';
 import { capImageTexture, capSpritesheet } from '../systems/TextureScaler.js';
 import { startBgm } from '../systems/MusicManager.js';
 import { preloadSplashIcons } from '../ui/splashUi.js';
@@ -38,6 +38,7 @@ import {
   FROG_JUMP_KEY,
   FROG_JUMP_PATH,
   getFrogJumpSheetLoadOpts,
+  patchFrogJumpFrames,
   registerIntroFrogAnimations,
 } from '../config/introFrogConfig.js';
 import {
@@ -51,11 +52,13 @@ import {
   EGG_OPEN_FRAME_W,
   EGG_OPEN_FRAME_H,
   EGG_HATCH_NASCENDO_KEY,
+  EGG_HATCH_NASCENDO_PATH,
   EGG_HATCH_NASCENDO_FRAME_W,
   EGG_HATCH_NASCENDO_FRAME_H,
   registerEggAnimations,
 } from '../config/eggConfig.js';
 import criancasData from '../../public/assets/data/criancas.json';
+import { getInitialSceneKey } from '../debug/screenInit.js';
 
 export class PreloadScene extends Phaser.Scene {
   constructor() {
@@ -79,7 +82,12 @@ export class PreloadScene extends Phaser.Scene {
     this.load.image(ENV_CLOUD_KEY, ENV_CLOUD_PATH);
     this.load.image(ENV_GROUND_KEY, ENV_GROUND_PATH);
     this.load.image('ui_logo', 'assets/textures/ui/logo.svg');
+    this.load.image('ui_logo_login', 'assets/textures/ui/Login.svg');
+    this.load.image('ui_logo_cadastrar', 'assets/textures/ui/Cadastrar.svg');
+    this.load.image('ui_cabeca_largata', 'assets/textures/ui/Cabe%C3%A7a_Largata.svg');
     this.load.image('ui_logo_personagens', 'assets/textures/ui/Logo_personagens.svg');
+    this.load.image('ui_logo_jogador', 'assets/textures/ui/Cadastrar.svg');
+    this.load.image('ui_user_jogador', 'assets/textures/ui/userJogador.svg');
     this.load.spritesheet(CHAR_HEADS_KEY, 'assets/sprites/characters/childs/anderson_gabriel.png', {
       ...getCharacterHeadSheetLoadOpts(),
     });
@@ -107,7 +115,7 @@ export class PreloadScene extends Phaser.Scene {
       frameWidth: EGG_OPEN_FRAME_W,
       frameHeight: EGG_OPEN_FRAME_H,
     });
-    this.load.spritesheet(EGG_HATCH_NASCENDO_KEY, 'assets/sprites/characters/nascendo.png', {
+    this.load.spritesheet(EGG_HATCH_NASCENDO_KEY, EGG_HATCH_NASCENDO_PATH, {
       frameWidth: EGG_HATCH_NASCENDO_FRAME_W,
       frameHeight: EGG_HATCH_NASCENDO_FRAME_H,
     });
@@ -126,6 +134,7 @@ export class PreloadScene extends Phaser.Scene {
   }
 
   async create() {
+    patchAllCharacterBodyFrames(this);
     registerSpriteAnimations(this);
 
     // PNGs do Figma passam de 4096px — reduz p/ GPU exibir (antes das animações!)
@@ -152,6 +161,7 @@ export class PreloadScene extends Phaser.Scene {
       );
     }
     registerEggAnimations(this);
+    patchFrogJumpFrames(this);
     registerIntroFrogAnimations(this);
 
     if (this.textures.exists(CHAR_HEADS_KEY) && !this.anims.exists(CHAR_HEADS_ANIM_KEY)) {
@@ -214,6 +224,6 @@ export class PreloadScene extends Phaser.Scene {
       preloadEggIcons(this),
     ]);
     startBgm(this);
-    this.scene.start(SceneKeys.SPLASH);
+    this.scene.start(getInitialSceneKey());
   }
 }

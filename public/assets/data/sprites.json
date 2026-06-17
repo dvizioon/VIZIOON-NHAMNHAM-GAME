@@ -12,7 +12,13 @@
           "frameWidth": 402,
           "frameHeight": 510,
           "spacing": 300,
-          "frameCount": 4
+          "frameCount": 4,
+          "frameCrops": [
+            { "x": 32, "y": 8, "width": 392, "height": 492 },
+            { "x": 716, "y": 8, "width": 392, "height": 494 },
+            { "x": 1400, "y": 11, "width": 392, "height": 491 },
+            { "x": 2084, "y": 11, "width": 392, "height": 491 }
+          ]
         },
         "idle": {
           "spritesheet": "sprites/characters/caterpillar/parada.png",
@@ -20,7 +26,13 @@
           "frameHeight": 510,
           "spacing": 300,
           "frameCount": 4,
-          "anchorOffsetX": 0
+          "anchorOffsetX": 0,
+          "frameCrops": [
+            { "x": 60, "y": 9, "width": 384, "height": 484 },
+            { "x": 744, "y": 24, "width": 384, "height": 468 },
+            { "x": 1428, "y": 9, "width": 384, "height": 493 },
+            { "x": 2112, "y": 9, "width": 384, "height": 493 }
+          ]
         },
         "rise": {
           "spritesheet": "sprites/characters/caterpillar/erguendo.png",
@@ -28,36 +40,91 @@
           "frameHeight": 510,
           "spacing": 300,
           "frameCount": 4,
-          "designGap": 75
+          "designGap": 75,
+          "originX": 0.5,
+          "originY": 0.97,
+          "displayPad": 0,
+          "frameCrops": [
+            { "x": 53, "y": 59, "width": 438, "height": 392 },
+            { "x": 704, "y": 59, "width": 444, "height": 392 },
+            { "x": 1362, "y": 59, "width": 447, "height": 392 },
+            { "x": 2023, "y": 59, "width": 448, "height": 392 }
+          ]
         },
         "headWalk": {
           "spritesheet": "sprites/characters/caterpillar/cabeça_andando.png",
           "frameWidth": 575,
           "frameHeight": 502,
           "spacing": 100,
-          "frameCount": 4
+          "frameCount": 4,
+          "frameCrops": [
+            { "x": 0, "y": 3, "width": 429, "height": 499 },
+            { "x": 720, "y": 3, "width": 434, "height": 499 },
+            { "x": 1445, "y": 13, "width": 434, "height": 487 },
+            { "x": 2170, "y": 13, "width": 430, "height": 487 }
+          ]
         },
         "headIdle": {
           "spritesheet": "sprites/characters/caterpillar/cabeça_parada.png",
           "frameWidth": 560,
           "frameHeight": 510,
           "spacing": 100,
-          "frameCount": 4
+          "frameCount": 4,
+          "frameCrops": [
+            { "x": 0, "y": 0, "width": 414, "height": 510 },
+            { "x": 695, "y": 31, "width": 429, "height": 471 },
+            { "x": 1415, "y": 10, "width": 419, "height": 492 },
+            { "x": 2125, "y": 31, "width": 415, "height": 468 }
+          ]
         },
         "headRise": {
           "spritesheet": "sprites/characters/caterpillar/cabeça_erguendo.png",
           "frameWidth": 575,
           "frameHeight": 502,
           "spacing": 100,
-          "frameCount": 4
+          "frameCount": 4,
+          "frameCrops": [
+            { "x": 0, "y": 3, "width": 429, "height": 499 },
+            { "x": 720, "y": 9, "width": 434, "height": 491 },
+            { "x": 1445, "y": 9, "width": 434, "height": 491 },
+            { "x": 2170, "y": 9, "width": 430, "height": 491 }
+          ]
         }
       },
       "displayScale": 0.21,
-      "segmentCount": 6,
-      "segmentSpacing": 0.42,
+      "segmentCount": 5,
+      "segmentSpacing": 0.56,
+      "segmentDisplayPad": 0.02,
+      "segmentFrameOffsetX": 0,
+      "segmentFrameOffsetY": 0,
+      "walkWaveNormalAmpY": 0,
+      "walkWaveBurstAmpY": 0.062,
+      "walkWaveNormalAmpRot": 0,
+      "walkWaveBurstAmpRot": 0.035,
+      "walkWaveSpeed": 7.5,
+      "walkWavePhaseStep": 0.78,
+      "walkWaveLegSwayChance": 0.42,
       "riseFrontCount": 3,
-      "riseHoldFrames": 3,
-      "riseMoveFrames": 2,
+      "riseDiagAngle": 0.62,
+      "riseDiagStep": 1,
+      "riseDiagSpacingMul": 0.85,
+      "riseGroundSep": 0.28,
+      "riseLiftScale": 0.78,
+      "riseYOffset": 0.05,
+      "risePoseFrame": 0,
+      "riseDisplaySizeMul": 0.86,
+      "riseRotScale": 0,
+      "riseDisplayMatchIdle": true,
+      "walkSegmentStaggerMs": 0,
+      "walkDisplayLockFrame": 0,
+      "riseUseIdleBody": false,
+      "riseOrigin": { "x": 0.5, "y": 0.97 },
+      "riseSyncBodyFrames": true,
+      "riseSyncHeadFrames": false,
+      "riseHoldMs": 850,
+      "riseHoldFrames": 4,
+      "riseMoveFrames": 4,
+      "riseSegmentStaggerMs": 70,
       "bodyIdleFrame": 0,
       "idleBreatheAmp": 2.4,
       "idleBreatheSpeed": 0.24,
@@ -72,7 +139,7 @@
           "repeat": -1
         },
         "rising": { "sheet": "rise", "start": 0, "end": 3, "frameRate": 7, "repeat": 0 },
-        "risingMove": { "sheet": "rise", "frames": [0, 1], "frameRate": 7, "repeat": 0 },
+        "risingMove": { "sheet": "rise", "frames": [0, 1, 2, 3], "frameRate": 7, "repeat": 0 },
         "headWalk": {
           "sheet": "headWalk",
           "frames": [0, 1, 2, 1],
@@ -94,7 +161,7 @@
         },
         "headRiseMove": {
           "sheet": "headRise",
-          "frames": [0, 1],
+          "frames": [0, 1, 2, 3],
           "frameRate": 7,
           "repeat": 0
         }
@@ -109,6 +176,7 @@
         "ballTopRatio": 0.54,
         "ballTopRatioIdle": 0.50,
         "origin": { "x": 0.5, "y": 0.84 },
+        "displayLockFrame": 0,
         "idleFrame": 0,
         "idleWalkTimeScale": 0.42,
         "idleBobMul": 0,

@@ -1,4 +1,5 @@
 import { RegistryKeys, defaultSettings, SceneKeys } from '../config/constants.js';
+import { GUEST_PLAYER_NAME } from '../ui/playerNameUi.js';
 import { CORES } from '../config/theme.js';
 
 /** Helpers para ler/gravar estado global via registry */
@@ -9,6 +10,15 @@ export const GameState = {
 
   setParentName(scene, name) {
     scene.registry.set(RegistryKeys.PARENT_NAME, name);
+  },
+
+  getPlayerAge(scene) {
+    const stored = scene.registry.get(RegistryKeys.PLAYER_AGE);
+    return typeof stored === 'number' ? stored : null;
+  },
+
+  setPlayerAge(scene, age) {
+    scene.registry.set(RegistryKeys.PLAYER_AGE, age);
   },
 
   getChild(scene) {
@@ -81,6 +91,53 @@ export const GameState = {
     const config = scene.registry.get(RegistryKeys.GAME_CONFIG);
     scene.registry.set(RegistryKeys.POINTS, 0);
     scene.registry.set(RegistryKeys.LIVES, config?.maxVidas ?? 3);
+  },
+
+  getPlayerSession(scene) {
+    return scene.registry.get(RegistryKeys.PLAYER_SESSION) ?? null;
+  },
+
+  setPlayerSession(scene, session) {
+    scene.registry.set(RegistryKeys.PLAYER_SESSION, session);
+  },
+
+  getActivePersonId(scene) {
+    return scene.registry.get(RegistryKeys.ACTIVE_PERSON_ID) ?? null;
+  },
+
+  setActivePersonId(scene, personId) {
+    scene.registry.set(RegistryKeys.ACTIVE_PERSON_ID, personId);
+  },
+
+  isGuestOnline(scene) {
+    const session = this.getPlayerSession(scene);
+    return Boolean(session?.isGuest);
+  },
+
+  isOnlineConnected(scene) {
+    const session = this.getPlayerSession(scene);
+    return Boolean(session?.sessionToken && !session?.isGuest);
+  },
+
+  hasActiveGuestSession(scene) {
+    const session = this.getPlayerSession(scene);
+    if (!session?.isGuest) return false;
+    return Boolean(session.sessionToken);
+  },
+
+  /** Nome exibido no ranking: conta → displayName; visitante → "Visitante" */
+  getRankingDisplayName(scene) {
+    if (this.isOnlineConnected(scene)) {
+      return this.getPlayerSession(scene)?.displayName ?? null;
+    }
+    if (this.hasActiveGuestSession(scene) || this.isGuestOnline(scene)) {
+      return GUEST_PLAYER_NAME;
+    }
+    return null;
+  },
+
+  canAppearInRanking(scene) {
+    return this.isOnlineConnected(scene);
   },
 };
 
