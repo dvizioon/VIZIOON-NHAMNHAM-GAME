@@ -27,7 +27,7 @@ const BTN_ICON_RATIO = 0.5;
 
 const CHIP_LABEL_COLOR = '#1E6A30';
 const CHIP_BORDER_TINT = 0x1E6A30;
-const SPLASH_CONNECT_ICON = Icon.from('solar:add-circle-broken', { designSize: 24, color: CHIP_LABEL_COLOR });
+const SPLASH_CONNECT_ICON = Icon.from('solar:login-2-outline', { designSize: 24, color: CHIP_LABEL_COLOR });
 const GUEST_LINK_COLOR = '#6B4226';
 const GUEST_LINK_HOVER = '#3B3024';
 const INFO_TEXT_COLOR = '#6B4226';
