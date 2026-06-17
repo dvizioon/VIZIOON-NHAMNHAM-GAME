@@ -89,6 +89,12 @@
             { "x": 1445, "y": 9, "width": 434, "height": 491 },
             { "x": 2170, "y": 9, "width": 430, "height": 491 }
           ]
+        },
+        "climb": {
+          "spritesheet": "sprites/characters/caterpillar/subindo.png",
+          "frameWidth": 702,
+          "frameHeight": 681,
+          "frameCount": 2
         }
       },
       "displayScale": 0.21,
@@ -164,6 +170,13 @@
           "frames": [0, 1, 2, 3],
           "frameRate": 7,
           "repeat": 0
+        },
+        "climb": {
+          "sheet": "climb",
+          "start": 0,
+          "end": 1,
+          "frameRate": 6,
+          "repeat": -1
         }
       },
       "head": {

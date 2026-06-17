@@ -5,9 +5,15 @@ export const INTRO_TRUNK_KEY = 'env_trunk_intro';
 export const CLIMB_TEX = 'char_default_climb';
 /** Mesma chave registrada em sprites.json (2 frames verticais: 0 em cima, 1 embaixo) */
 export const CLIMB_ANIM = 'char_default_climb';
-/** Dimensões de um frame em subindo.png — p/ escala na tela */
-export const CLIMB_FRAME_WIDTH = 1028;
-export const CLIMB_FRAME_HEIGHT = 738;
+/** Dimensões de um frame em subindo.png (@3x — 702×681 por frame, 2 frames verticais) */
+export const CLIMB_FRAME_WIDTH = 702;
+export const CLIMB_FRAME_HEIGHT = 681;
+/** Intro do tronco — lagarta um pouco maior que no gameplay */
+export const INTRO_CLIMB_SIZE_MUL = 1.22;
+/** Cabeça na intro — menor que no gameplay (subindo.png já tem bolinha) */
+export const INTRO_CLIMB_HEAD_SCALE_MUL = 0.78;
+export const INTRO_CLIMB_HEAD_BALL_TOP = 0.56;
+export const INTRO_CLIMB_HEAD_OFFSET_Y = -0.03;
 /** Corpo da lagarta no tronco ≈ tamanho da fruta (trunkW × ratio) */
 export const CLIMB_BODY_TRUNK_RATIO = 0.17;
 /** Cabeça da criança maior que cada bolinha do corpo */
