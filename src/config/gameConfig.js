@@ -16,6 +16,7 @@ import { CaterpillarDebugScene } from '../debug/CaterpillarDebugScene.js';
 import { FrogDebugScene } from '../debug/FrogDebugScene.js';
 import { FrogAttackDebugScene } from '../debug/FrogAttackDebugScene.js';
 import { ScoreHudDebugScene } from '../debug/ScoreHudDebugScene.js';
+import { CocoonDebugScene } from '../debug/CocoonDebugScene.js';
 
 export function createGameConfig() {
   return {
@@ -67,6 +68,7 @@ export function createGameConfig() {
       FrogDebugScene,
       FrogAttackDebugScene,
       ScoreHudDebugScene,
+      CocoonDebugScene,
     ],
   };
 }

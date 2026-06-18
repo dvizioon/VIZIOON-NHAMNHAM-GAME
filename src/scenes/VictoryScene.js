@@ -1,99 +1,115 @@
 import Phaser from 'phaser';
 import { SceneKeys } from '../config/constants.js';
 import { Theme, CONFETE_CORES } from '../config/theme.js';
-import { drawSkyBackground, createTitle, createSpeechBubble, createButton } from '../ui/createUI.js';
+import { drawSkyBackground } from '../ui/createUI.js';
 import { playSound } from '../systems/ProceduralAudio.js';
 import { GameState } from '../utils/GameState.js';
 import { syncRunScore } from '../services/playerSession.js';
+import { uiScale, isPortrait } from '../utils/responsive.js';
+import { createAnimatedButterfly } from '../ui/butterflyVisual.js';
+import { downloadGameScreenshot } from '../utils/captureScreenshot.js';
+import { Icon } from '../ui/iconify.js';
+import {
+  createIconCircleButton,
+  getSplashButtonMetrics,
+  preloadSplashIcons,
+  SPLASH_CORNER_BTN_OPTS,
+} from '../ui/splashUi.js';
 
-/** Tela final — borboleta + confete */
+const VICTORY_ICONS = {
+  home: Icon.from('mynaui:home', { designSize: 24, color: '#ffffff' }),
+  photo: Icon.from('solar:camera-bold', { designSize: 24, color: '#D85A96' }),
+};
+
+async function preloadVictoryIcons(scene) {
+  await Promise.all([
+    preloadSplashIcons(scene),
+    Icon.preload(scene, Object.values(VICTORY_ICONS)),
+  ]);
+}
+
+/** Vitória — borboleta + botões circulares (estilo splash) */
 export class VictoryScene extends Phaser.Scene {
   constructor() {
     super(SceneKeys.VICTORY);
   }
 
-  create() {
+  async create() {
     const { width, height } = this.scale;
     const child = GameState.getChild(this);
-    const parentName = GameState.getParentName(this);
-    const custom = GameState.getCustom(this);
+    const nome = child?.nome ?? 'Lagartinha';
+    const genero = child?.genero ?? 'menino';
+    const s = uiScale(this);
+    const portrait = isPortrait(this);
 
     drawSkyBackground(this);
-    createTitle(this, width / 2, 60, `🎉 Parabéns, ${child.nome}! 🎉`, 40);
+    await preloadVictoryIcons(this);
 
-    const stage = this.add.container(width / 2, height * 0.42);
+    const titleY = Math.round(52 * s);
+    this.add.text(width / 2, titleY, `Parabéns, ${nome}!`, {
+      fontFamily: Theme.fontFamily,
+      fontSize: `${Math.round(34 * s)}px`,
+      color: '#FFFFFF',
+      fontStyle: 'bold',
+      stroke: '#1E6A30',
+      strokeThickness: Math.round(6 * s),
+      align: 'center',
+    }).setOrigin(0.5).setDepth(40).setScrollFactor(0);
 
-    // Asas
-    const wingL = this.add.graphics();
-    const wingR = this.add.graphics();
-    wingL.fillStyle(custom.cor.clara, 0.95);
-    wingL.fillEllipse(-70, 0, 120, 150);
-    wingL.lineStyle(4, 0x000000, 0.25);
-    wingL.strokeEllipse(-70, 0, 120, 150);
-    wingR.fillStyle(custom.cor.clara, 0.95);
-    wingR.fillEllipse(70, 0, 120, 150);
-    wingR.lineStyle(4, 0x000000, 0.25);
-    wingR.strokeEllipse(70, 0, 120, 150);
+    this.add.text(width / 2, titleY + Math.round(36 * s), 'Você virou uma linda borboleta!', {
+      fontFamily: Theme.fontFamily,
+      fontSize: `${Math.round(18 * s)}px`,
+      color: '#FFFFFF',
+      stroke: '#1E6A30',
+      strokeThickness: Math.round(4 * s),
+      align: 'center',
+    }).setOrigin(0.5).setDepth(40).setScrollFactor(0);
 
-    this.tweens.add({
-      targets: wingL,
-      scaleX: { from: 1, to: 0.6 },
-      duration: 500,
-      yoyo: true,
-      repeat: -1,
+    const butterflySize = Math.min(width * 0.88, height * 0.58, 420);
+    await createAnimatedButterfly(this, width / 2, height * 0.48, {
+      genero,
+      displaySize: butterflySize,
+      depth: 30,
+      child,
+      flapMs: 600,
     });
-    this.tweens.add({
-      targets: wingR,
-      scaleX: { from: 1, to: 0.6 },
-      duration: 500,
-      yoyo: true,
-      repeat: -1,
-    });
 
-    // Corpo
-    const body = this.add.graphics();
-    body.fillStyle(custom.cor.escura, 1);
-    body.lineStyle(4, 0x000000, 0.3);
-    body.fillRoundedRect(-21, -20, 42, 140, 24);
-    body.strokeRoundedRect(-21, -20, 42, 140, 24);
+    const { btnSize, btnIcon, btnW, gap } = getSplashButtonMetrics(this);
+    const rowY = height * 0.88;
+    const homeX = width / 2 - (btnW + gap) / 2;
+    const photoX = width / 2 + (btnW + gap) / 2;
 
-    // Rosto — foto da criança
-    const face = this.add.graphics();
-    face.fillStyle(0xFFE9C9, 1);
-    face.lineStyle(5, custom.cor.escura, 1);
-    face.fillCircle(0, -50, 42);
-    face.strokeCircle(0, -50, 42);
-    stage.add(face);
-
-    if (custom.chapeu) {
-      this.add.text(-10, -95, '🎉', { fontSize: '44px' });
-    }
-    if (custom.oculos) {
-      this.add.text(-18, -58, '🕶️', { fontSize: '36px' });
-    }
-
-    stage.add([wingL, wingR, body]);
-
-    createSpeechBubble(
-      this, width / 2, height * 0.72,
-      `A lagartinha ${child.nome} comeu, cresceu e virou uma linda BORBOLETA! 🦋\n\n` +
-      `É a metamorfose: 🥚 ➜ 🐛 ➜ 💤 ➜ 🦋\n\n` +
-      `Obrigada por ajudar, ${parentName}! 💚`,
-      620,
-    );
-
-    createButton(this, width / 2, height * 0.92, 'Jogar de novo 🔄', {
-      color: Theme.rosa,
-      width: 300,
+    createIconCircleButton(this, homeX, rowY, VICTORY_ICONS.home, {
+      size: btnSize,
+      iconSize: btnIcon,
+      absoluteSize: portrait,
+      depth: 50,
+      fillColor: Theme.botaoVerde,
+      ...SPLASH_CORNER_BTN_OPTS,
       onClick: () => {
         playSound(this, 'clique');
         GameState.resetForNewRun(this);
-        this.scene.start(SceneKeys.CHARACTER);
+        this.scene.start(SceneKeys.SPLASH);
       },
-    });
+    }).setScrollFactor(0);
+
+    createIconCircleButton(this, photoX, rowY, VICTORY_ICONS.photo, {
+      size: btnSize,
+      iconSize: btnIcon,
+      absoluteSize: portrait,
+      depth: 50,
+      fillColor: Theme.papel,
+      ...SPLASH_CORNER_BTN_OPTS,
+      onClick: () => {
+        playSound(this, 'clique');
+        const ok = downloadGameScreenshot(this, `borboleta-${nome}.png`);
+        if (!ok) playSound(this, 'fail');
+      },
+    }).setScrollFactor(0);
 
     playSound(this, 'fanfarra');
     this.spawnConfetti(width, height);
+    this.cameras.main.fadeIn(500, 0, 0, 0);
 
     syncRunScore(this, {
       points: GameState.getPoints(this),
@@ -104,18 +120,21 @@ export class VictoryScene extends Phaser.Scene {
   }
 
   spawnConfetti(width, height) {
-    for (let i = 0; i < 60; i++) {
+    for (let i = 0; i < 50; i++) {
       const x = Math.random() * width;
       const color = CONFETE_CORES[i % CONFETE_CORES.length];
-      const size = 12;
-      const piece = this.add.rectangle(x, -20, size, size, color).setDepth(200);
+      const size = 10 + Math.random() * 8;
+      const piece = this.add.rectangle(x, -20, size, size, color)
+        .setDepth(200)
+        .setScrollFactor(0)
+        .setAngle(Math.random() * 360);
 
       this.tweens.add({
         targets: piece,
-        y: height + 20,
-        angle: 360 + Math.random() * 360,
-        duration: (2500 + Math.random() * 2500),
-        delay: Math.random() * 1200,
+        y: height + 30,
+        angle: piece.angle + 280 + Math.random() * 200,
+        duration: 2600 + Math.random() * 2200,
+        delay: Math.random() * 1400,
         onComplete: () => piece.destroy(),
       });
     }

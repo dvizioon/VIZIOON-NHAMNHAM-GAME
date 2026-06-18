@@ -23,8 +23,12 @@ function colorSlug(color = ICON_COLOR) {
 }
 
 async function getIconSet(collection) {
+  const loader = COLLECTION_LOADERS[collection];
+  if (!loader) {
+    throw new Error(`Coleção Iconify não suportada: ${collection}`);
+  }
   if (!iconSetCache.has(collection)) {
-    const mod = await COLLECTION_LOADERS[collection]();
+    const mod = await loader();
     iconSetCache.set(collection, mod.default);
   }
   return iconSetCache.get(collection);
@@ -103,7 +107,9 @@ export class Icon {
 
   static async preload(scene, icons) {
     await Promise.all(
-      icons.map((icon) => (icon instanceof Icon ? icon : Icon.from(icon)).load(scene)),
+      icons.map((icon) => (
+        (icon instanceof Icon ? icon : Icon.from(icon)).load(scene).catch(() => null)
+      )),
     );
   }
 }

@@ -9,6 +9,7 @@ import { preloadSplashIcons } from '../ui/splashUi.js';
 import { preloadSettingsIcons } from '../ui/settingsUi.js';
 import { preloadGameIcons } from '../ui/gameUi.js';
 import { preloadEggIcons } from '../ui/eggUi.js';
+import { preloadCocoonIcons } from '../ui/cocoonUi.js';
 import { buildLoadingScreen } from '../ui/loadingUi.js';
 import { FOOD_FRUTAS } from '../config/foodConfig.js';
 import {
@@ -64,6 +65,13 @@ import {
   EGG_HATCH_NASCENDO_FRAME_H,
   registerEggAnimations,
 } from '../config/eggConfig.js';
+import {
+  COCOON_WOBBLE_KEY,
+  COCOON_WOBBLE_PATH,
+  COCOON_FRAME_W,
+  COCOON_FRAME_H,
+  registerCocoonAnimations,
+} from '../config/cocoonConfig.js';
 import {
   getInitialSceneKey,
   seedDebugState,
@@ -143,6 +151,10 @@ export class PreloadScene extends Phaser.Scene {
       frameWidth: EGG_HATCH_NASCENDO_FRAME_W,
       frameHeight: EGG_HATCH_NASCENDO_FRAME_H,
     });
+    this.load.spritesheet(COCOON_WOBBLE_KEY, COCOON_WOBBLE_PATH, {
+      frameWidth: COCOON_FRAME_W,
+      frameHeight: COCOON_FRAME_H,
+    });
     this.load.spritesheet(FROG_JUMP_KEY, FROG_JUMP_PATH, getFrogJumpSheetLoadOpts());
     this.load.spritesheet(FROG_ATTACK_KEY, FROG_ATTACK_PATH, getFrogAttackSheetLoadOpts());
     if (usesDebugCardHead()) {
@@ -193,7 +205,12 @@ export class PreloadScene extends Phaser.Scene {
         EGG_HATCH_NASCENDO_FRAME_H,
       );
     }
+    if (this.textures.exists(COCOON_WOBBLE_KEY)
+      && this.textures.get(COCOON_WOBBLE_KEY).getSourceImage().width > 4096) {
+      capSpritesheet(this, COCOON_WOBBLE_KEY, COCOON_FRAME_W, COCOON_FRAME_H);
+    }
     registerEggAnimations(this);
+    registerCocoonAnimations(this);
     patchFrogJumpFrames(this);
     registerIntroFrogAnimations(this);
     registerFrogAttackAnimations(this);
@@ -264,6 +281,7 @@ export class PreloadScene extends Phaser.Scene {
       preloadSettingsIcons(this),
       preloadGameIcons(this),
       preloadEggIcons(this),
+      preloadCocoonIcons(this),
     ]);
     startBgm(this);
     this.scene.start(getInitialSceneKey());

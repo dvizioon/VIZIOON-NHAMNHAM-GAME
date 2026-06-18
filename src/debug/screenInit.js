@@ -15,6 +15,9 @@ import { DEFAULT_GAME_RULES } from '../services/gameRules.js';
  * - telascore    → debug barra de progresso (score HUD)
  * - game         → gameplay na árvore
  * - egg          → tela do ovo
+ * - telacasulo   → tela do casulo
+ * - telacasulodebug → debug casulo (área de toque + card)
+ * - telavitoria  → borboleta + botões Início e Foto
  */
 const INIT_SCREENS = {
   splash: SceneKeys.SPLASH,
@@ -27,6 +30,9 @@ const INIT_SCREENS = {
   telascore: SceneKeys.SCORE_HUD_DEBUG,
   game: SceneKeys.GAME,
   egg: SceneKeys.EGG,
+  telacasulo: SceneKeys.COCOON,
+  telacasulodebug: SceneKeys.COCOON_DEBUG,
+  telavitoria: SceneKeys.VICTORY,
 };
 
 const DEBUG_CHILD = {
@@ -71,6 +77,9 @@ export function seedDebugState(scene) {
     SceneKeys.TRUNK_INTRO,
     SceneKeys.GAME,
     SceneKeys.EGG,
+    SceneKeys.COCOON,
+    SceneKeys.COCOON_DEBUG,
+    SceneKeys.VICTORY,
   ].includes(initialKey);
 
   if (!needsChild) return;
@@ -80,6 +89,9 @@ export function seedDebugState(scene) {
 
   if (!scene.registry.get(RegistryKeys.CHILD)) {
     scene.registry.set(RegistryKeys.CHILD, defaultChild ? { ...defaultChild } : { ...DEBUG_CHILD });
+  }
+  if (!scene.registry.get(RegistryKeys.PARENT_NAME)) {
+    scene.registry.set(RegistryKeys.PARENT_NAME, 'Família');
   }
   if (!scene.registry.get(RegistryKeys.CUSTOM)) {
     scene.registry.set(RegistryKeys.CUSTOM, { ...DEBUG_CUSTOM });

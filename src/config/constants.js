@@ -35,6 +35,7 @@ export const SceneKeys = {
   FROG_DEBUG: 'FrogDebugScene',
   FROG_ATTACK_DEBUG: 'FrogAttackDebugScene',
   SCORE_HUD_DEBUG: 'ScoreHudDebugScene',
+  COCOON_DEBUG: 'CocoonDebugScene',
 };
 
 export const defaultSettings = {

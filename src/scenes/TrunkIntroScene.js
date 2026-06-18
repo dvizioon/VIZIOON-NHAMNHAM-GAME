@@ -15,6 +15,12 @@ import {
 } from '../ui/characterAvatar.js';
 import { REGISTRY_DEBUG_CARD_HEAD } from '../debug/screenInit.js';
 import {
+  getCharacterHeadAnimKey,
+  getCharacterHeadTextureKey,
+  normalizeCriancaRecord,
+} from '../config/characterUiConfig.js';
+import { hasTexture } from '../systems/AssetLoader.js';
+import {
   createTrunkStoryCard,
   createTrunkTapHint,
   preloadTrunkIntroIcons,
@@ -80,7 +86,7 @@ export class TrunkIntroScene extends Phaser.Scene {
 
   async create() {
     const { width, height } = this.scale;
-    const child = GameState.getChild(this);
+    const child = this.resolveChild(GameState.getChild(this));
     const nome = child?.nome ?? 'Lagartinha';
     const genero = child?.genero ?? 'menino';
 
@@ -97,6 +103,7 @@ export class TrunkIntroScene extends Phaser.Scene {
     });
 
     this.buildClimber(width, height, child);
+    this.ensureCharacterHead(child);
 
     const hintY = Math.min(
       height * TRUNK_HINT_Y_RATIO,
@@ -203,8 +210,22 @@ export class TrunkIntroScene extends Phaser.Scene {
     return null;
   }
 
+  resolveChild(child) {
+    const base = normalizeCriancaRecord(child);
+    if (base?.cabeca && base?.id) return base;
+    const criancas = GameState.getCriancas(this);
+    const full = criancas.find((c) => c.id === child?.id);
+    return full ? normalizeCriancaRecord(full) : base;
+  }
+
+  isCharacterHeadSprite(sprite, child) {
+    if (!sprite?.active || !child?.id) return false;
+    return sprite.texture?.key === getCharacterHeadTextureKey(child);
+  }
+
   attachHead(child) {
     const headCfg = this.getHeadCfg();
+    const crianca = this.resolveChild(child);
 
     if (this.registry.get(REGISTRY_DEBUG_CARD_HEAD)) {
       return attachDebugCardHeadToClimb(
@@ -224,7 +245,7 @@ export class TrunkIntroScene extends Phaser.Scene {
       this,
       this.climberContainer,
       this.bodySprite,
-      child,
+      crianca,
       this.climbScale,
       headCfg,
     );
@@ -239,16 +260,52 @@ export class TrunkIntroScene extends Phaser.Scene {
     );
   }
 
-  playHeadIdleAnim() {
+  playHeadIdleAnim(child) {
     if (!this.headSprite?.active) return;
     const headCfg = this.getHeadCfg();
-    const animKey = this.registry.get(REGISTRY_DEBUG_CARD_HEAD)
-      ? DEBUG_CARD_HEAD_ANIM
-      : 'char_default_headIdle';
+    const crianca = this.resolveChild(child);
+
+    let animKey = 'char_default_headIdle';
+    if (this.registry.get(REGISTRY_DEBUG_CARD_HEAD)) {
+      animKey = DEBUG_CARD_HEAD_ANIM;
+    } else if (crianca?.cabeca && hasTexture(this, getCharacterHeadTextureKey(crianca))) {
+      animKey = getCharacterHeadAnimKey(crianca);
+    }
+
     if (this.anims.exists(animKey)) {
       this.headSprite.anims.play(animKey);
     }
     syncCabecaToClimbBody(this.headSprite, this.bodySprite, this.climbScale, headCfg);
+  }
+
+  ensureCharacterHead(child) {
+    const crianca = this.resolveChild(child);
+    if (!crianca?.cabeca || !this.bodySprite?.active) return;
+
+    if (this.isCharacterHeadSprite(this.headSprite, crianca)) return;
+
+    if (this.headSprite?.active) {
+      this.headSprite.destroy();
+      this.headSprite = null;
+    }
+
+    this.headSprite = attachCharacterCabecaToClimb(
+      this,
+      this.climberContainer,
+      this.bodySprite,
+      crianca,
+      this.climbScale,
+      this.getHeadCfg(),
+    ) ?? attachCaterpillarHeadIdleToClimb(
+      this,
+      this.climberContainer,
+      this.bodySprite,
+      this.climbScale,
+      this.getHeadCfg(),
+    );
+
+    this.playHeadIdleAnim(crianca);
+    this.applyClimberTapHit();
   }
 
   getClimberTapHit() {
@@ -309,7 +366,7 @@ export class TrunkIntroScene extends Phaser.Scene {
 
       this.climberContainer.add(this.bodySprite);
       this.headSprite = this.attachHead(child);
-      this.playHeadIdleAnim();
+      this.playHeadIdleAnim(child);
     } else {
       this.bodySprite = this.add.circle(0, 0, 36, 0x7cb342);
       this.climberContainer.add(this.bodySprite);
@@ -332,7 +389,7 @@ export class TrunkIntroScene extends Phaser.Scene {
     if (this.headSprite && this.bodySprite) {
       this.headSprite.setData('climbHeadRefBodyW', this.bodySprite.displayWidth);
       syncCabecaToClimbBody(this.headSprite, this.bodySprite, this.climbScale, headCfg);
-      this.playHeadIdleAnim();
+      this.playHeadIdleAnim(this.resolveChild(GameState.getChild(this)));
     }
   }
 

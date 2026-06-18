@@ -1,5 +1,7 @@
 /** Sapo atacando — atacando.png: 3 frames horizontais (813×876 cada) */
 import Phaser from 'phaser';
+import { getGroundY } from '../ui/createUI.js';
+import { GAME_CLIMBER_Y_LIFT } from './gameWorldConfig.js';
 
 export const FROG_ATTACK_KEY = 'frog_attack';
 export const FROG_ATTACK_ANIM = 'frog_attack';
@@ -19,19 +21,28 @@ export const FROG_ATTACK_FRAME_MS = [42, 38, 52];
 
 /** Tempos do sapo no jogo */
 export const GAME_SAPO_SOUND_FALLBACK_MS = 1500;
-export const GAME_SAPO_AVISO_FRAMES = 14;
+/** Pausa com sapo visível antes de atacar (ms) */
+export const GAME_SAPO_AVISO_MS = 1000;
+/** @deprecated use GAME_SAPO_AVISO_MS */
+export const GAME_SAPO_AVISO_FRAMES = 60;
 export const GAME_SAPO_VOLTANDO_FRAMES = 8;
 
 /** Largura do sapo ≈ fração da tela (afinado em telasapoatacando) */
 export const GAME_FROG_ATTACK_WIDTH_RATIO = 0.56;
 export const GAME_FROG_ATTACK_SCALE_MUL = 0.92;
-/** Offset vertical em relação à cabeça da lagarta */
-export const GAME_FROG_Y_OFFSET_PX = 2;
-/** Inset da borda — esquerda fixa; direita calculada pelo tamanho do sprite */
-export const GAME_FROG_EDGE_INSET_LEFT_PX = 8;
-export const GAME_FROG_EDGE_INSET_RIGHT_PAD = 8;
-/** @deprecated calculado automaticamente pelo corpo do sprite */
-export const GAME_FROG_EDGE_INSET_RIGHT_PX = 56;
+/** Offset vertical (positivo = desce). Mesmo valor nos dois lados = alinhados */
+export const GAME_FROG_Y_OFFSET_PX = -38;
+export const GAME_FROG_Y_OFFSET_LEFT_PX = GAME_FROG_Y_OFFSET_PX;
+export const GAME_FROG_Y_OFFSET_RIGHT_PX = GAME_FROG_Y_OFFSET_PX;
+/** Alcance da língua em direção à lagarta (fração do corpo visível) */
+export const GAME_FROG_TONGUE_REACH_MUL = 0.72;
+/** Tolerância vertical do hit da língua */
+export const GAME_FROG_HIT_Y_TOLERANCE_PX = 95;
+/** Inset da borda — afinado em telasapoatacando (esq/dir independentes) */
+export const GAME_FROG_EDGE_INSET_LEFT_PX = 18;
+export const GAME_FROG_EDGE_INSET_RIGHT_PX = 130;
+/** @deprecated use GAME_FROG_EDGE_INSET_RIGHT_PX */
+export const GAME_FROG_EDGE_INSET_RIGHT_PAD = GAME_FROG_EDGE_INSET_RIGHT_PX;
 /** @deprecated use GAME_FROG_EDGE_INSET_LEFT_PX */
 export const GAME_FROG_EDGE_INSET_PX = GAME_FROG_EDGE_INSET_LEFT_PX;
 
@@ -41,16 +52,129 @@ export const DEFAULT_FROG_ATTACK_TUNE = {
   edgeInsetLeftPx: GAME_FROG_EDGE_INSET_LEFT_PX,
   edgeInsetRightPx: GAME_FROG_EDGE_INSET_RIGHT_PX,
   yOffsetPx: GAME_FROG_Y_OFFSET_PX,
+  yOffsetLeftPx: GAME_FROG_Y_OFFSET_LEFT_PX,
+  yOffsetRightPx: GAME_FROG_Y_OFFSET_RIGHT_PX,
 };
 
-export function getGameFrogEdgeInset(fromLeft, tune = DEFAULT_FROG_ATTACK_TUNE, spriteWidth = 0) {
+/** Y base do sapo — mesma referência p/ esquerda e direita (não sobe com a lagarta). */
+export function getGameFrogBaseY(scene, climberLiftRatio = GAME_CLIMBER_Y_LIFT) {
+  const { height } = scene.scale;
+  return getGroundY(scene) - height * climberLiftRatio;
+}
+
+export function getGameFrogYOffset(fromLeft, tune = DEFAULT_FROG_ATTACK_TUNE) {
+  if (fromLeft) {
+    return tune.yOffsetLeftPx ?? tune.yOffsetPx ?? GAME_FROG_Y_OFFSET_LEFT_PX;
+  }
+  return tune.yOffsetRightPx ?? tune.yOffsetPx ?? GAME_FROG_Y_OFFSET_RIGHT_PX;
+}
+
+export function getGameFrogAnchorY(scene, tune = DEFAULT_FROG_ATTACK_TUNE, climberLiftRatio = GAME_CLIMBER_Y_LIFT, fromLeft = true) {
+  return getGameFrogBaseY(scene, climberLiftRatio)
+    + getGameFrogYOffset(fromLeft, tune);
+}
+
+export function getGameFrogEdgeInset(fromLeft, tune = DEFAULT_FROG_ATTACK_TUNE) {
   if (fromLeft) {
     return tune.edgeInsetLeftPx ?? tune.edgeInsetPx ?? GAME_FROG_EDGE_INSET_LEFT_PX;
   }
-  if (spriteWidth > 0) {
-    return Math.round(spriteWidth * (1 - FROG_ATTACK_ORIGIN_X) + GAME_FROG_EDGE_INSET_RIGHT_PAD);
-  }
   return tune.edgeInsetRightPx ?? tune.edgeInsetPx ?? GAME_FROG_EDGE_INSET_RIGHT_PX;
+}
+
+/** Quantos lados no baralho antes de embaralhar de novo (metade esq, metade dir) */
+export const GAME_SAPO_SIDE_BAG_SIZE = 8;
+
+/**
+ * Esq: origem do sprite no inset (peek da borda esquerda).
+ * Dir: origem no inset da direita — mesmo peek do debug (telasapoatacando).
+ */
+export function getGameFrogAnchorX(screenWidth, fromLeft, spriteWidth, tune = DEFAULT_FROG_ATTACK_TUNE) {
+  const inset = getGameFrogEdgeInset(fromLeft, tune);
+  const w = spriteWidth || FROG_ATTACK_FRAME_W;
+  if (fromLeft) return inset;
+  return screenWidth - inset - w * FROG_ATTACK_ORIGIN_X;
+}
+
+/** Baralho 50/50 esq-dir embaralhado — alterna sem repetir o mesmo lado sempre */
+export function buildSapoSideBag(avoidFirstLado = null) {
+  const total = Math.max(2, GAME_SAPO_SIDE_BAG_SIZE);
+  const half = Math.floor(total / 2);
+  const bag = [
+    ...Array(half).fill(0),
+    ...Array(total - half).fill(1),
+  ];
+  Phaser.Utils.Array.Shuffle(bag);
+
+  if (avoidFirstLado != null && bag.length > 1 && bag[0] === avoidFirstLado) {
+    const swapIdx = bag.findIndex((lado, i) => i > 0 && lado !== avoidFirstLado);
+    if (swapIdx > 0) {
+      [bag[0], bag[swapIdx]] = [bag[swapIdx], bag[0]];
+    }
+  }
+  return bag;
+}
+
+/** 0 = esquerda, 1 = direita */
+export function pickNextSapoLado(rotation, lastLado = null) {
+  if (!rotation) return lastLado === 0 ? 1 : 0;
+  if (!rotation.bag?.length) {
+    rotation.bag = buildSapoSideBag(lastLado);
+  }
+  return rotation.bag.pop();
+}
+
+/**
+ * Zona retangular do hit da língua (debug + lógica).
+ */
+export function getFrogTongueHitZone(sprite, fromLeft, extraRadius = 0) {
+  if (!sprite?.active) return null;
+
+  const w = sprite.displayWidth || FROG_ATTACK_FRAME_W;
+  const bodyReach = (1 - FROG_ATTACK_ORIGIN_X) * w;
+  const maxReach = bodyReach * GAME_FROG_TONGUE_REACH_MUL + extraRadius;
+  const safePad = Math.max(12, extraRadius * 0.45);
+  const anchorX = sprite.x;
+  const anchorY = sprite.getData('frogPinY') ?? sprite.y;
+  const halfH = GAME_FROG_HIT_Y_TOLERANCE_PX;
+
+  if (fromLeft) {
+    return {
+      x: anchorX - safePad,
+      y: anchorY - halfH,
+      width: maxReach + safePad,
+      height: halfH * 2,
+      tipX: anchorX + maxReach,
+      anchorX,
+      anchorY,
+    };
+  }
+
+  return {
+    x: anchorX - maxReach,
+    y: anchorY - halfH,
+    width: maxReach + safePad,
+    height: halfH * 2,
+    tipX: anchorX - maxReach,
+    anchorX,
+    anchorY,
+  };
+}
+
+/**
+ * Hit da língua — zona entre o sapo e a árvore (inclui perto do sapo; seguro só “atrás” dele).
+ */
+export function doesFrogTongueHitHead(sprite, head, fromLeft, extraRadius = 0) {
+  if (!sprite?.active || !head) return false;
+
+  const zone = getFrogTongueHitZone(sprite, fromLeft, extraRadius);
+  if (!zone) return false;
+
+  return (
+    head.x >= zone.x
+    && head.x <= zone.x + zone.width
+    && head.y >= zone.y
+    && head.y <= zone.y + zone.height
+  );
 }
 
 /** Corpo alinhado na normalização do spritesheet (tools/normalize_frog_attack.py) */
@@ -106,7 +230,7 @@ export function layoutFrogAttackSprite(sprite, {
   const edgeX = fromLeft
     ? w * FROG_ATTACK_ORIGIN_X
     : screenWidth - w * (1 - FROG_ATTACK_ORIGIN_X);
-  const gameY = useGameLayout ? (tune.yOffsetPx ?? GAME_FROG_Y_OFFSET_PX) : 0;
+  const gameY = useGameLayout ? getGameFrogYOffset(fromLeft, tune) : 0;
   sprite.setPosition(edgeX, y + gameY + yOffset);
   sprite.setFlipX(!fromLeft);
   sprite.setData('frogFromLeft', fromLeft);
@@ -117,11 +241,10 @@ export function layoutFrogAttackSprite(sprite, {
 export function applyFrogGameEdgeInset(sprite, screenWidth, fromLeft, tune = DEFAULT_FROG_ATTACK_TUNE) {
   if (!sprite) return;
   const w = sprite.displayWidth || FROG_ATTACK_FRAME_W;
-  const inset = getGameFrogEdgeInset(fromLeft, tune, w);
   const originEdgeX = fromLeft
     ? w * FROG_ATTACK_ORIGIN_X
     : screenWidth - w * (1 - FROG_ATTACK_ORIGIN_X);
-  const targetX = fromLeft ? inset : screenWidth - inset;
+  const targetX = getGameFrogAnchorX(screenWidth, fromLeft, w, tune);
   sprite.x += targetX - originEdgeX;
 }
 

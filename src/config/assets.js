@@ -40,7 +40,6 @@ export const TEXTURES = {
 export const REQUIRED_SOUNDS = {
   clique: `${ASSET_BASE}/sounds/sfx/pop.mp3`,
   eat: `${ASSET_BASE}/sounds/sfx/eat.mp3`,
-  hut: `${ASSET_BASE}/sounds/sfx/hut.mp3`,
   jump: `${ASSET_BASE}/sounds/sfx/jump.mp3`,
   aiolhaosapo: `${ASSET_BASE}/sounds/sfx/aiolhaosapo.mp3`,
   increase: `${ASSET_BASE}/sounds/sfx/increase.mp3`,
@@ -56,6 +55,7 @@ export const REQUIRED_SOUNDS = {
  * ou adicione aqui e em queueOptionalAudio. Sem arquivo → som procedural.
  */
 export const OPTIONAL_SOUNDS = {
+  hut: `${ASSET_BASE}/sounds/sfx/hut.mp3`,
   crack: `${ASSET_BASE}/sounds/sfx/crack.mp3`,
   egg_crack: `${ASSET_BASE}/sounds/sfx/egg_crack.mp3`,
   nascer: `${ASSET_BASE}/sounds/sfx/nascer.mp3`,
