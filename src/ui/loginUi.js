@@ -92,8 +92,19 @@ export function createLoginUsernameField(scene, x, y, contentW, { onChange, onSu
   const display = scene.add.text(-fieldW / 2 + textPadLeft, 0, 'Digite seu usuário ...', {
     fontFamily: Theme.fontFamily,
     fontSize: `${textSize}px`,
-    color: '#ffffff',
+    color: '#ffffffaa',
   }).setOrigin(0, 0.5);
+
+  const caret = scene.add.graphics();
+  const drawCaret = (visible) => {
+    caret.clear();
+    if (!visible) return;
+    const caretX = -fieldW / 2 + textPadLeft + Math.min(display.width, maxTextW) + 2;
+    caret.lineStyle(2, 0xffffff, 1);
+    caret.lineBetween(caretX, -textSize * 0.42, caretX, textSize * 0.42);
+  };
+
+  let focused = false;
 
   const domInput = document.createElement('input');
   domInput.type = 'text';
@@ -115,7 +126,7 @@ export function createLoginUsernameField(scene, x, y, contentW, { onChange, onSu
 
   const syncDisplay = () => {
     if (value.length === 0) {
-      display.setText('Digite seu usuário ...').setColor('#ffffff');
+      display.setText('Digite seu usuário ...').setColor('#ffffffaa');
       display.setCrop();
     } else {
       display.setText(value).setColor('#ffffff');
@@ -125,6 +136,7 @@ export function createLoginUsernameField(scene, x, y, contentW, { onChange, onSu
         display.setCrop();
       }
     }
+    drawCaret(focused);
     onChange?.(value);
     updateSubmitState();
   };
@@ -133,6 +145,10 @@ export function createLoginUsernameField(scene, x, y, contentW, { onChange, onSu
     value = domInput.value;
     syncDisplay();
   });
+  domInput.addEventListener('blur', () => {
+    focused = false;
+    drawCaret(false);
+  });
 
   scene.events.once('shutdown', () => domInput.remove());
 
@@ -140,7 +156,11 @@ export function createLoginUsernameField(scene, x, y, contentW, { onChange, onSu
   const hit = scene.add
     .zone(-(btnSize + btnInset * 2) / 2, 0, hitW, fieldH)
     .setInteractive({ useHandCursor: true });
-  hit.on('pointerdown', () => domInput.focus());
+  hit.on('pointerdown', () => {
+    focused = true;
+    domInput.focus();
+    syncDisplay();
+  });
 
   const sendBtnX = fieldW / 2 - btnInset - btnSize / 2;
   const sendBtn = createIconCircleButton(scene, sendBtnX, 0, LOGIN_ICONS.send, {
@@ -160,12 +180,16 @@ export function createLoginUsernameField(scene, x, y, contentW, { onChange, onSu
   });
   sendBtn.setAlpha(0.82);
 
-  root.add([label, bg, display, hit, sendBtn]);
+  root.add([label, bg, display, caret, hit, sendBtn]);
   root.setDepth(20);
 
   return {
     root,
-    focus: () => domInput.focus(),
+    focus: () => {
+      focused = true;
+      domInput.focus();
+      syncDisplay();
+    },
     getValue: () => value.trim(),
     setValue: (next) => {
       value = next ?? '';

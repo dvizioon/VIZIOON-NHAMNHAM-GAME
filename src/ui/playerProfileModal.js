@@ -9,6 +9,7 @@ import { logoutPlayerSession } from '../services/playerSession.js';
 import { SceneKeys } from '../config/constants.js';
 import { hasTexture } from '../systems/AssetLoader.js';
 import { GUEST_PLAYER_NAME, UI_USER_JOGADOR_KEY } from './playerNameUi.js';
+import { formatGuestChipCode, loadOrCreateOfflineGuestCode } from '../utils/guestCode.js';
 
 const MODAL_DEPTH = 220;
 const CHIP_LABEL_COLOR = '#1E6A30';
@@ -31,7 +32,7 @@ export async function createSplashUserChip(scene, x, y, { onClick, size = 52, ic
     size,
     iconSize,
     absoluteSize,
-    name: session.displayName ?? 'Jogador',
+    name: GameState.getSessionChipName(scene) ?? 'Jogador',
   });
 }
 
@@ -44,7 +45,7 @@ export async function createSplashGuestChip(scene, x, y, { onClick, size = 52, i
     size,
     iconSize,
     absoluteSize,
-    name: GUEST_PLAYER_NAME,
+    name: GameState.getSessionChipName(scene) ?? GUEST_PLAYER_NAME,
   });
 }
 
@@ -306,11 +307,11 @@ export async function openGuestProfileModal(scene, { onClose, onLogout, onConnec
   const bottomPad = Math.max(28, Math.round(32 * s));
   const bodySize = Math.max(15, Math.round(17 * s));
   const btnGap = Math.max(14, Math.round(16 * s));
-  const btnTopGap = Math.max(44, Math.round(52 * s));
+  const btnTopGap = Math.max(64, Math.round(72 * s));
   const btnH = 52;
-  const hintLinesH = bodySize * 2.4 + 8;
+  const hintLinesH = bodySize * 3.6 + 16;
   const panelH = Math.min(
-    Math.round(height * 0.52),
+    Math.round(height * 0.58),
     topPad + Math.max(22, Math.round(28 * s)) + 14 + hintLinesH + btnTopGap + btnH + btnGap + btnH + bottomPad,
   );
 
@@ -326,6 +327,10 @@ export async function openGuestProfileModal(scene, { onClose, onLogout, onConnec
     onClose?.();
   }
 
+  const guestCode = formatGuestChipCode(
+    GameState.getPlayerSession(scene) ?? { isGuest: true },
+  ) ?? `visit_${loadOrCreateOfflineGuestCode()}`;
+
   const { root, panel, overlay, cx, cy, y: startY } = createProfileModalShell(scene, {
     titleText: GUEST_PLAYER_NAME,
     panelH,
@@ -339,7 +344,7 @@ export async function openGuestProfileModal(scene, { onClose, onLogout, onConnec
   const hint = scene.add.text(
     0,
     y,
-    'Você está jogando como visitante.\nConecte uma conta para salvar progresso.',
+    `Código: ${guestCode}\n\nVocê está jogando como visitante.\nConecte uma conta para salvar progresso.`,
     {
       fontFamily: Theme.fontFamily,
       fontSize: `${bodySize}px`,
@@ -352,8 +357,8 @@ export async function openGuestProfileModal(scene, { onClose, onLogout, onConnec
 
   const btnW = Math.min(panelW - 48, 280);
   const btnFont = Math.max(17, Math.round(20 * s));
-  const logoutY = panelH / 2 - bottomPad - btnH / 2;
-  const connectY = logoutY - btnH - btnGap;
+  const connectY = hint.y + hint.height + btnTopGap;
+  const logoutY = connectY + btnH + btnGap;
 
   const connectBtn = createModalIconButton(scene, 0, connectY, 'Conectar', CONNECT_ICON, {
     color: Theme.botaoVerde,

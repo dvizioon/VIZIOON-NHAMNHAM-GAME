@@ -9,15 +9,37 @@ import {
 } from '../services/gameApi.js';
 import { GameState } from '../utils/GameState.js';
 import { defaultSettings, SceneKeys } from '../config/constants.js';
+import { GUEST_PLAYER_NAME } from '../ui/playerNameUi.js';
+import { formatGuestChipCode, loadOrCreateOfflineGuestCode, clearOfflineGuestCode } from '../utils/guestCode.js';
+
+function normalizeGuestSession(session) {
+  if (!session?.isGuest) return session;
+
+  const guestRawName = session.guestRawName
+    ?? (String(session.displayName ?? '').match(/^guest/i) ? session.displayName : null);
+
+  const needsOfflineCode = !guestRawName
+    && (!session.sessionToken || session.sessionToken === 'offline-guest');
+
+  return {
+    ...session,
+    guestRawName,
+    offlineGuestCode: session.offlineGuestCode
+      ?? (needsOfflineCode ? loadOrCreateOfflineGuestCode() : null),
+    displayName: GUEST_PLAYER_NAME,
+    sessionToken: session.sessionToken || loadGuestSessionToken() || 'offline-guest',
+  };
+}
 
 function applySessionToState(scene, session, { persistAs }) {
-  GameState.setPlayerSession(scene, session);
+  const normalized = normalizeGuestSession(session);
+  GameState.setPlayerSession(scene, normalized);
 
   if (persistAs === 'account') {
     storeSessionToken(session.sessionToken, { persist: true });
     clearGuestSessionToken();
   } else if (persistAs === 'guest') {
-    storeGuestSessionToken(session.sessionToken ?? '');
+    storeGuestSessionToken(normalized.sessionToken ?? '');
     clearStoredSessionToken();
   }
 
@@ -59,7 +81,7 @@ export async function bootstrapPlayerSession(scene, { name, age }) {
 /** Visitante — UUID no backend */
 export async function bootstrapGuestSession(scene) {
   if (!GameApi.isEnabled()) {
-    const offline = { isGuest: true, displayName: 'Visitante', sessionToken: null };
+    const offline = { isGuest: true, displayName: GUEST_PLAYER_NAME, sessionToken: 'offline-guest' };
     GameState.setPlayerSession(scene, offline);
     storeGuestSessionToken('offline-guest');
     return offline;
@@ -71,7 +93,7 @@ export async function bootstrapGuestSession(scene) {
     return session;
   } catch (err) {
     console.warn('[GameApi] visitante indisponível — modo offline', err.message);
-    const offline = { isGuest: true, displayName: 'Visitante', sessionToken: null };
+    const offline = { isGuest: true, displayName: GUEST_PLAYER_NAME, sessionToken: 'offline-guest' };
     GameState.setPlayerSession(scene, offline);
     storeGuestSessionToken('offline-guest');
     return offline;
@@ -119,13 +141,13 @@ export async function restoreGuestSession(scene) {
   if (!token) return null;
 
   if (token === 'offline-guest') {
-    const offline = { isGuest: true, displayName: 'Visitante', sessionToken: 'offline-guest' };
+    const offline = { isGuest: true, displayName: GUEST_PLAYER_NAME, sessionToken: 'offline-guest' };
     GameState.setPlayerSession(scene, offline);
     return offline;
   }
 
   if (!GameApi.isEnabled()) {
-    const offline = { isGuest: true, displayName: 'Visitante', sessionToken: token };
+    const offline = { isGuest: true, displayName: GUEST_PLAYER_NAME, sessionToken: token };
     GameState.setPlayerSession(scene, offline);
     return offline;
   }
@@ -147,12 +169,24 @@ export async function restoreGuestSession(scene) {
 
     const fallback = {
       isGuest: true,
-      displayName: 'Visitante',
+      displayName: GUEST_PLAYER_NAME,
       sessionToken: token,
     };
     GameState.setPlayerSession(scene, fallback);
     return fallback;
   }
+}
+
+/** Garante sessão (conta ou visitante) ao trocar de tela */
+export async function ensurePlayerSession(scene) {
+  if (GameState.isOnlineConnected(scene) || GameState.hasActiveGuestSession(scene)) {
+    const session = GameState.getPlayerSession(scene);
+    if (session?.isGuest && !session.sessionToken && loadGuestSessionToken()) {
+      return restoreGuestSession(scene);
+    }
+    return session;
+  }
+  return restoreAnyPlayerSession(scene);
 }
 
 /** Restaura conta ou visitante ao abrir a splash */
@@ -164,6 +198,7 @@ export async function restoreAnyPlayerSession(scene) {
 
 /** JOGAR — só personagens se conta ou visitante ativo; senão login */
 export async function startPlayFromSplash(scene) {
+  await ensurePlayerSession(scene);
   if (GameState.isOnlineConnected(scene) || GameState.hasActiveGuestSession(scene)) {
     scene.scene.start(SceneKeys.CHARACTER);
     return;
@@ -176,6 +211,7 @@ export async function startPlayFromSplash(scene) {
 export function logoutPlayerSession(scene) {
   clearStoredSessionToken();
   clearGuestSessionToken();
+  clearOfflineGuestCode();
   GameState.setPlayerSession(scene, null);
   GameState.setActivePersonId(scene, null);
   GameState.setParentName(scene, '');

@@ -42,6 +42,12 @@ import {
   registerIntroFrogAnimations,
 } from '../config/introFrogConfig.js';
 import {
+  FROG_ATTACK_KEY,
+  FROG_ATTACK_PATH,
+  getFrogAttackSheetLoadOpts,
+  registerFrogAttackAnimations,
+} from '../config/frogAttackConfig.js';
+import {
   EGG_WOBBLE_KEY,
   EGG_CRACK_KEY,
   EGG_OPEN_KEY,
@@ -57,7 +63,20 @@ import {
   EGG_HATCH_NASCENDO_FRAME_H,
   registerEggAnimations,
 } from '../config/eggConfig.js';
-import { getInitialSceneKey } from '../debug/screenInit.js';
+import {
+  getInitialSceneKey,
+  seedDebugState,
+  usesDebugCardHead,
+} from '../debug/screenInit.js';
+import {
+  DEBUG_CARD_HEAD_KEY,
+  DEBUG_CARD_HEAD_PATH,
+  DEBUG_CARD_HEAD_FRAME_W,
+  DEBUG_CARD_HEAD_FRAME_H,
+  DEBUG_CARD_HEAD_FRAME_COUNT,
+  DEBUG_CARD_HEAD_ANIM,
+  DEBUG_CARD_HEAD_FRAME_CROPS,
+} from '../config/gameWorldConfig.js';
 import { DEFAULT_GAME_RULES } from '../services/gameRules.js';
 
 export class PreloadScene extends Phaser.Scene {
@@ -105,6 +124,8 @@ export class PreloadScene extends Phaser.Scene {
     });
     this.load.image(GAME_TRUNK_KEY, 'assets/textures/ui/tronco_game.png');
     this.load.image(INTRO_TRUNK_KEY, 'assets/textures/ui/tronco_intro.png');
+    this.load.image('ui_game_health', 'assets/textures/ui/Health.svg');
+    this.load.image('ui_game_score', 'assets/textures/ui/Score.svg');
     this.load.spritesheet(EGG_WOBBLE_KEY, 'assets/sprites/ui/ovo_mexendo.png', {
       frameWidth: EGG_WOBBLE_FRAME_W,
       frameHeight: EGG_WOBBLE_FRAME_H,
@@ -122,6 +143,13 @@ export class PreloadScene extends Phaser.Scene {
       frameHeight: EGG_HATCH_NASCENDO_FRAME_H,
     });
     this.load.spritesheet(FROG_JUMP_KEY, FROG_JUMP_PATH, getFrogJumpSheetLoadOpts());
+    this.load.spritesheet(FROG_ATTACK_KEY, FROG_ATTACK_PATH, getFrogAttackSheetLoadOpts());
+    if (usesDebugCardHead()) {
+      this.load.spritesheet(DEBUG_CARD_HEAD_KEY, DEBUG_CARD_HEAD_PATH, {
+        frameWidth: DEBUG_CARD_HEAD_FRAME_W,
+        frameHeight: DEBUG_CARD_HEAD_FRAME_H,
+      });
+    }
     for (const { key, path } of listCharacterHeadAssets(this.criancasData)) {
       this.load.spritesheet(key, path, getCharacterHeadSheetLoadOpts());
     }
@@ -167,6 +195,27 @@ export class PreloadScene extends Phaser.Scene {
     registerEggAnimations(this);
     patchFrogJumpFrames(this);
     registerIntroFrogAnimations(this);
+    registerFrogAttackAnimations(this);
+
+    if (this.textures.exists(DEBUG_CARD_HEAD_KEY)) {
+      const tex = this.textures.get(DEBUG_CARD_HEAD_KEY);
+      DEBUG_CARD_HEAD_FRAME_CROPS.forEach((crop, index) => {
+        if (tex.has(index)) tex.remove(index);
+        tex.add(index, 0, crop.x, crop.y, crop.width, crop.height);
+      });
+    }
+
+    if (this.textures.exists(DEBUG_CARD_HEAD_KEY) && !this.anims.exists(DEBUG_CARD_HEAD_ANIM)) {
+      this.anims.create({
+        key: DEBUG_CARD_HEAD_ANIM,
+        frames: this.anims.generateFrameNumbers(DEBUG_CARD_HEAD_KEY, {
+          start: 0,
+          end: DEBUG_CARD_HEAD_FRAME_COUNT - 1,
+        }),
+        frameRate: 3,
+        repeat: -1,
+      });
+    }
 
     if (this.textures.exists(CHAR_HEADS_KEY) && !this.anims.exists(CHAR_HEADS_ANIM_KEY)) {
       this.anims.create({
@@ -205,6 +254,7 @@ export class PreloadScene extends Phaser.Scene {
     this.registry.set(RegistryKeys.POINTS, 0);
     this.registry.set(RegistryKeys.LIVES, gameConfig.maxVidas ?? 3);
     this.registry.set(RegistryKeys.SETTINGS, { ...defaultSettings });
+    seedDebugState(this);
 
     this.loadingUi?.setProgress(1);
 

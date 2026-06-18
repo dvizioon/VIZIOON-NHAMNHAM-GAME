@@ -48,6 +48,14 @@ export function startBgm(scene) {
   }
 }
 
+export function stopBgm(scene) {
+  const music = scene.registry.get(RegistryKeys.BGM);
+  if (!music) return;
+  music.stop();
+  music.destroy();
+  scene.registry.remove(RegistryKeys.BGM);
+}
+
 /** Garante que a faixa continua — útil após troca de cena */
 export function ensureBgmPlaying(scene) {
   const music = scene.registry.get(RegistryKeys.BGM);

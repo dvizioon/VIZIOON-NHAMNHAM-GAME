@@ -71,6 +71,35 @@ export class ProceduralAudio {
         tocar(500, 700, 0.1);
         tocar(700, 1000, 0.1, 0.25, 'sine', 0.1);
       },
+      jump: () => {
+        tocar(280, 420, 0.12, 0.28, 'triangle');
+        tocar(420, 260, 0.14, 0.22, 'sine', 0.08);
+      },
+      aiolhaosapo: () => {
+        tocar(320, 180, 0.2, 0.3, 'sawtooth');
+        tocar(520, 280, 0.15, 0.22, 'triangle', 0.12);
+      },
+      increase: () => {
+        tocar(440, 620, 0.12, 0.28);
+        tocar(620, 880, 0.14, 0.24, 'sine', 0.1);
+      },
+      point: () => {
+        tocar(720, 980, 0.1, 0.3);
+        tocar(980, 1240, 0.12, 0.22, 'sine', 0.07);
+      },
+      countdown: () => {
+        tocar(520, 520, 0.08, 0.32, 'square');
+        tocar(520, 520, 0.08, 0.32, 'square', 0.72);
+        tocar(520, 520, 0.08, 0.32, 'square', 1.44);
+      },
+      fail: () => {
+        tocar(280, 140, 0.22, 0.34, 'sawtooth');
+        tocar(220, 110, 0.28, 0.28, 'triangle', 0.14);
+      },
+      hurt: () => {
+        tocar(340, 220, 0.1, 0.32, 'square');
+        tocar(260, 180, 0.12, 0.24, 'triangle', 0.08);
+      },
       fanfarra: () => [523, 659, 784, 1047].forEach((f, i) => tocar(f, f, 0.25, 0.25, 'triangle', i * 0.16)),
     };
 
@@ -79,16 +108,32 @@ export class ProceduralAudio {
 }
 
 /** Toca SFX — Phaser SoundManager; fallback procedural se o .mp3 não existir */
-export function playSound(scene, key, { volumeMul = 0.6 } = {}) {
+export function playSound(scene, key, { volumeMul = 0.6, onComplete } = {}) {
   const settings = scene.registry.get('settings') || { volumeEfeitos: 0.8, muted: false };
-  if (settings.muted) return;
+  if (settings.muted) {
+    onComplete?.();
+    return null;
+  }
 
   const vol = (settings.volumeEfeitos ?? 0.8) * volumeMul;
 
   if (scene.cache.audio.exists(key)) {
-    scene.sound.play(key, { volume: vol });
-    return;
+    const snd = scene.sound.add(key);
+    if (onComplete) {
+      snd.once('complete', () => {
+        snd.destroy();
+        onComplete();
+      });
+    } else {
+      snd.once('complete', () => snd.destroy());
+    }
+    snd.play({ volume: vol });
+    return snd;
   }
 
   scene.registry.get('audio')?.play(key, vol);
+  if (onComplete) {
+    scene.time.delayedCall(900, onComplete);
+  }
+  return null;
 }

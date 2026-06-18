@@ -41,6 +41,13 @@ export const REQUIRED_SOUNDS = {
   clique: `${ASSET_BASE}/sounds/sfx/pop.mp3`,
   eat: `${ASSET_BASE}/sounds/sfx/eat.mp3`,
   hut: `${ASSET_BASE}/sounds/sfx/hut.mp3`,
+  jump: `${ASSET_BASE}/sounds/sfx/jump.mp3`,
+  aiolhaosapo: `${ASSET_BASE}/sounds/sfx/aiolhaosapo.mp3`,
+  increase: `${ASSET_BASE}/sounds/sfx/increase.mp3`,
+  point: `${ASSET_BASE}/sounds/sfx/point.mp3`,
+  countdown: `${ASSET_BASE}/sounds/sfx/countdown.mp3`,
+  hurt: `${ASSET_BASE}/sounds/sfx/hurt.mp3`,
+  fail: `${ASSET_BASE}/sounds/sfx/fail.mp3`,
   bgm: `${ASSET_BASE}/sounds/music/Pleasant Creek.mp3`,
 };
 

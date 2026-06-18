@@ -3,9 +3,19 @@ import { SceneKeys } from '../config/constants.js';
 import { Theme } from '../config/theme.js';
 import { playSound } from '../systems/ProceduralAudio.js';
 import { GameState, defaultCustom } from '../utils/GameState.js';
-import { createButton, drawEnvironmentLayers, getGroundY, DEPTH_TRUNK } from '../ui/createUI.js';
+import { drawEnvironmentLayers, getGroundY, DEPTH_TRUNK } from '../ui/createUI.js';
 import { FOOD_FRUTAS } from '../config/foodConfig.js';
-import { GAME_AVISO_ICONS } from '../ui/gameUi.js';
+import {
+  GAME_AVISO_ICONS,
+  GAME_SCORE_MAX,
+  createGameHud,
+  updateGameHudHealth,
+  updateGameHudScore,
+  showFruitEatPopup,
+  pickFruitMultiplier,
+  segmentsForScore,
+  showGameOverModal,
+} from '../ui/gameUi.js';
 import { CaterpillarSprite } from '../entities/CaterpillarSprite.js';
 import {
   GAME_TRUNK_KEY,
@@ -13,10 +23,15 @@ import {
   FRUIT_EAT_RADIUS_X,
   MAX_BODY_SEGMENTS,
   CLIMB_FRAME_HEIGHT,
+  CLIMBER_MOVE_WIDTH_RATIO,
+  CLIMBER_EDGE_PAD_RATIO,
   CLIMB_BODY_TRUNK_RATIO,
   CLIMB_HEAD_SCALE_MUL,
   CLIMB_HEAD_BALL_TOP,
   CLIMB_HEAD_OFFSET_Y,
+  CLIMB_HEAD_OFFSET_Y_PX,
+  CLIMB_HEAD_OFFSET_X,
+  CLIMB_HEAD_OFFSET_X_PX,
   CLIMB_SWAY_X,
   CLIMB_SWAY_ROT,
   DEPTH_LAGARTA,
@@ -26,14 +41,38 @@ import {
   MAX_FALLING_FRUITS,
   FRUIT_SPAWN_COOLDOWN_MS,
   FRUIT_TRUNK_INSET,
-  FRUIT_SPAWN_SLOTS,
+  FRUIT_SPAWN_WIDTH_RATIO,
+  GAME_CLIMBER_Y_LIFT,
+  GAME_FRUIT_GRAVITY,
+  GAME_FRUIT_BOUNCE,
+  GAME_FRUIT_DRAG,
+  GAME_FRUIT_ANGULAR_DRAG,
+  GAME_FRUIT_STOP_SPEED,
+  GAME_FRUIT_AIR_SPIN,
+  pickFruitSpeedTier,
 } from '../config/gameWorldConfig.js';
+import {
+  FROG_ATTACK_KEY,
+  FROG_ATTACK_FRAME_COUNT,
+  FROG_ATTACK_ORIGIN_X,
+  FROG_ATTACK_ORIGIN_Y,
+  getGameFrogAttackScale,
+  syncFrogAttackDisplay,
+  anchorFrogAttackSprite,
+  playFrogAttackAnim,
+  stopFrogAttackAnim,
+  setFrogAttackFrame,
+  GAME_SAPO_SOUND_FALLBACK_MS,
+  GAME_SAPO_AVISO_FRAMES,
+  GAME_SAPO_VOLTANDO_FRAMES,
+} from '../config/frogAttackConfig.js';
 import {
   drawBoundsHit,
   drawCircleHit,
   getGameObjectCircle,
   isDebugHitboxes,
 } from '../utils/debug.js';
+import { stopBgm, ensureBgmPlaying } from '../systems/MusicManager.js';
 
 /**
  * tronco_game = background fixo
@@ -50,6 +89,8 @@ export class GameScene extends Phaser.Scene {
     this.child = null;
     this.custom = null;
     this.pontos = 0;
+    this.frutasComidas = 0;
+    this.gameHud = null;
     this.jogoAtivo = false;
     this.comidas = [];
     this.particulas = [];
@@ -70,17 +111,22 @@ export class GameScene extends Phaser.Scene {
     this.avisoText = null;
     this.tutorialGroup = null;
     this.fruitSpawnTimer = null;
+    this._pendingFruitTimers = [];
     this._fruitFrameBag = [];
     this._lastFruitSpawnAt = 0;
     this.ready = false;
   }
 
   create() {
+    stopBgm(this);
+
     this.config = GameState.getConfig(this);
     this.child = GameState.getChild(this);
     this.custom = GameState.getCustom(this) ?? defaultCustom(this.child);
     this.pontos = 0;
+    this.frutasComidas = 0;
     this.maxVidas = this.config.maxVidas ?? 3;
+    this.scoreMax = GAME_SCORE_MAX;
     this.vidas = GameState.getLives(this) ?? this.maxVidas;
     this.gameOverActive = false;
     this.invulneravel = 0;
@@ -90,35 +136,72 @@ export class GameScene extends Phaser.Scene {
     this._fruitFrameBag = [];
 
     const { width, height } = this.scale;
-    this.anchorY = Math.round(getGroundY(this));
+    this.anchorY = Math.round(getGroundY(this) - height * GAME_CLIMBER_Y_LIFT);
     this.trunkCX = width / 2;
     this.motion = { climberY: this.anchorY };
 
     this.buildTrunkBackground(width, height);
     this.buildClimber(width);
+    this.playIntroReveal();
+    this.buildGameHud();
     this.buildTutorial(width);
     this.buildAvisoPanel(width, height);
 
     this.gameplayG = this.add.graphics().setDepth(30).setScrollFactor(0);
-    this.sapo = { ativo: false, lado: 1, lingua: 0, estado: 'escondido', timer: 0 };
+    this.frogSprite = null;
+    this.sapo = {
+      ativo: false,
+      avisoSom: false,
+      lado: 1,
+      lingua: 0,
+      estado: 'escondido',
+      timer: 0,
+      frogAnchorY: null,
+      attackAnchored: false,
+    };
 
     this.setupFallingFruits(width, height);
 
     this.input.on('pointerdown', (p) => {
+      if (!this.jogoAtivo) return;
+      this.climberLastPointerX = p.x;
+      this.climberIsDragging = false;
       this.moverPara(p.x);
-      this.tentarComerNoToque(p.x, p.y);
     });
-    this.input.on('pointermove', (p) => { if (p.isDown) this.moverPara(p.x); });
-    this.input.keyboard.on('keydown-LEFT', () => { if (this.lagarta) this.lagarta.alvoX -= 48; });
-    this.input.keyboard.on('keydown-RIGHT', () => { if (this.lagarta) this.lagarta.alvoX += 48; });
+    this.input.on('pointermove', (p) => {
+      if (!this.jogoAtivo || !p.isDown) return;
+      if (Math.abs(p.x - this.climberLastPointerX) > 2) {
+        this.climberIsDragging = true;
+      }
+      this.climberLastPointerX = p.x;
+      this.moverPara(p.x);
+    });
+    this.input.on('pointerup', () => {
+      this.climberIsDragging = false;
+    });
+    this.input.keyboard.on('keydown-LEFT', () => {
+      if (!this.lagarta || !this.jogoAtivo) return;
+      this.climberIsDragging = true;
+      this.lagarta.alvoX -= 48;
+    });
+    this.input.keyboard.on('keydown-RIGHT', () => {
+      if (!this.lagarta || !this.jogoAtivo) return;
+      this.climberIsDragging = true;
+      this.lagarta.alvoX += 48;
+    });
+    this.input.keyboard.on('keyup-LEFT', () => { this.climberIsDragging = false; });
+    this.input.keyboard.on('keyup-RIGHT', () => { this.climberIsDragging = false; });
 
-    this.jogoAtivo = true;
+    this.jogoAtivo = false;
+    this.introClimbing = false;
+    this.climberIsDragging = false;
+    this.climberLastPointerX = 0;
 
-    const delaySapo = this.config.delayInicioSapo ?? 25000;
+    const delaySapo = this.config.delayInicioSapo ?? 14000;
     this.time.delayedCall(delaySapo, () => {
       this.ativarSapo();
       this.timerSapo = this.time.addEvent({
-        delay: this.config.intervaloSapo || 12000,
+        delay: this.config.intervaloSapo || 9000,
         loop: true,
         callback: () => this.ativarSapo(),
       });
@@ -161,6 +244,121 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  playIntroReveal() {
+    const api = this.caterpillarApi;
+    if (!api?.container) {
+      this.playGameCountdown();
+      return;
+    }
+
+    const centerX = this.trunkCX;
+    this.lagarta.x = centerX;
+    this.lagarta.alvoX = centerX;
+
+    const { height } = this.scale;
+    const riseOffset = Math.round(height * 0.28);
+    const startY = this.anchorY + riseOffset;
+    this.motion.climberY = startY;
+    api.setPosition(centerX, startY);
+    api.setMoving(false);
+
+    this.time.delayedCall(80, () => {
+      api.setAlpha(1);
+      this.introClimbing = true;
+      api.setMoving(true);
+
+      this.tweens.add({
+        targets: this.motion,
+        climberY: this.anchorY,
+        duration: 1050,
+        ease: 'Cubic.easeOut',
+        onUpdate: () => {
+          this.lagarta.x = centerX;
+          this.lagarta.alvoX = centerX;
+          api.setPosition(centerX, this.motion.climberY);
+        },
+        onComplete: () => {
+          this.introClimbing = false;
+          api.setMoving(false);
+          this.lagarta.x = centerX;
+          this.lagarta.alvoX = centerX;
+          api.setPosition(centerX, this.anchorY);
+          this.playGameCountdown();
+        },
+      });
+    });
+  }
+
+  playGameCountdown() {
+    const steps = ['3', '2', '1'];
+    const cx = this.scale.width / 2;
+    const cy = Math.round(this.anchorY - this.scale.height * 0.22);
+    let index = 0;
+
+    playSound(this, 'countdown');
+
+    const showStep = () => {
+      if (index >= steps.length) {
+        this.startGameplay();
+        return;
+      }
+
+      const label = this.add.text(cx, cy, steps[index], {
+        fontFamily: Theme.fontFamily,
+        fontSize: '72px',
+        color: '#1E6A30',
+        fontStyle: 'bold',
+        stroke: '#FFFFFF',
+        strokeThickness: 10,
+      }).setOrigin(0.5).setDepth(220).setScrollFactor(0).setScale(0.4).setAlpha(0);
+
+      this.tweens.add({
+        targets: label,
+        scale: 1.15,
+        alpha: 1,
+        duration: 260,
+        ease: 'Back.easeOut',
+        onComplete: () => {
+          this.tweens.add({
+            targets: label,
+            scale: 1.35,
+            alpha: 0,
+            duration: 300,
+            delay: 200,
+            onComplete: () => {
+              label.destroy();
+              index += 1;
+              showStep();
+            },
+          });
+        },
+      });
+    };
+
+    showStep();
+  }
+
+  startGameplay() {
+    const cx = this.trunkCX;
+    if (this.lagarta) {
+      this.lagarta.x = cx;
+      this.lagarta.alvoX = cx;
+    }
+    this.caterpillarApi?.setPosition(cx, this.getClimberY());
+    this.jogoAtivo = true;
+    this.time.delayedCall(400, () => this.spawnFruitWave());
+  }
+
+  buildGameHud() {
+    if (!this.textures.exists('ui_game_health') || !this.textures.exists('ui_game_score')) return;
+
+    this.gameHud = createGameHud(this, {
+      maxVidas: this.maxVidas,
+      maxScore: this.scoreMax,
+    });
+    this.pinHud(this.gameHud.container);
+  }
+
   buildClimber(width) {
     const bodySize = this.trunkW * CLIMB_BODY_TRUNK_RATIO;
     const climbScale = bodySize / CLIMB_FRAME_HEIGHT;
@@ -182,12 +380,16 @@ export class GameScene extends Phaser.Scene {
           scaleMul: CLIMB_HEAD_SCALE_MUL,
           ballTopRatio: CLIMB_HEAD_BALL_TOP,
           offsetY: CLIMB_HEAD_OFFSET_Y,
+          offsetYPx: CLIMB_HEAD_OFFSET_Y_PX,
+          offsetX: CLIMB_HEAD_OFFSET_X,
+          offsetXPx: CLIMB_HEAD_OFFSET_X_PX,
         },
       },
     );
 
     this.caterpillarApi.setActiveSegmentCount(1);
     this.caterpillarApi.setMoving(false);
+    this.caterpillarApi.setAlpha(0);
 
     this.lagarta = {
       x: this.trunkCX,
@@ -220,12 +422,11 @@ export class GameScene extends Phaser.Scene {
   setupFallingFruits(width, height) {
     if (!this.textures.exists(FOOD_FRUTAS.key)) return;
 
-    this.time.delayedCall(900, () => this.spawnFruitWave());
-
     this.fruitSpawnTimer = this.time.addEvent({
       delay: Phaser.Math.Between(FRUIT_FALL_INTERVAL_MIN, FRUIT_FALL_INTERVAL_MAX),
       loop: true,
       callback: () => {
+        if (!this.jogoAtivo) return;
         this.spawnFruitWave();
         this.fruitSpawnTimer.delay = Phaser.Math.Between(
           FRUIT_FALL_INTERVAL_MIN,
@@ -240,46 +441,157 @@ export class GameScene extends Phaser.Scene {
   }
 
   fruitSpawnBounds() {
-    const halfPlay = this.trunkPlayW * 0.5;
-    const pad = halfPlay * FRUIT_TRUNK_INSET;
+    const { width } = this.scale;
+    const span = width * FRUIT_SPAWN_WIDTH_RATIO;
+    const edgePad = width * 0.04;
     return {
-      minX: Math.round(this.trunkCX - halfPlay + pad),
-      maxX: Math.round(this.trunkCX + halfPlay - pad),
+      minX: Math.round(this.trunkCX - span / 2 + edgePad),
+      maxX: Math.round(this.trunkCX + span / 2 - edgePad),
     };
   }
 
   fruitMinSeparation() {
-    return Math.round(this.trunkW * CLIMB_BODY_TRUNK_RATIO * 0.9);
+    return Math.round(this.trunkW * CLIMB_BODY_TRUNK_RATIO * 0.42);
   }
 
-  pickFruitSpawnX(blockedExtra = []) {
-    const { minX, maxX } = this.fruitSpawnBounds();
-    const minSep = this.fruitMinSeparation();
+  getFruitLandY() {
+    return this.anchorY - 6;
+  }
 
-    const blocked = [
-      ...blockedExtra,
-      ...this.comidas
-        .filter((c) => c.falling && c.sprite?.active)
-        .map((c) => c.sprite.x),
-    ];
+  getFruitDespawnY() {
+    return this.getFruitLandY() + 72;
+  }
 
-    const slots = FRUIT_SPAWN_SLOTS;
-    const span = maxX - minX;
-    const slotW = span / Math.max(1, slots - 1);
-    const order = Phaser.Utils.Array.Shuffle(Array.from({ length: slots }, (_, i) => i));
+  setupFruitPhysics() {
+    const { width, height } = this.scale;
+    const boundsTop = -height * 1.5;
+    const boundsH = height * 2.8;
 
-    for (const slot of order) {
-      const cx = minX + slot * slotW;
-      const jitter = slotW > 0
-        ? Phaser.Math.Between(-Math.round(slotW * 0.22), Math.round(slotW * 0.22))
-        : 0;
-      const x = Phaser.Math.Clamp(Math.round(cx + jitter), minX, maxX);
-      if (!blocked.some((bx) => Math.abs(bx - x) < minSep)) return x;
+    this.physics.world.gravity.y = GAME_FRUIT_GRAVITY;
+    this.physics.world.setBounds(0, boundsTop, width, boundsH);
+
+    if (!this.fruitGroup || typeof this.fruitGroup.add !== 'function') {
+      this.fruitFruitCollider?.destroy?.();
+      this.fruitGroup = this.physics.add.group({
+        collideWorldBounds: false,
+      });
+
+      this.fruitFruitCollider = this.physics.add.collider(
+        this.fruitGroup,
+        this.fruitGroup,
+        this.onFruitFruitHit,
+        null,
+        this,
+      );
     }
+  }
 
-    for (let attempt = 0; attempt < 32; attempt++) {
-      const x = Phaser.Math.Between(minX, maxX);
-      if (!blocked.some((bx) => Math.abs(bx - x) < minSep)) return x;
+  onFruitFruitHit(obj1, obj2) {
+    const f1 = obj1?.body?.immovable ? obj2 : obj1;
+    const f2 = f1 === obj1 ? obj2 : obj1;
+    if (!f1?.body || !f2?.body || f1.body.immovable || f2.body.immovable) return;
+
+    const rel = Math.hypot(
+      f1.body.velocity.x - f2.body.velocity.x,
+      f1.body.velocity.y - f2.body.velocity.y,
+    );
+    if (rel < 18) return;
+
+    const spin = rel * 0.01 * Phaser.Math.FloatBetween(-1, 1);
+    f1.setAngularVelocity((f1.body.angularVelocity ?? 0) + spin);
+    f2.setAngularVelocity((f2.body.angularVelocity ?? 0) - spin);
+
+    const e1 = this.comidas.find((c) => c.sprite === f1);
+    const e2 = this.comidas.find((c) => c.sprite === f2);
+    if (e1) e1.falling = true;
+    if (e2) e2.falling = true;
+  }
+
+  applyFruitLaunchVelocity(sprite, tier, spawn) {
+    const drift = spawn?.drift ?? Phaser.Math.FloatBetween(-1, 1);
+    const vy = Phaser.Math.Between(tier.vy[0], tier.vy[1]);
+    const vx = Phaser.Math.FloatBetween(tier.vx[0], tier.vx[1]) + drift * 14;
+    sprite.setVelocity(vx, vy);
+    sprite.body.setGravityY(tier.gravityExtra);
+    sprite.setData('speedTier', tier.id);
+    sprite.setAngularVelocity(vx * 0.018);
+  }
+
+  updateFruitPhysics(delta) {
+    if (!this.fruitGroup) return;
+
+    const despawnY = this.getFruitDespawnY();
+    const { width, height } = this.scale;
+
+    for (const entry of [...this.comidas]) {
+      const fruit = entry.sprite;
+      if (!fruit?.active || !fruit.body) continue;
+
+      if (fruit.y > despawnY || fruit.y > height + 40 || fruit.x < -120 || fruit.x > width + 120) {
+        this.removeFruit(entry);
+        continue;
+      }
+
+      const vx = fruit.body.velocity.x;
+      const vy = fruit.body.velocity.y;
+      const speed = Math.hypot(vx, vy);
+      const size = fruit.displayWidth || 48;
+
+      entry.falling = vy > 8 || speed > GAME_FRUIT_STOP_SPEED;
+
+      fruit.setDepth(DEPTH_FRUIT + Math.round(fruit.y * 0.08));
+
+      if (speed > 18) {
+        const airSpin = (vx / Math.max(size, 1)) * GAME_FRUIT_AIR_SPIN;
+        fruit.setAngularVelocity(
+          Phaser.Math.Linear(fruit.body.angularVelocity ?? 0, airSpin, 0.04),
+        );
+      }
+    }
+  }
+
+  pickFruitSpawnPoint(blockedExtra = [], preferredLaneX = null) {
+    const { width, height } = this.scale;
+    const { minX, maxX } = this.fruitSpawnBounds();
+    const span = maxX - minX;
+    const minSepBase = this.fruitMinSeparation();
+    const minSepX = minSepBase * 1.05;
+    const minSepY = minSepBase * 0.95;
+    const minY = Math.round(-height * 0.72);
+    const maxY = Math.round(-height * 0.06);
+
+    const laneXs = [
+      minX + span * 0.1,
+      minX + span * 0.32,
+      minX + span * 0.5,
+      minX + span * 0.68,
+      minX + span * 0.9,
+    ];
+    const laneOrder = preferredLaneX != null
+      ? [preferredLaneX]
+      : Phaser.Utils.Array.Shuffle([...laneXs]);
+
+    const isFree = (x, y) => {
+      const sprites = [
+        ...blockedExtra,
+        ...this.comidas.map((c) => c.sprite).filter((s) => s?.active),
+      ];
+      return !sprites.some((s) => {
+        const dx = Math.abs(s.x - x) / minSepX;
+        const dy = Math.abs(s.y - y) / minSepY;
+        return Math.hypot(dx, dy) < 1;
+      });
+    };
+
+    for (const laneX of laneOrder) {
+      for (let attempt = 0; attempt < 10; attempt += 1) {
+        const jitter = Phaser.Math.Between(-Math.round(span * 0.04), Math.round(span * 0.04));
+        const x = Phaser.Math.Clamp(Math.round(laneX + jitter), minX, maxX);
+        const y = Phaser.Math.Between(minY, maxY);
+        if (!isFree(x, y)) continue;
+        const drift = Phaser.Math.Clamp((x - (minX + span / 2)) / (span / 2), -1, 1);
+        return { x, y, drift };
+      }
     }
 
     return null;
@@ -295,45 +607,77 @@ export class GameScene extends Phaser.Scene {
     if (room <= 0) return;
 
     const batch = Phaser.Math.Between(1, room);
-    const usedXs = [];
+    const { minX, maxX } = this.fruitSpawnBounds();
+    const span = maxX - minX;
+    const waveLanes = Phaser.Utils.Array.Shuffle([
+      minX + span * 0.1,
+      minX + span * 0.32,
+      minX + span * 0.5,
+      minX + span * 0.68,
+      minX + span * 0.9,
+    ]).slice(0, batch);
+    const yStep = this.fruitMinSeparation() * 0.9;
+    const usedPoints = [];
     let spawned = 0;
 
-    for (let i = 0; i < batch; i++) {
-      const x = this.pickFruitSpawnX(usedXs);
-      if (x == null) break;
-      usedXs.push(x);
-      this.time.delayedCall(i * 220, () => this.dropFruitAt(x, i));
+    for (let i = 0; i < batch; i += 1) {
+      const point = this.pickFruitSpawnPoint(usedPoints, waveLanes[i]);
+      if (!point) continue;
+      point.y -= Math.round(i * yStep);
+      usedPoints.push({ x: point.x, y: point.y });
+      const timer = this.time.delayedCall(i * 900, () => {
+        if (!this.scene?.isActive() || !this.jogoAtivo) return;
+        this.dropFruitAt(point);
+      });
+      this._pendingFruitTimers.push(timer);
       spawned += 1;
     }
 
     if (spawned > 0) this._lastFruitSpawnAt = now;
   }
 
-  dropFruitAt(x, staggerIndex = 0) {
-    if (!this.jogoAtivo || !this.textures.exists(FOOD_FRUTAS.key)) return;
+  dropFruitAt(spawn) {
+    if (!this.jogoAtivo || !this.scene?.isActive() || !this.textures.exists(FOOD_FRUTAS.key)) return;
 
-    const { height } = this.scale;
+    this.setupFruitPhysics();
+    if (!this.fruitGroup?.add) return;
+
+    const { width } = this.scale;
     const frame = this.pickFruitFrame();
-    const size = Math.round(this.trunkW * 0.17 + Phaser.Math.Between(0, 12));
-    const startY = Phaser.Math.Between(-220, -50) - staggerIndex * 55;
+    const size = Math.round(this.trunkW * 0.15 + Phaser.Math.Between(4, 18));
+    const { minX, maxX } = this.fruitSpawnBounds();
+    const spawnX = Phaser.Math.Clamp(
+      spawn.x + Phaser.Math.Between(-Math.round(width * 0.04), Math.round(width * 0.04)),
+      minX - 40,
+      maxX + 40,
+    );
+    const spawnY = spawn.y;
 
-    const sprite = this.add.image(x, startY, FOOD_FRUTAS.key, frame)
-      .setDisplaySize(size, size)
-      .setDepth(DEPTH_FRUIT)
-      .setScrollFactor(0);
+    const sprite = this.physics.add.image(spawnX, spawnY, FOOD_FRUTAS.key, frame);
+    sprite.setDisplaySize(size, size);
+    sprite.setDepth(DEPTH_FRUIT + Math.round(spawnY * 0.08));
+    sprite.setScrollFactor(0);
+    sprite.setBounce(GAME_FRUIT_BOUNCE);
+    sprite.setDrag(GAME_FRUIT_DRAG);
+    sprite.setAngularDrag(GAME_FRUIT_ANGULAR_DRAG);
+    sprite.setCollideWorldBounds(false);
+    sprite.setData('fruitState', 'falling');
 
-    const entry = { x, sprite, falling: true };
+    const tier = pickFruitSpeedTier();
+    const radius = size * 0.38;
+    const inset = (size - radius * 2) / 2;
+    sprite.body.setCircle(radius, inset, inset);
+    this.applyFruitLaunchVelocity(sprite, tier, { ...spawn, x: spawnX });
+
+    this.fruitGroup.add(sprite);
+
+    const entry = {
+      x: spawnX,
+      sprite,
+      falling: true,
+      multiplier: pickFruitMultiplier(),
+    };
     this.comidas.push(entry);
-
-    const fallMs = Phaser.Math.Between(3200, 5200);
-    this.tweens.add({
-      targets: sprite,
-      y: height + 100,
-      duration: fallMs,
-      ease: 'Quad.easeIn',
-      rotation: Phaser.Math.FloatBetween(-0.2, 0.2),
-      onComplete: () => this.removeFruit(entry),
-    });
   }
 
   spawnFallingFruit() {
@@ -345,7 +689,11 @@ export class GameScene extends Phaser.Scene {
     if (idx >= 0) this.comidas.splice(idx, 1);
     if (entry.sprite?.active) {
       this.tweens.killTweensOf(entry.sprite);
-      entry.sprite.destroy();
+      if (this.fruitGroup?.contains(entry.sprite)) {
+        this.fruitGroup.remove(entry.sprite, true, true);
+      } else {
+        entry.sprite.destroy();
+      }
     }
   }
 
@@ -359,7 +707,7 @@ export class GameScene extends Phaser.Scene {
     this.tutorialGroup = this.add.container(0, 0).setDepth(200);
     this.pinHud(this.tutorialGroup);
 
-    const hint = this.add.text(width / 2, 100, `${this.child.nome}, toque nas frutas!`, {
+    const hint = this.add.text(width / 2, 100, `${this.child.nome}, mova a lagartinha!`, {
       fontFamily: Theme.fontFamily,
       fontSize: '16px',
       color: '#3B3024',
@@ -368,15 +716,6 @@ export class GameScene extends Phaser.Scene {
       padding: { x: 14, y: 8 },
     }).setOrigin(0.5);
     this.tutorialGroup.add(hint);
-
-    const left = this.add.text(48, this.anchorY, '◀', {
-      fontSize: '32px', color: Theme.folhaEscura, fontStyle: 'bold',
-    }).setOrigin(0.5);
-    const right = this.add.text(width - 48, this.anchorY, '▶', {
-      fontSize: '32px', color: Theme.folhaEscura, fontStyle: 'bold',
-    }).setOrigin(0.5);
-    this.tutorialGroup.add([left, right]);
-    this.tweens.add({ targets: [left, right], alpha: { from: 0.4, to: 1 }, duration: 700, yoyo: true, repeat: -1 });
   }
 
   dismissTutorial() {
@@ -443,31 +782,32 @@ export class GameScene extends Phaser.Scene {
     this.avisoText.setX(-totalW / 2 + iconSize + gap);
   }
 
-  moverPara(screenX) {
-    if (this.lagarta) {
-      this.lagarta.alvoX = screenX;
-    }
+  climberBodyHalfWidth() {
+    const bodyW = this.trunkW * CLIMB_BODY_TRUNK_RATIO;
+    return Math.round(bodyW * 0.5 + CLIMB_SWAY_X + 10);
   }
 
-  tentarComerNoToque(px, py) {
-    if (!this.jogoAtivo || this.gameOverActive) return;
-
-    let melhor = null;
-    let melhorDist = 90;
-
-    for (const c of this.comidas) {
-      if (!c.sprite?.active) continue;
-      const d = Phaser.Math.Distance.Between(px, py, c.sprite.x, c.sprite.y);
-      if (d < melhorDist) {
-        melhor = c;
-        melhorDist = d;
-      }
+  resolveClimberMoveBounds(width) {
+    const bodyHalf = this.climberBodyHalfWidth()
+      + Math.max(12, Math.round(width * CLIMBER_EDGE_PAD_RATIO));
+    const ratioHalf = (width * CLIMBER_MOVE_WIDTH_RATIO) * 0.5;
+    let minX = Math.round(this.trunkCX - ratioHalf);
+    let maxX = Math.round(this.trunkCX + ratioHalf);
+    minX = Math.max(bodyHalf, minX);
+    maxX = Math.min(width - bodyHalf, maxX);
+    if (minX > maxX) {
+      const cx = Math.round(this.trunkCX);
+      minX = cx - 12;
+      maxX = cx + 12;
     }
+    return { minX, maxX, bodyHalf };
+  }
 
-    if (melhor && this.lagarta) {
-      this.lagarta.alvoX = melhor.x;
-      this.comer(melhor);
-    }
+  moverPara(screenX) {
+    if (!this.lagarta) return;
+    const { width } = this.scale;
+    const { minX, maxX } = this.resolveClimberMoveBounds(width);
+    this.lagarta.alvoX = Phaser.Math.Clamp(screenX, minX, maxX);
   }
 
   podeComerFruta(sprite) {
@@ -480,32 +820,52 @@ export class GameScene extends Phaser.Scene {
 
   crescerLagarta() {
     if (!this.lagarta) return;
-    const segs = Math.min(MAX_BODY_SEGMENTS, this.pontos + 1);
+    const segs = segmentsForScore(this.pontos, this.scoreMax, MAX_BODY_SEGMENTS);
+    if (segs === this.lagarta.segmentos) return;
+
     this.caterpillarApi?.setActiveSegmentCount(segs);
     this.lagarta.segmentos = segs;
     const bodySize = this.trunkW * CLIMB_BODY_TRUNK_RATIO;
-    this.lagarta.raio = Math.min(bodySize * 0.55, bodySize * 0.42 + this.pontos * 2);
+    this.lagarta.raio = Math.min(bodySize * 0.55, bodySize * 0.42 + (segs - 1) * 8);
   }
 
   ativarSapo() {
-    if (!this.jogoAtivo || this.sapo.ativo) return;
-    if (this.pontos < (this.config.minComidaAntesSapo ?? 4)) return;
+    if (!this.jogoAtivo || this.sapo.ativo || this.sapo.avisoSom) return;
+    if (this.frutasComidas < (this.config.minComidaAntesSapo ?? 4)) return;
 
-    this.sapo.ativo = true;
-    this.sapo.lado = Math.random() < 0.5 ? 0 : 1;
-    this.sapo.estado = 'avisando';
-    this.sapo.timer = 0;
-    this.sapo.lingua = 0;
+    this.sapo.avisoSom = true;
     this.avisar('sapo');
+
+    const mostrarSapo = () => {
+      if (!this.jogoAtivo || this.sapo.ativo) {
+        this.sapo.avisoSom = false;
+        return;
+      }
+      this.sapo.avisoSom = false;
+      this.sapo.ativo = true;
+      this.sapo.lado = Math.random() < 0.5 ? 0 : 1;
+      this.sapo.estado = 'avisando';
+      this.sapo.timer = 0;
+      this.sapo.lingua = 0;
+      this.sapo.frogAnchorY = null;
+      this.sapo.attackAnchored = false;
+    };
+
+    const fallbackMs = GAME_SAPO_SOUND_FALLBACK_MS;
+    playSound(this, 'aiolhaosapo', { volumeMul: 0.85, onComplete: mostrarSapo });
+    this.time.delayedCall(fallbackMs, () => {
+      if (this.sapo.avisoSom) mostrarSapo();
+    });
   }
 
-  avisar(tipo) {
+  avisar(tipo, extra = {}) {
     const nome = this.child.nome;
+    const pts = extra.points ?? 1;
     const msgs = {
-      sapo: `${nome}, cuidado! O sapo tá chegando!`,
-      cresceu: `Uau, ${nome}! A lagartinha cresceu!`,
-      comeu: `${nome} comeu! Nhoc-nhoc!`,
-      sapoHit: `${nome} levou uma lambida do sapo!`,
+      sapo: `Ei ${nome}, sapo na área!`,
+      cresceu: `${nome} cresceu! +1 bolinha`,
+      comeu: `${nome} +${pts} pts`,
+      sapoHit: `${nome} -1 vida`,
     };
 
     this.layoutAvisoContent(tipo, msgs[tipo] || tipo);
@@ -514,21 +874,29 @@ export class GameScene extends Phaser.Scene {
     this.tweens.add({
       targets: this.avisoContainer,
       alpha: { from: 1, to: 0 },
-      delay: 2200,
+      delay: tipo === 'comeu' ? 3400 : (tipo === 'sapo' ? 1200 : 2200),
       duration: 500,
     });
   }
 
   comer(c) {
     this.dismissTutorial();
-    this.pontos = Math.min(this.pontos + 1, this.config.metaComida);
+    const mult = c.multiplier ?? pickFruitMultiplier();
+    this.frutasComidas += 1;
+    this.pontos = Math.min(this.pontos + mult, GAME_SCORE_MAX);
     GameState.setPoints(this, this.pontos);
     playSound(this, 'eat');
+    playSound(this, 'point', { volumeMul: 0.85 });
 
     const pos = { x: c.sprite.x, y: c.sprite.y };
     this.tweens.killTweensOf(c.sprite);
     c.sprite.destroy();
     this.comidas = this.comidas.filter((f) => f !== c);
+
+    showFruitEatPopup(this, pos.x, pos.y, mult);
+    if (this.gameHud) {
+      updateGameHudScore(this.gameHud, this.pontos);
+    }
 
     this.caterpillarApi?.playEat?.();
 
@@ -543,30 +911,34 @@ export class GameScene extends Phaser.Scene {
       });
     }
 
+    const prevSegs = this.lagarta.segmentos;
     this.crescerLagarta();
 
-    if (this.pontos % 4 === 0) {
-      playSound(this, 'cresceu');
+    if (this.lagarta.segmentos > prevSegs) {
+      playSound(this, 'increase');
       this.avisar('cresceu');
     } else {
-      this.avisar('comeu');
+      this.avisar('comeu', { points: mult });
     }
 
     this.time.delayedCall(FRUIT_SPAWN_COOLDOWN_MS, () => this.spawnFallingFruit());
 
-    if (this.pontos >= this.config.metaComida) {
+    if (this.pontos >= GAME_SCORE_MAX) {
       this.jogoAtivo = false;
       this.time.delayedCall(900, () => this.scene.start(SceneKeys.COCOON));
     }
   }
 
-  perderVida(tipo, somId) {
+  perderVida(tipo) {
     if (this.invulneravel > 0 || this.gameOverActive) return;
 
     this.vidas = Math.max(0, this.vidas - 1);
     GameState.setLives(this, this.vidas);
+    if (this.gameHud) {
+      updateGameHudHealth(this.gameHud, this.vidas, this.maxVidas);
+    }
     this.invulneravel = this.config.invulneravelFrames ?? 120;
-    playSound(this, somId);
+    playSound(this, 'hurt');
     this.caterpillarApi?.playHurt?.();
     this.avisar(tipo);
 
@@ -578,45 +950,19 @@ export class GameScene extends Phaser.Scene {
   showGameOver() {
     this.gameOverActive = true;
     this.jogoAtivo = false;
+    ensureBgmPlaying(this);
+    playSound(this, 'fail');
 
-    const { width, height } = this.scale;
-    const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.55).setDepth(300);
-    this.pinHud(overlay);
-
-    const panel = this.add.graphics().setDepth(301);
-    panel.fillStyle(Theme.papel, 1);
-    panel.lineStyle(5, Theme.texto, 1);
-    panel.fillRoundedRect(width / 2 - 280, height / 2 - 120, 560, 240, 28);
-    panel.strokeRoundedRect(width / 2 - 280, height / 2 - 120, 560, 240, 28);
-    this.pinHud(panel);
-
-    const title = this.add.text(width / 2, height / 2 - 70, `Ops, ${this.child.nome}!`, {
-      fontFamily: Theme.fontFamily,
-      fontSize: '38px',
-      color: Theme.fruta,
-      fontStyle: 'bold',
-    }).setOrigin(0.5).setDepth(302);
-
-    const body = this.add.text(width / 2, height / 2 - 20, 'As vidas acabaram!\nMas a lagartinha pode tentar de novo!', {
-      fontFamily: Theme.fontFamily,
-      fontSize: '20px',
-      color: '#3B3024',
-      align: 'center',
-    }).setOrigin(0.5).setDepth(302);
-
-    this.pinHud(title, body);
-
-    createButton(this, width / 2, height / 2 + 70, 'Tentar de novo', {
-      width: 300,
-      fontSize: 24,
-      onClick: () => {
-        playSound(this, 'clique');
+    showGameOverModal(this, {
+      childName: this.child.nome,
+      onRetry: () => {
         GameState.initRun(this);
         this.scene.start(SceneKeys.GAME);
       },
-    }).setDepth(302);
-
-    this.children.bringToTop(overlay);
+      onHome: () => {
+        this.scene.start(SceneKeys.SPLASH);
+      },
+    });
   }
 
   update() {
@@ -626,19 +972,25 @@ export class GameScene extends Phaser.Scene {
     if (this.invulneravel > 0) this.invulneravel--;
 
     const { width } = this.scale;
-    const halfTrunk = this.trunkPlayW * 0.5;
+    const { minX, maxX } = this.resolveClimberMoveBounds(width);
+    this.climberMoveMinX = minX;
+    this.climberMoveMaxX = maxX;
 
     this.lagarta.alvoX = Phaser.Math.Clamp(
       this.lagarta.alvoX,
-      this.trunkCX - halfTrunk,
-      this.trunkCX + halfTrunk,
+      minX,
+      maxX,
     );
-    this.lagarta.x += (this.lagarta.alvoX - this.lagarta.x) * 0.14;
+    this.lagarta.x += (this.lagarta.alvoX - this.lagarta.x) * 0.24;
+    this.lagarta.x = Phaser.Math.Clamp(this.lagarta.x, minX, maxX);
 
     if (this.caterpillarApi) {
       const moveDelta = this.lagarta.alvoX - this.lagarta.x;
-      const isMoving = Math.abs(moveDelta) > 0.6;
+      const easingMove = Math.abs(moveDelta) > 1.2;
+      const isMoving = this.introClimbing
+        || (this.jogoAtivo && (this.climberIsDragging || easingMove));
       this.caterpillarApi.setPosition(this.lagarta.x, this.getClimberY());
+      this.caterpillarApi.setMoving(isMoving);
       const alpha = this.invulneravel > 0 && Math.floor(this.invulneravel / 6) % 2 ? 0.45 : 1;
       this.caterpillarApi.setAlpha(alpha);
       this.caterpillarApi.updateWave(this.time.now * 0.001, isMoving, moveDelta);
@@ -657,27 +1009,17 @@ export class GameScene extends Phaser.Scene {
     if (this.sapo.ativo) {
       this.sapo.timer++;
       const head = this.getHeadPos();
-      if (this.sapo.estado === 'avisando' && this.sapo.timer > 55) {
+      if (this.sapo.estado === 'avisando' && this.sapo.timer > GAME_SAPO_AVISO_FRAMES) {
         this.sapo.estado = 'atacando';
         this.sapo.timer = 0;
+        this.sapo.frogAnchorY = head.y;
+        this.sapo.attackAnchored = false;
         playSound(this, 'lingua');
       }
-      if (this.sapo.estado === 'atacando') {
-        this.sapo.lingua += width * 0.02;
-        const px = this.sapo.lado === 0 ? this.sapo.lingua : width - this.sapo.lingua;
-        if (
-          Math.abs(px - head.x) < this.lagarta.raio + 14
-          && this.tonta === 0 && this.invulneravel === 0
-        ) {
-          this.perderVida('sapoHit', 'ai');
-          this.tonta = 70;
-          this.sapo.estado = 'voltando';
-        }
-        if (this.sapo.lingua > width * 0.6) this.sapo.estado = 'voltando';
-      }
-      if (this.sapo.estado === 'voltando') {
-        this.sapo.lingua -= width * 0.035;
-        if (this.sapo.lingua <= 0) this.sapo.ativo = false;
+      if (this.sapo.estado === 'voltando' && this.sapo.timer > GAME_SAPO_VOLTANDO_FRAMES) {
+        this.sapo.ativo = false;
+        this.sapo.frogAnchorY = null;
+        this.sapo.attackAnchored = false;
       }
     }
 
@@ -691,6 +1033,130 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.drawGameplayOverlay();
+    this.updateFrogSprite();
+    this.updateFruitPhysics(this.game.loop.delta);
+  }
+
+  ensureFrogSprite() {
+    if (!this.textures.exists(FROG_ATTACK_KEY)) return;
+
+    const scale = getGameFrogAttackScale(this.scale.width);
+    if (this.frogSprite?.active) {
+      syncFrogAttackDisplay(this.frogSprite, scale);
+      this.frogSprite.setData('frogAttackScale', scale);
+      return;
+    }
+
+    this.frogSprite = this.add.sprite(0, 0, FROG_ATTACK_KEY, 0)
+      .setOrigin(FROG_ATTACK_ORIGIN_X, FROG_ATTACK_ORIGIN_Y)
+      .setDepth(31)
+      .setScrollFactor(0)
+      .setVisible(false);
+    syncFrogAttackDisplay(this.frogSprite, scale);
+    this.frogSprite.setData('frogAttackScale', scale);
+  }
+
+  checkSapoHitOnAttackFrame() {
+    if (this.sapo.estado !== 'atacando' || this.tonta > 0 || this.invulneravel > 0) return;
+
+    const spr = this.frogSprite;
+    if (!spr?.active) return;
+
+    const head = this.getHeadPos();
+    const fromLeft = this.sapo.lado === 0;
+    const tongueX = fromLeft
+      ? spr.x + spr.displayWidth * 0.78
+      : spr.x - spr.displayWidth * 0.78;
+
+    if (
+      Math.abs(tongueX - head.x) < this.lagarta.raio + 48
+      && Math.abs(head.y - spr.y) < 88
+    ) {
+      this.perderVida('sapoHit');
+      this.tonta = 70;
+      stopFrogAttackAnim(spr);
+      this.sapo.estado = 'voltando';
+      this.sapo.attackAnchored = false;
+      this.sapo.timer = 0;
+    }
+  }
+
+  beginSapoAttackAnim() {
+    const spr = this.frogSprite;
+    if (!spr?.active) return;
+
+    playFrogAttackAnim(spr, this, {
+      onFrame: (frame) => {
+        if (frame === FROG_ATTACK_FRAME_COUNT - 1) this.checkSapoHitOnAttackFrame();
+      },
+      onComplete: () => {
+        if (this.sapo?.estado === 'atacando') {
+          this.sapo.estado = 'voltando';
+          this.sapo.attackAnchored = false;
+          this.sapo.timer = 0;
+        }
+      },
+    });
+  }
+
+  updateFrogSprite() {
+    if (!this.sapo?.ativo) {
+      if (this.frogSprite?.active) stopFrogAttackAnim(this.frogSprite);
+      this.frogSprite?.setVisible(false);
+      return;
+    }
+
+    this.ensureFrogSprite();
+    const spr = this.frogSprite;
+    if (!spr?.active) return;
+
+    const { width } = this.scale;
+    const head = this.getHeadPos();
+    const fromLeft = this.sapo.lado === 0;
+    const lockY = this.sapo.frogAnchorY ?? head.y;
+
+    spr.setVisible(true);
+
+    if (this.sapo.estado === 'avisando') {
+      const pul = Math.sin(this.sapo.timer * 0.3) * 4;
+      stopFrogAttackAnim(spr);
+      this.sapo.attackAnchored = false;
+      anchorFrogAttackSprite(spr, {
+        screenWidth: width,
+        y: head.y,
+        fromLeft,
+        yOffset: pul,
+        useGameLayout: true,
+      });
+      setFrogAttackFrame(spr, 0);
+      return;
+    }
+
+    if (this.sapo.estado === 'atacando') {
+      if (this.sapo.frogAnchorY == null) this.sapo.frogAnchorY = head.y;
+      if (!this.sapo.attackAnchored) {
+        anchorFrogAttackSprite(spr, {
+          screenWidth: width,
+          y: this.sapo.frogAnchorY,
+          fromLeft,
+          useGameLayout: true,
+        });
+        this.sapo.attackAnchored = true;
+        this.beginSapoAttackAnim();
+      }
+      return;
+    }
+
+    stopFrogAttackAnim(spr);
+    this.sapo.attackAnchored = false;
+    anchorFrogAttackSprite(spr, {
+      screenWidth: width,
+      y: lockY,
+      fromLeft,
+      useGameLayout: true,
+    });
+    const backFrame = this.sapo.timer > 7 ? (this.sapo.timer > 14 ? 0 : 1) : 2;
+    setFrogAttackFrame(spr, backFrame);
   }
 
   drawDebugOverlay() {
@@ -700,6 +1166,33 @@ export class GameScene extends Phaser.Scene {
 
     if (this.trunkBg?.getBounds) {
       drawBoundsHit(g, this.trunkBg.getBounds(), 0x8B5A2B, 0.08);
+    }
+
+    if (this.climberMoveMinX != null && this.climberMoveMaxX != null) {
+      const { height } = this.scale;
+      const zoneW = this.climberMoveMaxX - this.climberMoveMinX;
+      drawBoundsHit(g, {
+        x: this.climberMoveMinX,
+        y: 0,
+        width: zoneW,
+        height,
+      }, 0x2196F3, 0.07);
+      g.lineStyle(2, 0x2196F3, 0.9);
+      g.lineBetween(this.climberMoveMinX, 0, this.climberMoveMinX, height);
+      g.lineBetween(this.climberMoveMaxX, 0, this.climberMoveMaxX, height);
+    }
+
+    const fruitBounds = this.fruitSpawnBounds?.();
+    if (fruitBounds) {
+      const { height } = this.scale;
+      const fruitTop = Math.round(height * 0.12);
+      const fruitH = Math.round(height * 0.78);
+      drawBoundsHit(g, {
+        x: fruitBounds.minX,
+        y: fruitTop,
+        width: fruitBounds.maxX - fruitBounds.minX,
+        height: fruitH,
+      }, 0xFF9800, 0.06);
     }
 
     if (this.caterpillarApi?.container?.getBounds) {
@@ -718,55 +1211,42 @@ export class GameScene extends Phaser.Scene {
   drawGameplayOverlay() {
     const g = this.gameplayG;
     g.clear();
-    this.drawFrog(g);
     this.particulas.forEach((p) => {
       g.fillStyle(p.cor, Math.max(p.vida, 0));
       g.fillCircle(p.x, p.y, 5);
     });
   }
 
-  drawFrog(g) {
-    if (!this.sapo.ativo) return;
-
-    const { width } = this.scale;
-    const head = this.getHeadPos();
-    const frogY = head.y;
-    const x = this.sapo.lado === 0 ? 0 : width;
-    const dir = this.sapo.lado === 0 ? 1 : -1;
-
-    if (this.sapo.lingua > 0) {
-      g.lineStyle(14, 0xFF6B8A, 1);
-      g.lineBetween(x, frogY, x + dir * this.sapo.lingua, frogY);
-      g.fillStyle(0xFF4D73, 1);
-      g.fillCircle(x + dir * this.sapo.lingua, frogY, 13);
-    }
-
-    const pul = this.sapo.estado === 'avisando' ? Math.sin(this.sapo.timer * 0.3) * 4 : 0;
-    g.fillStyle(0x3E8E41, 1);
-    g.fillCircle(x, frogY + 10 + pul, 46);
-    g.fillCircle(x + dir * 14, frogY - 32 + pul, 16);
-    g.fillCircle(x + dir * 42, frogY - 26 + pul, 16);
-    g.fillStyle(0xffffff, 1);
-    g.fillCircle(x + dir * 14, frogY - 32 + pul, 9);
-    g.fillCircle(x + dir * 42, frogY - 26 + pul, 9);
-    g.fillStyle(0x222222, 1);
-    g.fillCircle(x + dir * 16, frogY - 32 + pul, 4);
-    g.fillCircle(x + dir * 44, frogY - 26 + pul, 4);
-  }
-
   shutdown() {
     this.ready = false;
+    ensureBgmPlaying(this);
     this.timerSapo?.remove();
     this.fruitSpawnTimer?.remove();
+    this._pendingFruitTimers?.forEach((timer) => timer?.remove?.());
+    this._pendingFruitTimers = [];
     if (this.debugDraw) this.events.off('update', this.debugDraw);
     this.debugGfx?.destroy();
     this.comidas.forEach((c) => {
       this.tweens.killTweensOf(c.sprite);
-      c.sprite?.destroy();
+      if (c.sprite?.active) {
+        if (this.fruitGroup?.contains(c.sprite)) {
+          this.fruitGroup.remove(c.sprite, true, true);
+        } else {
+          c.sprite.destroy();
+        }
+      }
     });
     this.comidas = [];
+    this.fruitGroup?.clear(true, true);
+    this.fruitFruitCollider = null;
+    this.fruitGroup = null;
+    if (this.physics?.world) this.physics.world.gravity.y = 0;
     this.caterpillarApi?.destroy?.();
     this.caterpillarApi = null;
     this.lagarta = null;
+    this.gameHud?.container?.destroy?.();
+    this.gameHud = null;
+    this.frogSprite?.destroy();
+    this.frogSprite = null;
   }
 }

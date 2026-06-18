@@ -90,11 +90,24 @@
             { "x": 2170, "y": 9, "width": 430, "height": 491 }
           ]
         },
+        "climbIdle": {
+          "spritesheet": "sprites/characters/caterpillar/parada_subindo.png",
+          "frameWidth": 702,
+          "frameHeight": 681,
+          "frameCount": 1,
+          "frameCrops": [
+            { "x": 45, "y": 92, "width": 612, "height": 392 }
+          ]
+        },
         "climb": {
           "spritesheet": "sprites/characters/caterpillar/subindo.png",
           "frameWidth": 702,
           "frameHeight": 681,
-          "frameCount": 2
+          "frameCount": 2,
+          "frameCrops": [
+            { "x": 45, "y": 104, "width": 610, "height": 392 },
+            { "x": 44, "y": 788, "width": 619, "height": 392 }
+          ]
         }
       },
       "displayScale": 0.21,
@@ -173,9 +186,8 @@
         },
         "climb": {
           "sheet": "climb",
-          "start": 0,
-          "end": 1,
-          "frameRate": 6,
+          "frames": [0, 1, 0, 1, 0],
+          "frameRate": 5,
           "repeat": -1
         }
       },

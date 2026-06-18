@@ -83,7 +83,7 @@ export function patchAllCharacterBodyFrames(scene) {
   }
 }
 
-const BODY_SHEET_NAMES = ['idle', 'walk', 'rise'];
+const BODY_SHEET_NAMES = ['idle', 'walk', 'rise', 'climb', 'climbIdle'];
 const HEAD_SHEET_NAMES = ['headIdle', 'headWalk', 'headRise'];
 
 function patchSheetFrameCrops(scene, charId, sheetName, sheetCfg) {
@@ -202,6 +202,7 @@ export function getCharacterTextureKeys(childId) {
       idle: `${base}_idle`,
       rise: `${base}_rise`,
       climb: `${base}_climb`,
+      climbIdle: `${base}_climbIdle`,
       headWalk: `${base}_headWalk`,
       headIdle: `${base}_headIdle`,
       headRise: `${base}_headRise`,

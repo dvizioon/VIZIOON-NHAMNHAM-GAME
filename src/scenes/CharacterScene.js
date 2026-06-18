@@ -17,7 +17,7 @@ import {
 } from '../config/characterUiConfig.js';
 import { createCharacterFace } from '../ui/characterAvatar.js';
 import { openCharacterDetailModal } from '../ui/characterModal.js';
-import { registerSelectedPerson } from '../services/playerSession.js';
+import { registerSelectedPerson, ensurePlayerSession } from '../services/playerSession.js';
 
 const NAV_GREEN = '#1E6A30';
 const SEARCH_BORDER_COLOR = 0x1E6A30;
@@ -79,6 +79,7 @@ export class CharacterScene extends Phaser.Scene {
 
   async create() {
     const { width, height } = this.scale;
+    await ensurePlayerSession(this);
     this.criancas = filterCriancasAtivas(GameState.getCriancas(this));
     this.filtered = [...this.criancas];
 

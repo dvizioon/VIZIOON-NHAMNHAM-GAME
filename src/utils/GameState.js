@@ -1,6 +1,8 @@
 import { RegistryKeys, defaultSettings, SceneKeys } from '../config/constants.js';
 import { GUEST_PLAYER_NAME } from '../ui/playerNameUi.js';
+import { formatGuestChipCode } from '../utils/guestCode.js';
 import { CORES } from '../config/theme.js';
+import { loadGuestSessionToken } from '../services/gameApi.js';
 
 /** Helpers para ler/gravar estado global via registry */
 export const GameState = {
@@ -121,8 +123,22 @@ export const GameState = {
 
   hasActiveGuestSession(scene) {
     const session = this.getPlayerSession(scene);
-    if (!session?.isGuest) return false;
-    return Boolean(session.sessionToken);
+    if (session?.isGuest) {
+      return Boolean(session.sessionToken || loadGuestSessionToken());
+    }
+    return Boolean(loadGuestSessionToken());
+  },
+
+  /** Nome no chip da splash — visitante: visit_abc123 */
+  getSessionChipName(scene) {
+    if (this.isOnlineConnected(scene)) {
+      return this.getPlayerSession(scene)?.displayName ?? 'Jogador';
+    }
+    if (this.hasActiveGuestSession(scene)) {
+      const session = this.getPlayerSession(scene) ?? { isGuest: true };
+      return formatGuestChipCode(session) ?? GUEST_PLAYER_NAME;
+    }
+    return null;
   },
 
   /** Nome exibido no ranking: conta → displayName; visitante → "Visitante" */

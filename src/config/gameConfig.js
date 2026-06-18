@@ -14,6 +14,8 @@ import { CocoonScene } from '../scenes/CocoonScene.js';
 import { VictoryScene } from '../scenes/VictoryScene.js';
 import { CaterpillarDebugScene } from '../debug/CaterpillarDebugScene.js';
 import { FrogDebugScene } from '../debug/FrogDebugScene.js';
+import { FrogAttackDebugScene } from '../debug/FrogAttackDebugScene.js';
+import { ScoreHudDebugScene } from '../debug/ScoreHudDebugScene.js';
 
 export function createGameConfig() {
   return {
@@ -63,6 +65,8 @@ export function createGameConfig() {
       VictoryScene,
       CaterpillarDebugScene,
       FrogDebugScene,
+      FrogAttackDebugScene,
+      ScoreHudDebugScene,
     ],
   };
 }

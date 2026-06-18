@@ -8,6 +8,16 @@ import {
   queueLoadingUiAssets,
 } from '../ui/loadingUi.js';
 
+async function fetchLocalJson(path) {
+  try {
+    const res = await fetch(path);
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+
 export class BootScene extends Phaser.Scene {
   constructor() {
     super(SceneKeys.BOOT);
@@ -26,15 +36,27 @@ export class BootScene extends Phaser.Scene {
     let criancas = [];
     let gameConfig = { ...DEFAULT_GAME_RULES };
 
+    const [localCriancas, localRules] = await Promise.all([
+      fetchLocalJson('assets/data/criancas.json'),
+      fetchLocalJson('assets/data/game-rules.json'),
+    ]);
+
+    if (Array.isArray(localCriancas) && localCriancas.length) {
+      criancas = localCriancas;
+    }
+    if (localRules) {
+      gameConfig = normalizeGameRules(localRules);
+    }
+
     if (GameApi.isEnabled()) {
       const [charactersResult, rulesResult] = await Promise.allSettled([
         GameApi.fetchCharacters(),
         GameApi.fetchGameRules(),
       ]);
 
-      if (charactersResult.status === 'fulfilled') {
+      if (charactersResult.status === 'fulfilled' && charactersResult.value?.length) {
         criancas = mapApiCharactersList(charactersResult.value);
-      } else {
+      } else if (charactersResult.status === 'rejected') {
         console.warn('[GameApi] catálogo indisponível', charactersResult.reason?.message);
       }
 

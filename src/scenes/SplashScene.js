@@ -26,7 +26,7 @@ import { FOOD_FRUTAS } from '../config/foodConfig.js';
 import { SplashFrogChase } from '../systems/SplashFrogChase.js';
 import { SPLASH_FROG_ENABLED, SPLASH_FROG_CHANCE, getSplashFrogDisplayScale, getSplashFrogJumpArc, getSplashFrogGroundY } from '../config/introFrogConfig.js';
 import {
-  restoreAnyPlayerSession,
+  ensurePlayerSession,
   startPlayFromSplash,
 } from '../services/playerSession.js';
 import {
@@ -85,7 +85,7 @@ export class SplashScene extends Phaser.Scene {
     const { width, height } = this.scale;
     drawSkyBackground(this);
     ensureBgmPlaying(this);
-    await restoreAnyPlayerSession(this);
+    await ensurePlayerSession(this);
 
     const groundLine = getGroundY(this);
     const caterpillarY = groundLine + height * SPLASH_CATERPILLAR_GROUND_OFFSET_RATIO;
@@ -146,9 +146,6 @@ export class SplashScene extends Phaser.Scene {
           : undefined,
       });
       caterpillar.enablePetInteraction?.(() => playSound(this, 'clique'));
-      this.events.on('update', () => {
-        caterpillar.updateWave(this.time.now * 0.001, caterpillar.isMoving);
-      });
     }
 
     this.events.once('shutdown', () => {

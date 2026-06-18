@@ -13,7 +13,6 @@ import {
   FROG_JUMP_ORIGIN_X,
   FROG_JUMP_ORIGIN_Y,
 } from '../config/introFrogConfig.js';
-import { playSound } from './ProceduralAudio.js';
 
 /** Turno solo do sapo na Splash — só entra depois que a lagarta saiu da tela */
 export class SplashFrogChase {
@@ -175,10 +174,6 @@ export class SplashFrogChase {
         tryDone();
       },
     });
-
-    if (!final) {
-      playSound(this.scene, 'clique', { volumeMul: 0.24 });
-    }
   }
 
   destroy() {

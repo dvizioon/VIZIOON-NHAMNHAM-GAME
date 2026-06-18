@@ -33,6 +33,8 @@ export const SceneKeys = {
   VICTORY: 'VictoryScene',
   CATERPILLAR_DEBUG: 'CaterpillarDebugScene',
   FROG_DEBUG: 'FrogDebugScene',
+  FROG_ATTACK_DEBUG: 'FrogAttackDebugScene',
+  SCORE_HUD_DEBUG: 'ScoreHudDebugScene',
 };
 
 export const defaultSettings = {

@@ -122,7 +122,6 @@ export class LoginScene extends Phaser.Scene {
     });
 
     this.input.keyboard.on('keydown-ENTER', () => connect());
-    usernameField.focus();
   }
 
   spawnPassingFrog() {
