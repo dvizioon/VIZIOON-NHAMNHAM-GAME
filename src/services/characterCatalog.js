@@ -1,4 +1,6 @@
 /** Converte personagem da API para o formato usado pelo jogo (Phaser/sprites) */
+import { normalizeCriancaRecord } from '../config/characterUiConfig.js';
+
 function normalizeLocalAssetPath(path) {
   if (!path) return null;
   if (/^https?:\/\//i.test(path)) return path;
@@ -11,7 +13,7 @@ export function mapApiCharacterToCrianca(character) {
   const personKey = character.personKey ?? character.person_key ?? character.slug;
   const cabeca = character.cabeca ?? normalizeLocalAssetPath(character.cabecaPath);
 
-  return {
+  return normalizeCriancaRecord({
     id: personKey,
     characterUuid: character.id,
     nome: character.nome,
@@ -21,7 +23,7 @@ export function mapApiCharacterToCrianca(character) {
     personalidade: character.personalidade ?? null,
     cabeca,
     ativo: character.ativo !== false,
-  };
+  });
 }
 
 export function mapApiCharactersList(list = []) {

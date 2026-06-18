@@ -3,6 +3,7 @@ import { GUEST_PLAYER_NAME } from '../ui/playerNameUi.js';
 import { formatGuestChipCode } from '../utils/guestCode.js';
 import { CORES } from '../config/theme.js';
 import { loadGuestSessionToken } from '../services/gameApi.js';
+import { normalizeCriancaRecord } from '../config/characterUiConfig.js';
 
 /** Helpers para ler/gravar estado global via registry */
 export const GameState = {
@@ -28,7 +29,7 @@ export const GameState = {
   },
 
   setChild(scene, child) {
-    scene.registry.set(RegistryKeys.CHILD, child);
+    scene.registry.set(RegistryKeys.CHILD, normalizeCriancaRecord(child));
   },
 
   getCustom(scene) {

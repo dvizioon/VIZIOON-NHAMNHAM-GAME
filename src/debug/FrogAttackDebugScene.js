@@ -12,6 +12,7 @@ import {
   FROG_ATTACK_ORIGIN_X,
   FROG_ATTACK_ORIGIN_Y,
   DEFAULT_FROG_ATTACK_TUNE,
+  getGameFrogEdgeInset,
   getGameFrogAttackScale,
   syncFrogAttackDisplay,
   anchorFrogAttackSprite,
@@ -153,7 +154,7 @@ export class FrogAttackDebugScene extends Phaser.Scene {
         onFrame: () => this.refreshHeadGuide(),
         onComplete: () => {
           if (this.attackLoopActive) {
-            this.time.delayedCall(380, loop);
+            this.time.delayedCall(260, loop);
           }
         },
       });
@@ -288,7 +289,9 @@ export class FrogAttackDebugScene extends Phaser.Scene {
   }
 
   nudgeInset(delta) {
-    this.tune.edgeInsetPx = Phaser.Math.Clamp(this.tune.edgeInsetPx + delta, 0, 200);
+    const key = this.fromLeft ? 'edgeInsetLeftPx' : 'edgeInsetRightPx';
+    const max = this.fromLeft ? 200 : 320;
+    this.tune[key] = Phaser.Math.Clamp((this.tune[key] ?? getGameFrogEdgeInset(this.fromLeft, this.tune)) + delta, 0, max);
     this.relayoutFrog();
   }
 
@@ -337,8 +340,9 @@ export class FrogAttackDebugScene extends Phaser.Scene {
   refreshInfo() {
     const t = this.tune;
     const side = this.fromLeft ? 'esq' : 'dir';
+    const inset = getGameFrogEdgeInset(this.fromLeft, t);
     this.infoText?.setText(
-      `cabeça Y=${this.headY}  ·  lado ${side}  ·  borda ${t.edgeInsetPx}px  ·  Y+${t.yOffsetPx}px  ·  largura ${t.widthRatio.toFixed(2)}  ·  escala ${t.scaleMul.toFixed(2)}  ·  tronco ${Math.round(this.scale.width * TRUNK_PLAY_WIDTH_RATIO)}px`,
+      `cabeça Y=${this.headY}  ·  lado ${side}  ·  borda ${inset}px (esq ${t.edgeInsetLeftPx} / dir ${t.edgeInsetRightPx})  ·  Y+${t.yOffsetPx}px  ·  largura ${t.widthRatio.toFixed(2)}  ·  escala ${t.scaleMul.toFixed(2)}  ·  tronco ${Math.round(this.scale.width * TRUNK_PLAY_WIDTH_RATIO)}px`,
     );
   }
 

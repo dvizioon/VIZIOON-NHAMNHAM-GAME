@@ -18,7 +18,7 @@ const HEALTH_BAR = { x: 61, w: 164, h: 17, cy: HEALTH_YELLOW_BAR.y + HEALTH_YELL
 const SCORE_SVG = { w: 85, h: 240 };
 /** Tubo interno — alinhado ao retângulo amarelo do Score.svg (29.5, 33×209) */
 export const DEFAULT_SCORE_HUD_TUNE = {
-  tube: { cx: 47, y: 50, w: 25, h: 188, rx: 15 },
+  tube: { cx: 47, y: 60, w: 25, h: 188, rx: 15 },
   xNudge: -0.9,
   fillPadTop: 12,
   fillPadBottom: 14,

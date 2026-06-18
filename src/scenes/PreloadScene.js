@@ -24,6 +24,7 @@ import {
   getCharacterHeadSheetLoadOpts,
   listCharacterHeadAssets,
   listCharacterFaceAssets,
+  normalizeCriancasList,
 } from '../config/characterUiConfig.js';
 import {
   ENV_SKY_KEY,
@@ -86,7 +87,7 @@ export class PreloadScene extends Phaser.Scene {
 
   preload() {
     this.loadingUi = buildLoadingScreen(this);
-    this.criancasData = this.registry.get(RegistryKeys.CRIANCAS) ?? [];
+    this.criancasData = normalizeCriancasList(this.registry.get(RegistryKeys.CRIANCAS) ?? []);
 
     this.load.on('progress', (value) => {
       this.loadingUi.setProgress(value);
@@ -245,7 +246,7 @@ export class PreloadScene extends Phaser.Scene {
       }
     }
 
-    const criancas = criancasData;
+    const criancas = normalizeCriancasList(criancasData);
 
     const gameConfig = this.registry.get(RegistryKeys.GAME_CONFIG) ?? { ...DEFAULT_GAME_RULES };
 

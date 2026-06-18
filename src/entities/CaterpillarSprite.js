@@ -7,6 +7,7 @@ import {
 } from '../systems/SpriteLoader.js';
 import {
   attachCharacterCabecaToClimb,
+  attachCaterpillarHeadIdleToClimb,
   syncCabecaToClimbBody,
 } from '../ui/characterAvatar.js';
 import {
@@ -905,26 +906,33 @@ export class CaterpillarSprite {
     }
 
     let childHeadSprite = null;
+
+    const attachChildHeadToFront = () => {
+      if (!useClimb || !child) return null;
+      const topSeg = frontSegment();
+      if (!topSeg) return null;
+
+      return attachCharacterCabecaToClimb(scene, container, topSeg, child, scale, headCfg)
+        ?? attachCaterpillarHeadIdleToClimb(scene, container, topSeg, scale, headCfg);
+    };
+
+    const ensureChildHead = () => {
+      if (childHeadSprite?.active) return childHeadSprite;
+      childHeadSprite = attachChildHeadToFront();
+      return childHeadSprite;
+    };
+
     const syncChildHead = () => {
-      if (!childHeadSprite?.active) return;
+      const head = ensureChildHead();
+      if (!head?.active) return;
       const seg = frontSegment();
       if (!seg) return;
-      syncCabecaToClimbBody(childHeadSprite, seg, scale, headCfg);
-      container.bringToTop(childHeadSprite);
+      syncCabecaToClimbBody(head, seg, scale, headCfg);
+      container.bringToTop(head);
     };
 
     if (useClimb && child) {
-      const topSeg = frontSegment();
-      if (topSeg) {
-        childHeadSprite = attachCharacterCabecaToClimb(
-          scene,
-          container,
-          topSeg,
-          child,
-          scale,
-          headCfg,
-        );
-      }
+      childHeadSprite = attachChildHeadToFront();
     }
 
     function playSegAnim(sprite, moving, staggerMs = 0, index = 0) {
@@ -998,6 +1006,13 @@ export class CaterpillarSprite {
       syncHeadToFront,
 
       getHeadPosition() {
+        const headSpr = childHeadSprite?.active ? childHeadSprite : headSprite;
+        if (headSpr?.active) {
+          return {
+            x: container.x + headSpr.x,
+            y: container.y + headSpr.y,
+          };
+        }
         if (layout === 'horizontal') {
           return { x: container.x + headOffsetX, y: container.y };
         }

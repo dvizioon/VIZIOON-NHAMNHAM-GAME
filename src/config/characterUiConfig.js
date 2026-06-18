@@ -40,6 +40,32 @@ export const CHAR_GRID_ROWS = 2;
 
 export const CHAR_PER_PAGE = CHAR_GRID_COLS * CHAR_GRID_ROWS;
 
+/** Caminho completo do PNG da cabeça (childs/) */
+export function resolveCharacterCabecaPath(cabeca) {
+  if (!cabeca) return null;
+  if (/^https?:\/\//i.test(cabeca)) return cabeca;
+  if (cabeca.startsWith('assets/')) {
+    if (/^assets\/[^/]+\.png$/i.test(cabeca)) {
+      return `assets/sprites/characters/childs/${cabeca.slice('assets/'.length)}`;
+    }
+    return cabeca;
+  }
+  return `assets/sprites/characters/childs/${cabeca}`;
+}
+
+export function normalizeCriancaRecord(crianca) {
+  if (!crianca || typeof crianca !== 'object') return crianca;
+  if (!crianca.cabeca) return { ...crianca };
+  return {
+    ...crianca,
+    cabeca: resolveCharacterCabecaPath(crianca.cabeca),
+  };
+}
+
+export function normalizeCriancasList(criancas = []) {
+  return criancas.map(normalizeCriancaRecord);
+}
+
 
 
 /** Largura de referência do layout mobile (px) */
@@ -91,9 +117,7 @@ export function listCharacterHeadAssets(criancas = []) {
     .filter((c) => c.cabeca)
     .map((c) => ({
       key: getCharacterHeadSheetKey(c),
-      path: c.cabeca.startsWith('http') ? c.cabeca : (
-        c.cabeca.startsWith('assets/') ? c.cabeca : `assets/${c.cabeca}`
-      ),
+      path: resolveCharacterCabecaPath(c.cabeca),
     }));
 }
 

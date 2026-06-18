@@ -7,7 +7,7 @@ import { DEFAULT_GAME_RULES } from '../services/gameRules.js';
  *
  * ids disponíveis:
  * - splash       → tela inicial
- * - telaarvore   → lagarta subindo no tronco (cabeça card de debug)
+ * - telaarvore   → lagarta subindo no tronco (cabeça da criança escolhida)
  * - telasubindo  → alias de telaarvore
  * - telalargata  → debug sprites lagarta (parada/andando/erguida)
  * - telasapo     → debug sapo (atacando + pulando)
@@ -75,8 +75,11 @@ export function seedDebugState(scene) {
 
   if (!needsChild) return;
 
+  const criancas = scene.registry.get(RegistryKeys.CRIANCAS) ?? [];
+  const defaultChild = criancas.find((c) => c.ativo !== false) ?? criancas[0];
+
   if (!scene.registry.get(RegistryKeys.CHILD)) {
-    scene.registry.set(RegistryKeys.CHILD, { ...DEBUG_CHILD });
+    scene.registry.set(RegistryKeys.CHILD, defaultChild ? { ...defaultChild } : { ...DEBUG_CHILD });
   }
   if (!scene.registry.get(RegistryKeys.CUSTOM)) {
     scene.registry.set(RegistryKeys.CUSTOM, { ...DEBUG_CUSTOM });
@@ -89,9 +92,5 @@ export function seedDebugState(scene) {
   }
   if (!scene.registry.get(RegistryKeys.SETTINGS)) {
     scene.registry.set(RegistryKeys.SETTINGS, { ...defaultSettings });
-  }
-
-  if (initialKey === SceneKeys.TRUNK_INTRO) {
-    scene.registry.set(REGISTRY_DEBUG_CARD_HEAD, true);
   }
 }

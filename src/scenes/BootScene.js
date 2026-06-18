@@ -4,6 +4,7 @@ import { ProceduralAudio } from '../systems/ProceduralAudio.js';
 import { GameApi } from '../services/gameApi.js';
 import { mapApiCharactersList } from '../services/characterCatalog.js';
 import { DEFAULT_GAME_RULES, normalizeGameRules } from '../services/gameRules.js';
+import { normalizeCriancasList } from '../config/characterUiConfig.js';
 import {
   queueLoadingUiAssets,
 } from '../ui/loadingUi.js';
@@ -67,7 +68,7 @@ export class BootScene extends Phaser.Scene {
       }
     }
 
-    this.registry.set(RegistryKeys.CRIANCAS, criancas);
+    this.registry.set(RegistryKeys.CRIANCAS, normalizeCriancasList(criancas));
     this.registry.set(RegistryKeys.GAME_CONFIG, gameConfig);
     this.scene.start(SceneKeys.PRELOAD);
   }

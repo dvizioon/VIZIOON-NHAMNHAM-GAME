@@ -158,7 +158,12 @@ export class GameScene extends Phaser.Scene {
       timer: 0,
       frogAnchorY: null,
       attackAnchored: false,
+      avisandoAnchored: false,
+      voltandoAnchored: false,
+      attackId: 0,
+      layoutLado: null,
     };
+    this.sapoSomFallback = null;
 
     this.setupFallingFruits(width, height);
 
@@ -833,14 +838,20 @@ export class GameScene extends Phaser.Scene {
     if (!this.jogoAtivo || this.sapo.ativo || this.sapo.avisoSom) return;
     if (this.frutasComidas < (this.config.minComidaAntesSapo ?? 4)) return;
 
+    this.sapoSomFallback?.remove();
+    this.sapoSomFallback = null;
     this.sapo.avisoSom = true;
+    this.sapo.spawned = false;
     this.avisar('sapo');
 
     const mostrarSapo = () => {
-      if (!this.jogoAtivo || this.sapo.ativo) {
+      if (!this.jogoAtivo || this.sapo.ativo || this.sapo.spawned) {
         this.sapo.avisoSom = false;
         return;
       }
+      this.sapoSomFallback?.remove();
+      this.sapoSomFallback = null;
+      this.sapo.spawned = true;
       this.sapo.avisoSom = false;
       this.sapo.ativo = true;
       this.sapo.lado = Math.random() < 0.5 ? 0 : 1;
@@ -849,13 +860,24 @@ export class GameScene extends Phaser.Scene {
       this.sapo.lingua = 0;
       this.sapo.frogAnchorY = null;
       this.sapo.attackAnchored = false;
+      this.sapo.avisandoAnchored = false;
+      this.sapo.voltandoAnchored = false;
+      this.sapo.layoutLado = null;
+      this.bumpSapoAttackId();
+      if (this.frogSprite?.active) {
+        stopFrogAttackAnim(this.frogSprite);
+        this.frogSprite.setVisible(false);
+      }
     };
 
     const fallbackMs = GAME_SAPO_SOUND_FALLBACK_MS;
     playSound(this, 'aiolhaosapo', { volumeMul: 0.85, onComplete: mostrarSapo });
-    this.time.delayedCall(fallbackMs, () => {
-      if (this.sapo.avisoSom) mostrarSapo();
-    });
+    this.sapoSomFallback = this.time.delayedCall(fallbackMs, mostrarSapo);
+  }
+
+  bumpSapoAttackId() {
+    this.sapo.attackId = (this.sapo.attackId ?? 0) + 1;
+    return this.sapo.attackId;
   }
 
   avisar(tipo, extra = {}) {
@@ -1014,12 +1036,18 @@ export class GameScene extends Phaser.Scene {
         this.sapo.timer = 0;
         this.sapo.frogAnchorY = head.y;
         this.sapo.attackAnchored = false;
+        this.sapo.avisandoAnchored = false;
+        this.sapo.voltandoAnchored = false;
         playSound(this, 'lingua');
       }
       if (this.sapo.estado === 'voltando' && this.sapo.timer > GAME_SAPO_VOLTANDO_FRAMES) {
         this.sapo.ativo = false;
         this.sapo.frogAnchorY = null;
         this.sapo.attackAnchored = false;
+        this.sapo.avisandoAnchored = false;
+        this.sapo.voltandoAnchored = false;
+        this.sapo.layoutLado = null;
+        this.bumpSapoAttackId();
       }
     }
 
@@ -1040,7 +1068,8 @@ export class GameScene extends Phaser.Scene {
   ensureFrogSprite() {
     if (!this.textures.exists(FROG_ATTACK_KEY)) return;
 
-    const scale = getGameFrogAttackScale(this.scale.width);
+    const screenW = this.scale.width;
+    const scale = getGameFrogAttackScale(screenW);
     if (this.frogSprite?.active) {
       syncFrogAttackDisplay(this.frogSprite, scale);
       this.frogSprite.setData('frogAttackScale', scale);
@@ -1077,6 +1106,7 @@ export class GameScene extends Phaser.Scene {
       stopFrogAttackAnim(spr);
       this.sapo.estado = 'voltando';
       this.sapo.attackAnchored = false;
+      this.sapo.voltandoAnchored = false;
       this.sapo.timer = 0;
     }
   }
@@ -1084,25 +1114,46 @@ export class GameScene extends Phaser.Scene {
   beginSapoAttackAnim() {
     const spr = this.frogSprite;
     if (!spr?.active) return;
+    const attackId = this.sapo.attackId;
 
     playFrogAttackAnim(spr, this, {
+      attackId,
       onFrame: (frame) => {
+        if (this.sapo.attackId !== attackId) return;
         if (frame === FROG_ATTACK_FRAME_COUNT - 1) this.checkSapoHitOnAttackFrame();
       },
       onComplete: () => {
+        if (this.sapo.attackId !== attackId) return;
         if (this.sapo?.estado === 'atacando') {
           this.sapo.estado = 'voltando';
           this.sapo.attackAnchored = false;
+          this.sapo.voltandoAnchored = false;
           this.sapo.timer = 0;
         }
       },
     });
   }
 
+  anchorFrogForSapo(spr, { screenWidth, y, fromLeft, yOffset = 0 }) {
+    stopFrogAttackAnim(spr);
+    anchorFrogAttackSprite(spr, {
+      screenWidth,
+      y,
+      fromLeft,
+      yOffset,
+      useGameLayout: true,
+    });
+    spr.setFlipX(!fromLeft);
+    this.sapo.layoutLado = this.sapo.lado;
+  }
+
   updateFrogSprite() {
     if (!this.sapo?.ativo) {
-      if (this.frogSprite?.active) stopFrogAttackAnim(this.frogSprite);
-      this.frogSprite?.setVisible(false);
+      if (this.frogSprite?.active) {
+        this.bumpSapoAttackId();
+        stopFrogAttackAnim(this.frogSprite);
+        this.frogSprite.setVisible(false);
+      }
       return;
     }
 
@@ -1114,32 +1165,44 @@ export class GameScene extends Phaser.Scene {
     const head = this.getHeadPos();
     const fromLeft = this.sapo.lado === 0;
     const lockY = this.sapo.frogAnchorY ?? head.y;
+    const ladoMudou = this.sapo.layoutLado != null && this.sapo.layoutLado !== this.sapo.lado;
 
     spr.setVisible(true);
+    spr.setFlipX(!fromLeft);
 
     if (this.sapo.estado === 'avisando') {
-      const pul = Math.sin(this.sapo.timer * 0.3) * 4;
-      stopFrogAttackAnim(spr);
-      this.sapo.attackAnchored = false;
-      anchorFrogAttackSprite(spr, {
-        screenWidth: width,
-        y: head.y,
-        fromLeft,
-        yOffset: pul,
-        useGameLayout: true,
-      });
+      const pul = Math.sin(this.sapo.timer * 0.5) * 3;
+      if (!this.sapo.avisandoAnchored || ladoMudou) {
+        this.anchorFrogForSapo(spr, {
+          screenWidth: width,
+          y: head.y,
+          fromLeft,
+          yOffset: pul,
+        });
+        this.sapo.avisandoAnchored = true;
+        this.sapo.attackAnchored = false;
+      } else {
+        const pinX = spr.getData('frogPinX');
+        const pinY = spr.getData('frogPinY');
+        if (pinX != null && pinY != null) {
+          spr.setPosition(pinX, pinY + pul);
+        }
+      }
       setFrogAttackFrame(spr, 0);
       return;
     }
 
     if (this.sapo.estado === 'atacando') {
+      if (ladoMudou) {
+        this.sapo.attackAnchored = false;
+        this.bumpSapoAttackId();
+      }
       if (this.sapo.frogAnchorY == null) this.sapo.frogAnchorY = head.y;
       if (!this.sapo.attackAnchored) {
-        anchorFrogAttackSprite(spr, {
+        this.anchorFrogForSapo(spr, {
           screenWidth: width,
           y: this.sapo.frogAnchorY,
           fromLeft,
-          useGameLayout: true,
         });
         this.sapo.attackAnchored = true;
         this.beginSapoAttackAnim();
@@ -1147,15 +1210,15 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    stopFrogAttackAnim(spr);
-    this.sapo.attackAnchored = false;
-    anchorFrogAttackSprite(spr, {
-      screenWidth: width,
-      y: lockY,
-      fromLeft,
-      useGameLayout: true,
-    });
-    const backFrame = this.sapo.timer > 7 ? (this.sapo.timer > 14 ? 0 : 1) : 2;
+    if (!this.sapo.voltandoAnchored || ladoMudou) {
+      this.anchorFrogForSapo(spr, {
+        screenWidth: width,
+        y: lockY,
+        fromLeft,
+      });
+      this.sapo.voltandoAnchored = true;
+    }
+    const backFrame = this.sapo.timer > 4 ? (this.sapo.timer > 7 ? 0 : 1) : 2;
     setFrogAttackFrame(spr, backFrame);
   }
 
@@ -1221,6 +1284,8 @@ export class GameScene extends Phaser.Scene {
     this.ready = false;
     ensureBgmPlaying(this);
     this.timerSapo?.remove();
+    this.sapoSomFallback?.remove();
+    this.sapoSomFallback = null;
     this.fruitSpawnTimer?.remove();
     this._pendingFruitTimers?.forEach((timer) => timer?.remove?.());
     this._pendingFruitTimers = [];
