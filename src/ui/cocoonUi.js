@@ -79,7 +79,7 @@ export function createCocoonStoryCard(scene, x, y, { nome = 'Lagartinha', genero
   const line3 = scene.add.text(
     0,
     0,
-    'Toque três vezes no casulo para ajudar a abrir!',
+    'Toque duas vezes no casulo para ajudar a abrir!',
     bodyStyle,
   );
 
@@ -155,7 +155,7 @@ export function startCocoonTapHintAnim(scene, hint, x, y) {
 
 export function createCocoonTapHint(scene, x, y) {
   const s = uiScale(scene);
-  const hint = scene.add.text(x, y, 'Toque três vezes no casulo', {
+  const hint = scene.add.text(x, y, 'Toque duas vezes no casulo', {
     fontFamily: Theme.fontFamily,
     fontSize: `${Math.round(17 * s)}px`,
     color: '#FFFFFF',

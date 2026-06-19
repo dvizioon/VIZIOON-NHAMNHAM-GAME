@@ -54,7 +54,7 @@ export class CocoonDebugScene extends Phaser.Scene {
     const child = GameState.getChild(this);
     const nome = child?.nome ?? 'Lagartinha';
     const genero = child?.genero ?? 'menino';
-    this.maxCliques = GameState.getConfig(this).cliquesCasulo || 3;
+    this.maxCliques = GameState.getConfig(this).cliquesCasulo || 2;
 
     this.buildCocoonStage(width, height);
     await preloadCocoonIcons(this);

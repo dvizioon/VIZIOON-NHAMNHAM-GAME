@@ -58,7 +58,7 @@ export class CocoonScene extends Phaser.Scene {
     const { width, height } = this.scale;
     const child = GameState.getChild(this);
     const config = GameState.getConfig(this);
-    this.maxCliques = config.cliquesCasulo || 3;
+    this.maxCliques = config.cliquesCasulo || 2;
     const nome = child?.nome ?? 'Lagartinha';
     const genero = child?.genero ?? 'menino';
 
@@ -127,11 +127,11 @@ export class CocoonScene extends Phaser.Scene {
     playSound(this, isLast ? 'nascer' : 'egg_crack');
 
     if (isLast) {
-      this.wobbleCocoon(this.cliques, { onComplete: () => this.startCocoonOpen() });
+      this.startCocoonOpen();
       return;
     }
 
-    this.wobbleCocoon(this.cliques);
+    this.wobbleCocoon();
   }
 
   spawnPassingFrog() {
@@ -169,13 +169,13 @@ export class CocoonScene extends Phaser.Scene {
     this.cocoonFrog = null;
   }
 
-  wobbleCocoon(tapIndex, { onComplete } = {}) {
+  wobbleCocoon({ onComplete } = {}) {
     const spr = this.cocoonSprite;
     if (!spr) return;
 
     this.cocoonBusy = true;
     this.tweens.killTweensOf(spr);
-    playCocoonTapWobble(spr, this, tapIndex, {
+    playCocoonTapWobble(spr, this, 1, {
       onComplete: () => {
         this.cocoonBusy = false;
         onComplete?.();

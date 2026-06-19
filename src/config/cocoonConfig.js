@@ -188,17 +188,8 @@ export function playCocoonWobbleAnim(sprite, scene, { onComplete } = {}) {
 export function playCocoonOpenAnim(sprite, scene, { onComplete } = {}) {
   playCocoonFrameSequence(sprite, scene, COCOON_OPEN_FRAME_SEQUENCE, {
     onComplete,
-    frameMs: COCOON_OPEN_FRAME_MS,
+    frameMsList: COCOON_WOBBLE_FRAME_MS,
     holdLast: true,
-  });
-}
-
-/** 3º toque: balanço forte e depois sequência de abertura */
-export function playCocoonTapThenOpen(sprite, scene, { onComplete } = {}) {
-  const wobble = COCOON_TAP_WOBBLE_SEQUENCES[3] ?? [0, 3, 5, 3, 0];
-  playCocoonFrameSequence(sprite, scene, wobble, {
-    frameMs: COCOON_TAP_WOBBLE_MS,
-    onComplete: () => playCocoonOpenAnim(sprite, scene, { onComplete }),
   });
 }
 
