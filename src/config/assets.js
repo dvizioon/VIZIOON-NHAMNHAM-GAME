@@ -65,7 +65,7 @@ export const OPTIONAL_SOUNDS = {
   teia: `${ASSET_BASE}/sounds/sfx/teia.mp3`,
   ai: `${ASSET_BASE}/sounds/sfx/ai.mp3`,
   cresceu: `${ASSET_BASE}/sounds/sfx/cresceu.mp3`,
-  fanfarra: `${ASSET_BASE}/sounds/sfx/fanfarra.mp3`,
+  winner: `${ASSET_BASE}/sounds/sfx/winner.mp3`,
 };
 
 export const SOUNDS = { ...REQUIRED_SOUNDS, ...OPTIONAL_SOUNDS };

@@ -179,6 +179,7 @@ export class PreloadScene extends Phaser.Scene {
       this.load.audio(key, url);
     }
     this.load.audio('egg_crack', OPTIONAL_SOUNDS.egg_crack);
+    this.load.audio('winner', OPTIONAL_SOUNDS.winner);
     queueSpriteAssets(this);
   }
 

@@ -217,7 +217,7 @@ export function measureCocoonFrameOffsets(scene) {
   if (!source?.width) return COCOON_FRAME_BODY_OFFSET;
 
   const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
   if (!ctx) return COCOON_FRAME_BODY_OFFSET;
 
   const fw = Math.floor(source.width / COCOON_FRAME_COUNT);

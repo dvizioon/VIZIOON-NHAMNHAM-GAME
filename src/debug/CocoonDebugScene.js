@@ -54,7 +54,7 @@ export class CocoonDebugScene extends Phaser.Scene {
     const child = GameState.getChild(this);
     const nome = child?.nome ?? 'Lagartinha';
     const genero = child?.genero ?? 'menino';
-    this.maxCliques = GameState.getConfig(this).cliquesCasulo || 2;
+    this.maxCliques = 2;
 
     this.buildCocoonStage(width, height);
     await preloadCocoonIcons(this);
@@ -267,7 +267,7 @@ export class CocoonDebugScene extends Phaser.Scene {
     if (this.opening || this.cocoonBusy) return;
     this.cliques += 1;
     const isLast = this.cliques >= this.maxCliques;
-    playSound(this, isLast ? 'nascer' : 'egg_crack');
+    playSound(this, 'egg_crack');
 
     if (isLast) {
       this.openCocoon();
@@ -292,7 +292,12 @@ export class CocoonDebugScene extends Phaser.Scene {
 
     const spr = this.cocoonSprite;
     if (spr) {
-      playCocoonOpenAnim(spr, this, { onComplete: () => this.goVictory() });
+      playCocoonOpenAnim(spr, this, {
+        onComplete: () => {
+          playSound(this, 'nascer');
+          this.goVictory();
+        },
+      });
       return;
     }
 

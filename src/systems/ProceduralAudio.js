@@ -97,6 +97,7 @@ export class ProceduralAudio {
         tocar(260, 180, 0.12, 0.24, 'triangle', 0.08);
       },
       fanfarra: () => [523, 659, 784, 1047].forEach((f, i) => tocar(f, f, 0.25, 0.25, 'triangle', i * 0.16)),
+      winner: () => [523, 659, 784, 1047].forEach((f, i) => tocar(f, f, 0.28, 0.28, 'triangle', i * 0.14)),
     };
 
     handlers[tipo]?.();

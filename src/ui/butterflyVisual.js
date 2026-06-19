@@ -99,6 +99,11 @@ export function buildButterflyBodySvg() {
     ([cx, cy]) => `<circle cx="${cx}" cy="${cy}" r="1.7" fill="#fff"/>`,
   ).join('');
 
+  // Antenas desligadas — rosto da criança fica mais limpo no centro
+  // + `<path d="M147,90 C140,78 136,66 132,57" .../>`
+  // + `<path d="M153,90 C160,78 164,66 168,57" .../>`
+  // + `<circle cx="131" cy="56" .../>` + `<circle cx="169" cy="56" .../>`
+
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" width="300" height="300">`
     + `<g>`
@@ -107,10 +112,6 @@ export function buildButterflyBodySvg() {
     + `<circle cx="150" cy="96" r="8" fill="${BODY}"/>`
     + `<circle cx="146.5" cy="95" r="2.4" fill="#070502"/>`
     + `<circle cx="153.5" cy="95" r="2.4" fill="#070502"/>`
-    + `<path d="M147,90 C140,78 136,66 132,57" fill="none" stroke="${BODY}" stroke-width="2" stroke-linecap="round"/>`
-    + `<path d="M153,90 C160,78 164,66 168,57" fill="none" stroke="${BODY}" stroke-width="2" stroke-linecap="round"/>`
-    + `<circle cx="131" cy="56" r="3.4" fill="${BODY}"/>`
-    + `<circle cx="169" cy="56" r="3.4" fill="${BODY}"/>`
     + dots
     + `</g></svg>`
   );
@@ -141,10 +142,13 @@ export async function createAnimatedButterfly(scene, x, y, {
   depth = 25,
   child = null,
   flapMs = 600,
+  flyable = false,
+  faceScaleMul = 1.42,
+  headHeightRatio = 1.62,
 } = {}) {
   const sex = sexFromGenero(genero);
   const wingKey = `bf_wing_${sex}`;
-  const bodyKey = 'bf_body_shared';
+  const bodyKey = 'bf_body_v2';
 
   await Promise.all([
     loadSvgTexture(scene, wingKey, buildButterflyWingSvg(sex)),
@@ -175,18 +179,18 @@ export async function createAnimatedButterfly(scene, x, y, {
 
   if (child) {
     const faceWrap = createCharacterFace(scene, child, 22, 0, {
-      headHeightRatio: 1.62,
+      headHeightRatio,
       animate: false,
     });
     if (faceWrap) {
       faceWrap.setPosition(0, (HEAD_Y - BODY_CENTER_Y) * unit);
-      faceWrap.setScale(unit * 1.42);
+      faceWrap.setScale(unit * faceScaleMul);
       root.add(faceWrap);
     }
   }
 
   const half = Math.max(120, Math.round(flapMs / 2));
-  scene.tweens.add({
+  const flapTween = scene.tweens.add({
     targets: [leftPivot, rightPivot],
     scaleX: { from: 1, to: 0.26 },
     duration: half,
@@ -195,22 +199,163 @@ export async function createAnimatedButterfly(scene, x, y, {
     ease: 'Sine.easeInOut',
   });
 
-  scene.tweens.add({
-    targets: root,
-    y: y - 8 * unit,
-    duration: flapMs,
-    yoyo: true,
-    repeat: -1,
-    ease: 'Sine.easeInOut',
-  });
+  if (!flyable) {
+    scene.tweens.add({
+      targets: root,
+      y: y - 8 * unit,
+      duration: flapMs,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
+  }
 
-  root.setAlpha(0);
-  scene.tweens.add({
-    targets: root,
-    alpha: 1,
-    duration: 650,
-    ease: 'Sine.easeOut',
+  root.setData('bfFlapTween', flapTween);
+  root.setData('bfWingPivots', [leftPivot, rightPivot]);
+  root.setData('bfDisplayUnit', unit);
+
+  if (!flyable) {
+    root.setAlpha(0);
+    scene.tweens.add({
+      targets: root,
+      alpha: 1,
+      duration: 650,
+      ease: 'Sine.easeOut',
+    });
+  }
+
+  return root;
+}
+
+function setButterflyFlapSpeed(root, flapMs) {
+  const tween = root?.getData?.('bfFlapTween');
+  if (!tween) return;
+  tween.timeScale = Phaser.Math.Clamp(600 / flapMs, 0.45, 2.5);
+}
+
+/**
+ * Borboleta estilo borboleta_voando_controlavel.html — segue o dedo/mouse e volta ao centro ao soltar.
+ * @returns {Promise<Phaser.GameObjects.Container>}
+ */
+export async function createFlyableButterfly(scene, x, y, options = {}) {
+  const displaySize = options.displaySize ?? 280;
+  const homeX = options.homeX ?? x;
+  const homeY = options.homeY ?? y;
+  const homeScale = options.homeScale ?? 1;
+  const root = await createAnimatedButterfly(scene, x, y, { ...options, displaySize, flyable: true });
+
+  const state = {
+    heading: 0,
+    targetX: homeX,
+    targetY: homeY,
+    homeX,
+    homeY,
+    homeScale,
+    ready: false,
+    followLerp: 0.07,
+    returnLerp: 0.09,
+  };
+
+  const clampTarget = (px, py) => {
+    const { width, height } = scene.scale;
+    const pad = Math.max(28, displaySize * 0.14);
+    const maxY = height * 0.82;
+    return {
+      x: Phaser.Math.Clamp(px, pad, width - pad),
+      y: Phaser.Math.Clamp(py, pad, maxY),
+    };
+  };
+
+  const isOverButtons = (pointer) => pointer.y > scene.scale.height * 0.84;
+
+  const onPointerDown = (pointer) => {
+    if (!state.ready || isOverButtons(pointer)) return;
+    const p = clampTarget(pointer.x, pointer.y);
+    state.targetX = p.x;
+    state.targetY = p.y;
+  };
+
+  const onPointerMove = (pointer) => {
+    if (!state.ready || isOverButtons(pointer)) return;
+    const p = clampTarget(pointer.x, pointer.y);
+    state.targetX = p.x;
+    state.targetY = p.y;
+  };
+
+  const onPointerUp = () => {
+    if (!state.ready) return;
+    state.targetX = homeX;
+    state.targetY = homeY;
+  };
+
+  scene.input.on('pointerdown', onPointerDown);
+  scene.input.on('pointermove', onPointerMove);
+  scene.input.on('pointerup', onPointerUp);
+
+  const shortAngle = (from, to) => {
+    const delta = ((to - from + 540) % 360) - 180;
+    return from + delta * 0.15;
+  };
+
+  const onUpdate = () => {
+    if (!root.active || !state.ready) return;
+
+    const distHome = Math.hypot(root.x - homeX, root.y - homeY);
+    const targetHome = Math.hypot(state.targetX - homeX, state.targetY - homeY) < 1;
+    const lerp = targetHome && distHome > 3 ? state.returnLerp : state.followLerp;
+
+    const dx = state.targetX - root.x;
+    const dy = state.targetY - root.y;
+    root.x += dx * lerp;
+    root.y += dy * lerp;
+
+    const vx = dx * lerp;
+    const vy = dy * lerp;
+    const speed = Math.hypot(vx, vy);
+
+    if (speed > 0.4) {
+      const want = Phaser.Math.RadToDeg(Math.atan2(vy, vx)) + 90;
+      state.heading = shortAngle(state.heading, want);
+    } else {
+      state.heading = shortAngle(state.heading, 0);
+    }
+    root.setAngle(state.heading);
+
+    const flapMs = Phaser.Math.Clamp(650 - speed * 32, 200, 680);
+    setButterflyFlapSpeed(root, flapMs);
+
+    const moveScale = homeScale + Math.min(speed * 0.014, 0.14);
+    const nearHome = Math.hypot(root.x - homeX, root.y - homeY) < 4
+      && Math.abs(state.targetX - homeX) < 1
+      && Math.abs(state.targetY - homeY) < 1;
+    if (nearHome && speed < 0.35) {
+      root.setScale(Phaser.Math.Linear(root.scaleX, homeScale, 0.12));
+      if (Math.abs(root.scaleX - homeScale) < 0.01) root.setScale(homeScale);
+    } else if (speed > 0.25) {
+      root.setScale(moveScale);
+    }
+  };
+
+  scene.events.on('update', onUpdate);
+  root.setData('bfFlightCleanup', () => {
+    scene.events.off('update', onUpdate);
+    scene.input.off('pointerdown', onPointerDown);
+    scene.input.off('pointermove', onPointerMove);
+    scene.input.off('pointerup', onPointerUp);
+  });
+  root.setData('bfStartFlight', () => {
+    state.ready = true;
+    state.targetX = homeX;
+    state.targetY = homeY;
+    root.setPosition(homeX, homeY);
+    root.setScale(homeScale);
+    root.setAngle(0);
   });
 
   return root;
+}
+
+export function destroyFlyableButterfly(root) {
+  root?.getData?.('bfFlightCleanup')?.();
+  root?.getData?.('bfFlapTween')?.stop?.();
 }

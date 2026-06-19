@@ -18,7 +18,7 @@ export function normalizeGameRules(data) {
     metaComida: Number(data.metaComida ?? DEFAULT_GAME_RULES.metaComida),
     maxVidas: Number(data.maxVidas ?? DEFAULT_GAME_RULES.maxVidas),
     cliquesOvo: Number(data.cliquesOvo ?? DEFAULT_GAME_RULES.cliquesOvo),
-    cliquesCasulo: Number(data.cliquesCasulo ?? DEFAULT_GAME_RULES.cliquesCasulo),
+    cliquesCasulo: Math.min(2, Number(data.cliquesCasulo ?? DEFAULT_GAME_RULES.cliquesCasulo)),
     intervaloSapo: Number(data.intervaloSapo ?? DEFAULT_GAME_RULES.intervaloSapo),
     delayInicioSapo: Number(data.delayInicioSapo ?? DEFAULT_GAME_RULES.delayInicioSapo),
     minComidaAntesSapo: Number(data.minComidaAntesSapo ?? DEFAULT_GAME_RULES.minComidaAntesSapo),
