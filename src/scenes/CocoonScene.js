@@ -5,13 +5,14 @@ import { playSound } from '../systems/ProceduralAudio.js';
 import { GameState } from '../utils/GameState.js';
 import {
   COCOON_WOBBLE_KEY,
+  COCOON_TRUNK_KEY,
+  COCOON_WOBBLE_ANIM,
   COCOON_OPEN_ANIM,
+  COCOON_FRAME_COUNT,
   COCOON_STORY_CARD_Y_RATIO,
   COCOON_HINT_Y_RATIO,
-  COCOON_TAP_HIT_W_RATIO,
-  COCOON_TAP_HIT_H_RATIO,
-  COCOON_TAP_HIT_Y_RATIO,
-  layoutCocoonSprite,
+  layoutCocoonStage,
+  getCocoonTapZone,
   showCocoonFrame,
 } from '../config/cocoonConfig.js';
 import {
@@ -20,7 +21,7 @@ import {
   preloadCocoonIcons,
 } from '../ui/cocoonUi.js';
 
-/** Tela do casulo — frame parado; cada toque avança; 2º toque abre p/ borboleta */
+/** Tela do casulo — galho + casulo pendurado; cada toque balança; 2º toque abre p/ borboleta */
 export class CocoonScene extends Phaser.Scene {
   constructor() {
     super(SceneKeys.COCOON);
@@ -31,6 +32,7 @@ export class CocoonScene extends Phaser.Scene {
     this.opening = false;
     this.storyCard = null;
     this.hintText = null;
+    this.trunkImage = null;
     this.cocoonSprite = null;
     this.tapZone = null;
   }
@@ -39,7 +41,7 @@ export class CocoonScene extends Phaser.Scene {
     const { width, height } = this.scale;
     const child = GameState.getChild(this);
     const config = GameState.getConfig(this);
-    this.maxCliques = config.cliquesCasulo || 2;
+    this.maxCliques = config.cliquesCasulo || 3;
     const nome = child?.nome ?? 'Lagartinha';
     const genero = child?.genero ?? 'menino';
 
@@ -52,7 +54,8 @@ export class CocoonScene extends Phaser.Scene {
     });
     this.hintText = createCocoonTapHint(this, width / 2, height * COCOON_HINT_Y_RATIO);
 
-    this.buildTapZone(width, height);
+    this.buildTapZone();
+    this.scale.on('resize', this.onResize, this);
     playSound(this, 'cresceu');
     this.cameras.main.fadeIn(400, 0, 0, 0);
   }
@@ -60,27 +63,41 @@ export class CocoonScene extends Phaser.Scene {
   buildCocoonStage(width, height) {
     drawEnvironmentLayers(this, { clouds: true, ground: true });
 
-    if (!this.textures.exists(COCOON_WOBBLE_KEY)) return;
+    if (this.textures.exists(COCOON_TRUNK_KEY)) {
+      this.trunkImage = this.add.image(width / 2, 0, COCOON_TRUNK_KEY)
+        .setDepth(8)
+        .setScrollFactor(0);
+    }
 
-    this.cocoonSprite = this.add.sprite(width / 2, height / 2, COCOON_WOBBLE_KEY, 0)
-      .setOrigin(0.5)
-      .setDepth(10)
-      .setScrollFactor(0);
+    if (this.textures.exists(COCOON_WOBBLE_KEY)) {
+      this.cocoonSprite = this.add.sprite(0, 0, COCOON_WOBBLE_KEY, 0)
+        .setDepth(10)
+        .setScrollFactor(0);
+    }
 
-    layoutCocoonSprite(this.cocoonSprite, width, height);
+    layoutCocoonStage(this.trunkImage, this.cocoonSprite, width, height);
     showCocoonFrame(this.cocoonSprite, 0);
   }
 
-  buildTapZone(width, height) {
-    const hitW = Math.round(width * COCOON_TAP_HIT_W_RATIO);
-    const hitH = Math.round(height * COCOON_TAP_HIT_H_RATIO);
-    const hitY = Math.round(height * COCOON_TAP_HIT_Y_RATIO);
+  buildTapZone() {
+    this.tapZone?.destroy();
+    const hit = getCocoonTapZone(this.cocoonSprite);
+    if (!hit) return;
 
-    this.tapZone = this.add.zone(width / 2, hitY, hitW, hitH)
+    this.tapZone = this.add.zone(hit.x, hit.y, hit.width, hit.height)
       .setDepth(25)
       .setInteractive({ useHandCursor: true });
 
     this.tapZone.on('pointerup', () => this.onCocoonTap());
+  }
+
+  onResize(gameSize) {
+    const { width, height } = gameSize;
+    layoutCocoonStage(this.trunkImage, this.cocoonSprite, width, height);
+    showCocoonFrame(this.cocoonSprite, this.opening ? COCOON_FRAME_COUNT - 1 : 0);
+    this.storyCard?.setPosition(width / 2, height * COCOON_STORY_CARD_Y_RATIO);
+    this.hintText?.setPosition(width / 2, height * COCOON_HINT_Y_RATIO);
+    this.buildTapZone();
   }
 
   onCocoonTap() {
@@ -95,7 +112,6 @@ export class CocoonScene extends Phaser.Scene {
       return;
     }
 
-    showCocoonFrame(this.cocoonSprite, this.cliques);
     this.wobbleCocoon();
   }
 
@@ -104,14 +120,13 @@ export class CocoonScene extends Phaser.Scene {
     if (!spr) return;
 
     this.tweens.killTweensOf(spr);
-    this.tweens.add({
-      targets: spr,
-      angle: { from: -4, to: 4 },
-      duration: 220,
-      yoyo: true,
-      ease: 'Sine.easeInOut',
-      onComplete: () => spr.setAngle(0),
-    });
+    if (spr.anims && this.anims.exists(COCOON_WOBBLE_ANIM)) {
+      spr.anims.play(COCOON_WOBBLE_ANIM);
+      spr.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => showCocoonFrame(spr, 0));
+      return;
+    }
+
+    showCocoonFrame(spr, Math.min(this.cliques, 2));
   }
 
   playCocoonOpenAnim() {
@@ -142,7 +157,7 @@ export class CocoonScene extends Phaser.Scene {
       return;
     }
 
-    showCocoonFrame(spr, 3);
+    showCocoonFrame(spr, 5);
     this.time.delayedCall(650, () => this.finishOpenCocoon());
   }
 
@@ -152,5 +167,9 @@ export class CocoonScene extends Phaser.Scene {
     this.time.delayedCall(500, () => {
       this.scene.start(SceneKeys.VICTORY);
     });
+  }
+
+  shutdown() {
+    this.scale.off('resize', this.onResize, this);
   }
 }

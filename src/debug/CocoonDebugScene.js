@@ -6,10 +6,13 @@ import { GameState } from '../utils/GameState.js';
 import { playSound } from '../systems/ProceduralAudio.js';
 import {
   COCOON_WOBBLE_KEY,
+  COCOON_TRUNK_KEY,
   COCOON_OPEN_ANIM,
+  COCOON_FRAME_COUNT,
   COCOON_HINT_Y_RATIO,
   DEFAULT_COCOON_TUNE,
-  layoutCocoonSprite,
+  layoutCocoonStage,
+  getCocoonTapZone,
   showCocoonFrame,
 } from '../config/cocoonConfig.js';
 import {
@@ -19,7 +22,7 @@ import {
 } from '../ui/cocoonUi.js';
 
 function cloneTune(tune) {
-  return { ...tune };
+  return { ...DEFAULT_COCOON_TUNE, ...tune };
 }
 
 /** Debug casulo — VITE_SCREEN_INIT=telacasulodebug */
@@ -30,12 +33,15 @@ export class CocoonDebugScene extends Phaser.Scene {
     this.cliques = 0;
     this.maxCliques = 2;
     this.opening = false;
+    this.previewFrame = 0;
     this.storyCard = null;
     this.hintText = null;
+    this.trunkImage = null;
     this.cocoonSprite = null;
     this.tapZone = null;
     this.hitGfx = null;
     this.infoText = null;
+    this.tuneText = null;
   }
 
   async create() {
@@ -43,7 +49,7 @@ export class CocoonDebugScene extends Phaser.Scene {
     const child = GameState.getChild(this);
     const nome = child?.nome ?? 'Lagartinha';
     const genero = child?.genero ?? 'menino';
-    this.maxCliques = GameState.getConfig(this).cliquesCasulo || 2;
+    this.maxCliques = GameState.getConfig(this).cliquesCasulo || 3;
 
     this.buildCocoonStage(width, height);
     await preloadCocoonIcons(this);
@@ -57,15 +63,20 @@ export class CocoonDebugScene extends Phaser.Scene {
   buildCocoonStage(width, height) {
     drawEnvironmentLayers(this, { clouds: true, ground: true });
 
-    if (!this.textures.exists(COCOON_WOBBLE_KEY)) return;
+    if (this.textures.exists(COCOON_TRUNK_KEY)) {
+      this.trunkImage = this.add.image(width / 2, 0, COCOON_TRUNK_KEY)
+        .setDepth(8)
+        .setScrollFactor(0);
+    }
 
-    this.cocoonSprite = this.add.sprite(width / 2, height / 2, COCOON_WOBBLE_KEY, 0)
-      .setOrigin(0.5)
-      .setDepth(10)
-      .setScrollFactor(0);
+    if (this.textures.exists(COCOON_WOBBLE_KEY)) {
+      this.cocoonSprite = this.add.sprite(0, 0, COCOON_WOBBLE_KEY, 0)
+        .setDepth(10)
+        .setScrollFactor(0);
+    }
 
-    layoutCocoonSprite(this.cocoonSprite, width, height);
-    showCocoonFrame(this.cocoonSprite, 0);
+    layoutCocoonStage(this.trunkImage, this.cocoonSprite, width, height, this.tune);
+    showCocoonFrame(this.cocoonSprite, this.previewFrame);
   }
 
   rebuildUi(width, height, nome, genero) {
@@ -73,6 +84,9 @@ export class CocoonDebugScene extends Phaser.Scene {
     this.hintText?.destroy();
     this.tapZone?.destroy();
     this.hitGfx?.destroy();
+
+    layoutCocoonStage(this.trunkImage, this.cocoonSprite, width, height, this.tune);
+    showCocoonFrame(this.cocoonSprite, this.previewFrame);
 
     this.storyCard = createCocoonStoryCard(
       this,
@@ -82,25 +96,25 @@ export class CocoonDebugScene extends Phaser.Scene {
     );
     this.hintText = createCocoonTapHint(this, width / 2, height * COCOON_HINT_Y_RATIO);
 
-    const hitW = Math.round(width * this.tune.tapHitWRatio);
-    const hitH = Math.round(height * this.tune.tapHitHRatio);
-    const hitY = Math.round(height * this.tune.tapHitYRatio);
-
+    const hit = getCocoonTapZone(this.cocoonSprite, this.tune);
     this.hitGfx = this.add.graphics().setDepth(24).setScrollFactor(0);
-    this.hitGfx.lineStyle(2, 0xFF5252, 0.9);
-    this.hitGfx.fillStyle(0xFF5252, 0.15);
-    this.hitGfx.strokeRect(width / 2 - hitW / 2, hitY - hitH / 2, hitW, hitH);
-    this.hitGfx.fillRect(width / 2 - hitW / 2, hitY - hitH / 2, hitW, hitH);
+    if (hit) {
+      this.hitGfx.lineStyle(2, 0xFF5252, 0.9);
+      this.hitGfx.fillStyle(0xFF5252, 0.15);
+      this.hitGfx.strokeRect(hit.x - hit.width / 2, hit.y - hit.height / 2, hit.width, hit.height);
+      this.hitGfx.fillRect(hit.x - hit.width / 2, hit.y - hit.height / 2, hit.width, hit.height);
 
-    this.tapZone = this.add.zone(width / 2, hitY, hitW, hitH)
-      .setDepth(25)
-      .setInteractive({ useHandCursor: true });
-    this.tapZone.on('pointerup', () => this.onCocoonTap());
+      this.tapZone = this.add.zone(hit.x, hit.y, hit.width, hit.height)
+        .setDepth(25)
+        .setInteractive({ useHandCursor: true });
+      this.tapZone.on('pointerup', () => this.onCocoonTap());
+    }
+
     this.refreshInfo(width, height);
   }
 
   buildOverlayUi(width, height) {
-    this.add.text(width * 0.5, 14, 'Debug — casulo (toque na área vermelha)', {
+    this.add.text(width * 0.5, 14, 'Debug — casulo no galho (área vermelha = toque)', {
       fontFamily: Theme.fontFamily,
       fontSize: '15px',
       color: '#FFFFFF',
@@ -109,7 +123,10 @@ export class CocoonDebugScene extends Phaser.Scene {
       strokeThickness: 4,
     }).setOrigin(0.5).setDepth(100).setScrollFactor(0);
 
-    this.add.text(width * 0.5, 36, '↑↓ área Y  ·  ←→ largura  ·  Q/E altura  ·  W/S card  ·  R reset  ·  V vitória', {
+    this.add.text(width * 0.5, 36, [
+      '↑↓ galho Y  ·  ←→ galho tam  ·  A/D casulo X  ·  W/S casulo Y  ·  Q/E casulo tam',
+      '1-6 frame  ·  W/S card  ·  R reset  ·  V vitória',
+    ].join('\n'), {
       fontFamily: Theme.fontFamily,
       fontSize: '11px',
       color: '#FFFFFF',
@@ -118,6 +135,16 @@ export class CocoonDebugScene extends Phaser.Scene {
       align: 'center',
       wordWrap: { width: width - 16 },
     }).setOrigin(0.5, 0).setDepth(100).setScrollFactor(0);
+
+    this.tuneText = this.add.text(width * 0.5, height - 28, '', {
+      fontFamily: Theme.fontFamily,
+      fontSize: '10px',
+      color: '#B2FF59',
+      stroke: '#1E6A30',
+      strokeThickness: 2,
+      align: 'center',
+      wordWrap: { width: width - 16 },
+    }).setOrigin(0.5, 1).setDepth(100).setScrollFactor(0);
 
     this.infoText = this.add.text(width * 0.5, height - 8, '', {
       fontFamily: Theme.fontFamily,
@@ -132,51 +159,80 @@ export class CocoonDebugScene extends Phaser.Scene {
 
   refreshInfo(width, height) {
     const t = this.tune;
+    this.tuneText?.setText(
+      `galho Y=${t.trunkYRatio.toFixed(2)} tam=${t.trunkWidthRatio.toFixed(2)}  ·  casulo X=${t.cocoonHangXRatio.toFixed(2)} Y=${t.cocoonHangYRatio.toFixed(2)} tam=${t.cocoonHeightRatio.toFixed(2)}  ·  frame ${this.previewFrame}`,
+    );
     this.infoText?.setText(
-      `toque ${this.cliques}/${this.maxCliques}  ·  área W=${t.tapHitWRatio.toFixed(2)} H=${t.tapHitHRatio.toFixed(2)} Y=${t.tapHitYRatio.toFixed(2)}  ·  card Y=${t.storyCardYRatio.toFixed(2)}  ·  tela ${width}×${height}`,
+      `toque ${this.cliques}/${this.maxCliques}  ·  hit pad X=${t.tapHitPadX.toFixed(2)} Y=${t.tapHitPadY.toFixed(2)}  ·  card Y=${t.storyCardYRatio.toFixed(2)}  ·  tela ${width}×${height}`,
     );
   }
 
   bindKeyboard() {
     this.input.keyboard.on('keydown', (event) => {
       const step = event.shiftKey ? 0.04 : 0.02;
+      const fine = event.shiftKey ? 0.02 : 0.01;
+
+      if (event.key >= '1' && event.key <= '6') {
+        this.previewFrame = Number(event.key) - 1;
+        showCocoonFrame(this.cocoonSprite, this.previewFrame);
+        this.refreshInfo(this.scale.width, this.scale.height);
+        return;
+      }
       if (event.key === 'ArrowUp') {
-        this.tune.tapHitYRatio = Phaser.Math.Clamp(this.tune.tapHitYRatio - step, 0.2, 0.9);
+        this.tune.trunkYRatio = Phaser.Math.Clamp(this.tune.trunkYRatio - step, 0.12, 0.55);
         this.relayout();
         return;
       }
       if (event.key === 'ArrowDown') {
-        this.tune.tapHitYRatio = Phaser.Math.Clamp(this.tune.tapHitYRatio + step, 0.2, 0.9);
+        this.tune.trunkYRatio = Phaser.Math.Clamp(this.tune.trunkYRatio + step, 0.12, 0.55);
         this.relayout();
         return;
       }
       if (event.key === 'ArrowLeft') {
-        this.tune.tapHitWRatio = Phaser.Math.Clamp(this.tune.tapHitWRatio - step, 0.1, 0.9);
+        this.tune.trunkWidthRatio = Phaser.Math.Clamp(this.tune.trunkWidthRatio - step, 0.5, 1.2);
         this.relayout();
         return;
       }
       if (event.key === 'ArrowRight') {
-        this.tune.tapHitWRatio = Phaser.Math.Clamp(this.tune.tapHitWRatio + step, 0.1, 0.9);
+        this.tune.trunkWidthRatio = Phaser.Math.Clamp(this.tune.trunkWidthRatio + step, 0.5, 1.2);
         this.relayout();
         return;
       }
-      if (event.key === 'q' || event.key === 'Q') {
-        this.tune.tapHitHRatio = Phaser.Math.Clamp(this.tune.tapHitHRatio - step, 0.08, 0.6);
+      if (event.key === 'a' || event.key === 'A') {
+        this.tune.cocoonHangXRatio = Phaser.Math.Clamp(this.tune.cocoonHangXRatio - fine, -0.35, 0.35);
         this.relayout();
         return;
       }
-      if (event.key === 'e' || event.key === 'E') {
-        this.tune.tapHitHRatio = Phaser.Math.Clamp(this.tune.tapHitHRatio + step, 0.08, 0.6);
+      if (event.key === 'd' || event.key === 'D') {
+        this.tune.cocoonHangXRatio = Phaser.Math.Clamp(this.tune.cocoonHangXRatio + fine, -0.35, 0.35);
         this.relayout();
         return;
       }
       if (event.key === 'w' || event.key === 'W') {
-        this.tune.storyCardYRatio = Phaser.Math.Clamp(this.tune.storyCardYRatio - step, 0.05, 0.45);
+        if (event.altKey) {
+          this.tune.storyCardYRatio = Phaser.Math.Clamp(this.tune.storyCardYRatio - step, 0.05, 0.45);
+        } else {
+          this.tune.cocoonHangYRatio = Phaser.Math.Clamp(this.tune.cocoonHangYRatio - fine, -0.1, 0.45);
+        }
         this.relayout();
         return;
       }
       if (event.key === 's' || event.key === 'S') {
-        this.tune.storyCardYRatio = Phaser.Math.Clamp(this.tune.storyCardYRatio + step, 0.05, 0.45);
+        if (event.altKey) {
+          this.tune.storyCardYRatio = Phaser.Math.Clamp(this.tune.storyCardYRatio + step, 0.05, 0.45);
+        } else {
+          this.tune.cocoonHangYRatio = Phaser.Math.Clamp(this.tune.cocoonHangYRatio + fine, -0.1, 0.45);
+        }
+        this.relayout();
+        return;
+      }
+      if (event.key === 'q' || event.key === 'Q') {
+        this.tune.cocoonHeightRatio = Phaser.Math.Clamp(this.tune.cocoonHeightRatio - step, 0.12, 0.45);
+        this.relayout();
+        return;
+      }
+      if (event.key === 'e' || event.key === 'E') {
+        this.tune.cocoonHeightRatio = Phaser.Math.Clamp(this.tune.cocoonHeightRatio + step, 0.12, 0.45);
         this.relayout();
         return;
       }
@@ -184,6 +240,7 @@ export class CocoonDebugScene extends Phaser.Scene {
         this.tune = cloneTune(DEFAULT_COCOON_TUNE);
         this.cliques = 0;
         this.opening = false;
+        this.previewFrame = 0;
         showCocoonFrame(this.cocoonSprite, 0);
         this.tapZone?.setInteractive({ useHandCursor: true });
         this.relayout();
@@ -212,7 +269,8 @@ export class CocoonDebugScene extends Phaser.Scene {
       return;
     }
 
-    showCocoonFrame(this.cocoonSprite, this.cliques);
+    this.previewFrame = Math.min(this.cliques, COCOON_FRAME_COUNT - 1);
+    showCocoonFrame(this.cocoonSprite, this.previewFrame);
     this.refreshInfo(this.scale.width, this.scale.height);
   }
 
@@ -228,7 +286,7 @@ export class CocoonDebugScene extends Phaser.Scene {
       return;
     }
 
-    showCocoonFrame(spr, 3);
+    showCocoonFrame(spr, COCOON_FRAME_COUNT - 1);
     this.time.delayedCall(650, () => this.goVictory());
   }
 

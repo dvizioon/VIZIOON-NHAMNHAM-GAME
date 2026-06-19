@@ -1,0 +1,64 @@
+{
+  "frameCount": 6,
+  "frameWidth": 829,
+  "frameHeight": 1174,
+  "sheetWidth": 4974,
+  "sheetHeight": 1174,
+  "originY": 0.04,
+  "frames": [
+    {
+      "frame": 0,
+      "x": 0,
+      "y": 0,
+      "width": 829,
+      "height": 1174,
+      "stemX": 414,
+      "stemY": 48
+    },
+    {
+      "frame": 1,
+      "x": 829,
+      "y": 0,
+      "width": 829,
+      "height": 1174,
+      "stemX": 1243,
+      "stemY": 48
+    },
+    {
+      "frame": 2,
+      "x": 1658,
+      "y": 0,
+      "width": 829,
+      "height": 1174,
+      "stemX": 2072,
+      "stemY": 48
+    },
+    {
+      "frame": 3,
+      "x": 2487,
+      "y": 0,
+      "width": 829,
+      "height": 1174,
+      "stemX": 2901,
+      "stemY": 48
+    },
+    {
+      "frame": 4,
+      "x": 3316,
+      "y": 0,
+      "width": 829,
+      "height": 1174,
+      "stemX": 3730,
+      "stemY": 48
+    },
+    {
+      "frame": 5,
+      "x": 4145,
+      "y": 0,
+      "width": 829,
+      "height": 1174,
+      "stemX": 4559,
+      "stemY": 48
+    }
+  ]
+}

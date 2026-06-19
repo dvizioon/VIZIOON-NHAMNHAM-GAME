@@ -76,16 +76,10 @@ export function createCocoonStoryCard(scene, x, y, { nome = 'Lagartinha', genero
     bodyStyle,
   );
   const nameBadge = createChildNameBadge(scene, nome, s, genero);
-  const line2 = scene.add.text(
-    0,
-    0,
-    'Dentro dele, uma grande surpresa está se preparando…',
-    bodyStyle,
-  );
   const line3 = scene.add.text(
     0,
     0,
-    'Toque duas vezes no casulo para ajudar a abrir!',
+    'Toque três vezes no casulo para ajudar a abrir!',
     bodyStyle,
   );
 
@@ -94,8 +88,6 @@ export function createCocoonStoryCard(scene, x, y, { nome = 'Lagartinha', genero
     + line1.height
     + gap
     + nameBadge._badgeH
-    + gap * 0.7
-    + line2.height
     + gap
     + line3.height;
   const cardH = textBlockH + padY * 2;
@@ -127,21 +119,19 @@ export function createCocoonStoryCard(scene, x, y, { nome = 'Lagartinha', genero
   line1.setPosition(tx, ty);
   ty += line1.height + gap;
   nameBadge.setPosition(tx, ty);
-  ty += nameBadge._badgeH + gap * 0.7;
-  line2.setPosition(tx, ty);
-  ty += line2.height + gap;
+  ty += nameBadge._badgeH + gap;
   line3.setPosition(tx, ty);
 
   butterflyIcon.setPosition(iconX, -cardH / 2 + padY + iconSize / 2);
   leafIcon.setPosition(iconX + iconSize * 0.35, -cardH / 2 + padY + iconSize * 0.85);
 
-  card.add([shadow, bg, butterflyIcon, leafIcon, title, line1, nameBadge, line2, line3]);
+  card.add([shadow, bg, butterflyIcon, leafIcon, title, line1, nameBadge, line3]);
   return card;
 }
 
 export function createCocoonTapHint(scene, x, y) {
   const s = uiScale(scene);
-  return scene.add.text(x, y, 'Toque duas vezes no casulo', {
+  return scene.add.text(x, y, 'Toque três vezes no casulo', {
     fontFamily: Theme.fontFamily,
     fontSize: `${Math.round(17 * s)}px`,
     color: '#FFFFFF',

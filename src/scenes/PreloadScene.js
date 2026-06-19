@@ -69,9 +69,12 @@ import {
 import {
   COCOON_WOBBLE_KEY,
   COCOON_WOBBLE_PATH,
+  COCOON_TRUNK_KEY,
+  COCOON_TRUNK_PATH,
   COCOON_FRAME_W,
   COCOON_FRAME_H,
   registerCocoonAnimations,
+  patchCocoonFrames,
 } from '../config/cocoonConfig.js';
 import { loadLocalSettings } from '../utils/localPreferences.js';
 import {
@@ -157,6 +160,7 @@ export class PreloadScene extends Phaser.Scene {
       frameWidth: COCOON_FRAME_W,
       frameHeight: COCOON_FRAME_H,
     });
+    this.load.image(COCOON_TRUNK_KEY, COCOON_TRUNK_PATH);
     this.load.spritesheet(FROG_JUMP_KEY, FROG_JUMP_PATH, getFrogJumpSheetLoadOpts());
     this.load.spritesheet(FROG_ATTACK_KEY, FROG_ATTACK_PATH, getFrogAttackSheetLoadOpts());
     if (usesDebugCardHead()) {
@@ -189,6 +193,7 @@ export class PreloadScene extends Phaser.Scene {
     capImageTexture(this, ENV_GROUND_KEY);
     capImageTexture(this, GAME_TRUNK_KEY);
     capImageTexture(this, INTRO_TRUNK_KEY);
+    capImageTexture(this, COCOON_TRUNK_KEY);
     capSpritesheet(this, FOOD_FRUTAS.key, FOOD_FRUTAS.frameWidth, FOOD_FRUTAS.frameHeight);
     for (const { key } of listCharacterHeadAssets(criancasData)) {
       if (this.textures.exists(key) && this.textures.get(key).getSourceImage().width > 4096) {
@@ -207,9 +212,12 @@ export class PreloadScene extends Phaser.Scene {
         EGG_HATCH_NASCENDO_FRAME_H,
       );
     }
-    if (this.textures.exists(COCOON_WOBBLE_KEY)
-      && this.textures.get(COCOON_WOBBLE_KEY).getSourceImage().width > 4096) {
-      capSpritesheet(this, COCOON_WOBBLE_KEY, COCOON_FRAME_W, COCOON_FRAME_H);
+    if (this.textures.exists(COCOON_WOBBLE_KEY)) {
+      const cocoonW = this.textures.get(COCOON_WOBBLE_KEY).getSourceImage().width;
+      if (cocoonW > 2048) {
+        capSpritesheet(this, COCOON_WOBBLE_KEY, COCOON_FRAME_W, COCOON_FRAME_H);
+      }
+      patchCocoonFrames(this);
     }
     registerEggAnimations(this);
     registerCocoonAnimations(this);

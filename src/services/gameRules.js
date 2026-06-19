@@ -3,7 +3,7 @@ export const DEFAULT_GAME_RULES = {
   metaComida: 100,
   maxVidas: 3,
   cliquesOvo: 4,
-  cliquesCasulo: 2,
+  cliquesCasulo: 3,
   intervaloSapo: 9000,
   delayInicioSapo: 14000,
   minComidaAntesSapo: 4,
