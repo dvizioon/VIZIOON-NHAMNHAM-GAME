@@ -101,10 +101,14 @@ export function createLoginUsernameField(scene, x, y, contentW, { onChange, onSu
   }).setOrigin(0, 0.5);
 
   const caret = scene.add.graphics();
+  const getCaretX = () => {
+    const textW = value.length === 0 ? 0 : Math.min(display.width, maxTextW);
+    return -fieldW / 2 + textPadLeft + textW + 2;
+  };
   const drawCaret = (visible) => {
     caret.clear();
     if (!visible) return;
-    const caretX = -fieldW / 2 + textPadLeft + Math.min(display.width, maxTextW) + 2;
+    const caretX = getCaretX();
     caret.lineStyle(2, 0xffffff, 1);
     caret.lineBetween(caretX, -textSize * 0.42, caretX, textSize * 0.42);
   };
@@ -115,6 +119,8 @@ export function createLoginUsernameField(scene, x, y, contentW, { onChange, onSu
   domInput.type = 'text';
   domInput.maxLength = PLAYER_USERNAME_MAX;
   domInput.autocomplete = 'username';
+  domInput.inputMode = 'text';
+  domInput.readOnly = true;
   domInput.style.cssText = `
     position:absolute; opacity:0; pointer-events:none;
     width:1px; height:1px; left:-9999px;
@@ -136,7 +142,7 @@ export function createLoginUsernameField(scene, x, y, contentW, { onChange, onSu
     } else {
       display.setText(value).setColor('#ffffff');
       if (display.width > maxTextW) {
-        display.setCrop(0, 0, maxTextW, display.height);
+        display.setCrop(display.width - maxTextW, 0, maxTextW, display.height);
       } else {
         display.setCrop();
       }
@@ -154,20 +160,31 @@ export function createLoginUsernameField(scene, x, y, contentW, { onChange, onSu
   });
   domInput.addEventListener('blur', () => {
     focused = false;
+    domInput.readOnly = true;
     drawCaret(false);
   });
 
   scene.events.once('shutdown', () => domInput.remove());
 
+  const activateInput = () => {
+    domInput.readOnly = false;
+    focused = true;
+    domInput.focus();
+    syncDisplay();
+  };
+
+  const blurInput = () => {
+    focused = false;
+    domInput.readOnly = true;
+    domInput.blur();
+    drawCaret(false);
+  };
+
   const hitW = Math.max(40, fieldW - btnSize - btnInset * 2);
   const hit = scene.add
     .zone(-(btnSize + btnInset * 2) / 2, 0, hitW, fieldH)
     .setInteractive({ useHandCursor: true });
-  hit.on('pointerdown', () => {
-    focused = true;
-    domInput.focus();
-    syncDisplay();
-  });
+  hit.on('pointerdown', activateInput);
 
   const sendBtnX = fieldW / 2 - btnInset - btnSize / 2;
   const sendBtn = createIconCircleButton(scene, sendBtnX, 0, LOGIN_ICONS.send, {
@@ -192,11 +209,8 @@ export function createLoginUsernameField(scene, x, y, contentW, { onChange, onSu
 
   return {
     root,
-    focus: () => {
-      focused = true;
-      domInput.focus();
-      syncDisplay();
-    },
+    focus: activateInput,
+    blur: blurInput,
     getValue: () => sanitizePlayerUsername(value),
     setValue: (next) => {
       value = next ?? '';
@@ -278,6 +292,11 @@ export function createGuestPlayLink(scene, x, y, { onClick } = {}) {
 
   root.on('pointerover', () => setHover(true));
   root.on('pointerout', () => setHover(false));
+  root.on('pointerdown', () => {
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+  });
   root.on('pointerup', () => onClick?.());
 
   return root;

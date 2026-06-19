@@ -14,7 +14,7 @@ import { getCharacterProfile, CHAR_TEXT_COLOR } from '../config/characterUiConfi
 import { createCharacterFace } from './characterAvatar.js';
 
 import { playSound } from '../systems/ProceduralAudio.js';
-import { playCharacterVoice, stopCharacterVoice } from '../systems/characterVoice.js';
+import { stopCharacterVoice } from '../systems/characterVoice.js';
 
 
 
@@ -417,10 +417,6 @@ export async function openCharacterDetailModal(scene, crianca, {
   scene.tweens.add({ targets: overlay, alpha: 1, duration: 220, ease: 'Sine.easeOut' });
 
   scene.tweens.add({ targets: panel, alpha: 1, scale: 1, duration: 260, ease: 'Back.easeOut' });
-
-  scene.time.delayedCall(280, () => playCharacterVoice(scene, crianca));
-
-
 
   let closed = false;
 

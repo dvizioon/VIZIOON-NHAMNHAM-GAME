@@ -18,6 +18,7 @@ function clamp(val, min, max) {
 
 export const UI_LOGO_JOGADOR_KEY = 'ui_logo_cadastrar';
 export const UI_USER_JOGADOR_KEY = 'ui_user_jogador';
+export const UI_SAPO_KEY = 'ui_sapo';
 
 export const PLAYER_AGE_MIN = 3;
 export const PLAYER_AGE_MAX = 99;
@@ -42,12 +43,17 @@ export async function preloadPlayerNameIcons(scene) {
   await Icon.preload(scene, Object.values(PLAYER_NAME_ICONS));
 }
 
-/** Avatar estático — userJogador.svg */
-export function createUserAvatar(scene, x, y, size) {
+/** Avatar cadastro — Sapo.svg (mesmo tamanho da lagarta no login) */
+export function createRegisterAvatar(scene, x, y, size) {
   return scene.add
-    .image(x, y, UI_USER_JOGADOR_KEY)
-    .setDisplaySize(size, size)
+    .image(x, y, UI_SAPO_KEY)
+    .setDisplaySize(size, size * (168 / 142))
     .setOrigin(0.5);
+}
+
+/** @deprecated use createRegisterAvatar */
+export function createUserAvatar(scene, x, y, size) {
+  return createRegisterAvatar(scene, x, y, size);
 }
 
 /** Campo usuário — cadastro */
@@ -93,6 +99,8 @@ export function createPlayerNameField(scene, x, y, contentW, {
   domInput.type = 'text';
   domInput.maxLength = PLAYER_USERNAME_MAX;
   domInput.autocomplete = 'username';
+  domInput.inputMode = 'text';
+  domInput.readOnly = true;
   domInput.style.cssText = `
     position:absolute; opacity:0; pointer-events:none;
     width:1px; height:1px; left:-9999px;
@@ -117,15 +125,26 @@ export function createPlayerNameField(scene, x, y, contentW, {
 
   scene.events.once('shutdown', () => domInput.remove());
 
+  const activateInput = () => {
+    domInput.readOnly = false;
+    domInput.focus();
+  };
+
+  const blurInput = () => {
+    domInput.readOnly = true;
+    domInput.blur();
+  };
+
   const hit = scene.add.zone(0, 0, fieldW, fieldH).setInteractive({ useHandCursor: true });
-  hit.on('pointerdown', () => domInput.focus());
+  hit.on('pointerdown', activateInput);
 
   root.add([labelText, bg, display, hit]);
   root.setDepth(20);
 
   return {
     root,
-    focus: () => domInput.focus(),
+    focus: activateInput,
+    blur: blurInput,
     getValue: () => sanitizePlayerUsername(value),
     setValue: (next) => {
       value = next ?? '';

@@ -17,6 +17,7 @@ import {
 } from '../config/characterUiConfig.js';
 import { createCharacterFace } from '../ui/characterAvatar.js';
 import { openCharacterDetailModal } from '../ui/characterModal.js';
+import { playCharacterVoice } from '../systems/characterVoice.js';
 import { registerSelectedPerson, ensurePlayerSession } from '../services/playerSession.js';
 
 const NAV_GREEN = '#1E6A30';
@@ -132,8 +133,8 @@ export class CharacterScene extends Phaser.Scene {
     const gapLogoSearch = Math.max(14, height * 0.02);
     const searchH = Math.max(44, width * 0.105);
     const searchY = logoY + logoH / 2 + gapLogoSearch + searchH / 2 - 9;
-    const gapSearchGrid = Math.max(22, height * 0.028);
-    const gridTop = searchY + searchH / 2 + gapSearchGrid + Math.max(5, height * 0.006);
+    const gapSearchGrid = Math.max(10, height * 0.012);
+    const gridTop = searchY + searchH / 2 + gapSearchGrid - Math.max(18, height * 0.022);
 
     return {
       s,
@@ -414,11 +415,13 @@ export class CharacterScene extends Phaser.Scene {
     });
 
     const totalPages = this.pageCount();
+    const empty = this.filtered.length === 0;
     this.pageLabel.setText(
-      this.filtered.length
-        ? `Página ${this.page + 1} / ${totalPages}`
-        : 'Nenhuma criança encontrada',
+      empty
+        ? 'Nenhuma criança encontrada'
+        : `Página ${this.page + 1} / ${totalPages}`,
     );
+    this.pageLabel.setColor(empty ? CHAR_TEXT_COLOR : Theme.texto);
 
     this.btnPrev?.setAlpha(totalPages > 1 ? 1 : 0.35);
     this.btnNext?.setAlpha(totalPages > 1 ? 1 : 0.35);
@@ -441,20 +444,6 @@ export class CharacterScene extends Phaser.Scene {
     const container = this.add.container(x, y);
     const r = size * 0.36;
 
-    const nameY = -(r + Math.round(26 * s));
-    const name = this.add.text(0, nameY, crianca.nome, {
-      fontFamily: Theme.fontFamily,
-      fontSize: `${Math.max(16, Math.round(19 * s))}px`,
-      color: CHAR_TEXT_COLOR,
-      fontStyle: 'bold',
-      align: 'center',
-      wordWrap: { width: size * 0.98 },
-    }).setOrigin(0.5, 1);
-
-    const divider = this.add.graphics();
-    divider.lineStyle(2, CHAR_TEXT_COLOR, 0.28);
-    divider.lineBetween(-size * 0.38, nameY + 6, size * 0.38, nameY + 6);
-
     const shadow = this.add.graphics();
     shadow.fillStyle(0x000000, 0.14);
     shadow.fillCircle(5, 8, r + 8);
@@ -472,12 +461,27 @@ export class CharacterScene extends Phaser.Scene {
     ring.fillCircle(0, 0, r);
     ring.strokeCircle(0, 0, r);
 
-    let avatar = createCharacterFace(this, crianca, r, frameHint, { headHeightRatio: 2.32 });
+    const avatar = createCharacterFace(this, crianca, r, frameHint, { headHeightRatio: 2.32 });
+
+    const dividerY = r + Math.round(8 * s);
+    const divider = this.add.graphics();
+    divider.lineStyle(2, CHAR_TEXT_COLOR, 0.28);
+    divider.lineBetween(-size * 0.38, dividerY, size * 0.38, dividerY);
+
+    const nameY = dividerY + Math.round(10 * s);
+    const name = this.add.text(0, nameY, crianca.nome, {
+      fontFamily: Theme.fontFamily,
+      fontSize: `${Math.max(16, Math.round(19 * s))}px`,
+      color: CHAR_TEXT_COLOR,
+      fontStyle: 'bold',
+      align: 'center',
+      wordWrap: { width: size * 0.98 },
+    }).setOrigin(0.5, 0);
 
     container.add([shadow, base, ring, avatar, divider, name]);
 
-    const hitTop = nameY - 10;
-    const hitBottom = r + 14;
+    const hitTop = -r - 10;
+    const hitBottom = nameY + name.height + 8;
     const hitH = hitBottom - hitTop;
     const hitZone = this.add.zone(0, (hitTop + hitBottom) / 2, size * 0.96, hitH);
     hitZone.setInteractive({ useHandCursor: true });
@@ -488,6 +492,7 @@ export class CharacterScene extends Phaser.Scene {
     hitZone.on('pointerup', () => {
       container.setScale(1);
       if (this.swipeBlockedTap) return;
+      playCharacterVoice(this, crianca);
       this.openCharacterModal(crianca, frameHint);
     });
     hitZone.on('pointerout', () => container.setScale(1));

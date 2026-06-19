@@ -30,23 +30,36 @@ export function playCharacterVoice(scene, crianca) {
   const vol = getEffectVolume(scene);
   if (vol <= 0) return null;
 
-  const audio = new Audio(resolvePublicAssetUrl(path));
+  const url = resolvePublicAssetUrl(path);
+  const audio = new Audio();
+  audio.preload = 'auto';
   audio.volume = vol;
   activeVoice = audio;
 
-  const play = () => {
-    audio.play().catch(() => {});
+  const tryPlay = () => {
+    const promise = audio.play();
+    if (promise?.catch) {
+      promise.catch(() => {
+        const resume = () => {
+          audio.play().catch(() => {});
+          scene.input.off('pointerdown', resume);
+        };
+        scene.input.once('pointerdown', resume);
+      });
+    }
   };
 
-  if (scene.sound?.locked) {
-    scene.sound.once('unlocked', play);
-  } else {
-    play();
-  }
-
+  audio.addEventListener('canplaythrough', tryPlay, { once: true });
+  audio.addEventListener('error', () => {
+    if (activeVoice === audio) activeVoice = null;
+  }, { once: true });
   audio.onended = () => {
     if (activeVoice === audio) activeVoice = null;
   };
+
+  audio.src = url;
+  audio.load();
+  tryPlay();
 
   return audio;
 }

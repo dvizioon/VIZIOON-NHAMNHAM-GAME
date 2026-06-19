@@ -3,7 +3,6 @@ import { SceneKeys } from '../config/constants.js';
 import { drawSkyBackground } from '../ui/createUI.js';
 import {
   createSettingsPanel,
-  createSettingsDecorations,
   createSettingsSlider,
   createSettingsTitleLogo,
   createSettingsHomeButton,
@@ -41,9 +40,8 @@ export class SettingsScene extends Phaser.Scene {
       maxWidth: logoMaxW,
     });
 
-    const panelCy = layoutY(this, portrait ? 0.54 : 0.5);
+    const panelCy = layoutY(this, portrait ? 0.46 : 0.42);
     const panel = createSettingsPanel(this, width / 2, panelCy, panelW, panelH, { depth: 10 });
-    createSettingsDecorations(this, width / 2, panelCy, panelW, panelH);
 
     const persist = () => this.persistSettings();
 

@@ -381,6 +381,8 @@ const settingsCircleBtnOpts = {
   borderScale: SETTINGS_BTN_BORDER_SCALE,
   contentOffsetX: SETTINGS_BTN_CONTENT_OFFSET_X,
   contentOffsetY: SETTINGS_BTN_CONTENT_OFFSET_Y,
+  showBorder: true,
+  borderTint: Theme.folhaEscura,
 };
 
 export function createSettingsTitleLogo(scene, x, y, { maxWidth = 420 } = {}) {

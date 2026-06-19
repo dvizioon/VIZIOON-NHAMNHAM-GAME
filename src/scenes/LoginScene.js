@@ -111,6 +111,7 @@ export class LoginScene extends Phaser.Scene {
 
     createGuestPlayLink(this, width / 2, layout.guestY, {
       onClick: async () => {
+        usernameField.blur();
         playSound(this, 'clique');
         await bootstrapGuestSession(this);
         goCharacter();

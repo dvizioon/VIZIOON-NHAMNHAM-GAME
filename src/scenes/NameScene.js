@@ -17,10 +17,10 @@ import {
 import { UI_LOGO_CADASTRAR_KEY } from '../ui/loginUi.js';
 import {
   UI_LOGO_JOGADOR_KEY,
-  UI_USER_JOGADOR_KEY,
+  UI_SAPO_KEY,
   PLAYER_AGE_DEFAULT,
   preloadPlayerNameIcons,
-  createUserAvatar,
+  createRegisterAvatar,
   createPlayerNameField,
   createAgeSlider,
   createPlayerNavButtons,
@@ -87,8 +87,8 @@ export class RegisterScene extends Phaser.Scene {
       }).setOrigin(0.5).setDepth(15);
     }
 
-    if (hasTexture(this, UI_USER_JOGADOR_KEY)) {
-      createUserAvatar(this, width / 2, layout.avatarY, layout.avatarSize).setDepth(16);
+    if (hasTexture(this, UI_SAPO_KEY)) {
+      createRegisterAvatar(this, width / 2, layout.avatarY, layout.avatarSize).setDepth(16);
     }
 
     const savedAge = GameState.getPlayerAge(this) ?? PLAYER_AGE_DEFAULT;
@@ -130,11 +130,11 @@ export class RegisterScene extends Phaser.Scene {
 
     nav.setSubmitEnabled(isValidPlayerUsername(nameField.getValue()));
 
+    ageSlider.root.on('pointerdown', () => nameField.blur());
+
     this.input.keyboard.on('keydown-ENTER', () => {
       if (isValidPlayerUsername(nameField.getValue())) submit();
     });
-
-    nameField.focus();
   }
 
   spawnPassingFrog() {
