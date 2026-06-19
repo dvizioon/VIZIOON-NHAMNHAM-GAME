@@ -16,6 +16,7 @@ import {
   openExternalUrl,
   openSupportEmail,
   startApkDownload,
+  startIosDownload,
 } from '../config/appLinks.js';
 
 const MODAL_DEPTH = 225;
@@ -26,14 +27,8 @@ const DOWNLOAD_ICON = Icon.from('solar:download-minimalistic-bold', {
   designSize: 24,
   color: CHIP_LABEL_COLOR,
 });
-const MODAL_DOWNLOAD_ICON = Icon.from('solar:download-minimalistic-bold', {
-  designSize: 28,
-  color: '#ffffff',
-});
-const MODAL_HEADER_ICON = Icon.from('solar:download-minimalistic-bold', {
-  designSize: 28,
-  color: '#4E9A2E',
-});
+const ANDROID_SYM = Icon.from('mdi:android', { designSize: 56, color: '#3DDC84' });
+const IOS_SYM = Icon.from('mdi:apple', { designSize: 56, color: '#4C3433' });
 const GITHUB_ICON = Icon.from('mdi:github', { designSize: 22, color: '#ffffff' });
 const CLOSE_ICON = Icon.from('solar:close-circle-bold', { designSize: 24, color: '#4E9A2E' });
 
@@ -76,6 +71,48 @@ function createActionButton(scene, x, y, label, iconDef, {
 
   container.add([bg, icon, text]);
   container.setSize(width, btnH);
+  container.setInteractive({ useHandCursor: true });
+  container.on('pointerdown', () => draw(true));
+  container.on('pointerup', () => {
+    draw(false);
+    onClick?.();
+  });
+  container.on('pointerout', () => draw(false));
+
+  return container;
+}
+
+function createPlatformSymbol(scene, x, y, size, iconDef, label, onClick) {
+  const container = scene.add.container(x, y);
+  const pad = Math.round(size * 0.22);
+  const cardSize = size + pad * 2;
+
+  const bg = scene.add.graphics();
+  const draw = (pressed = false) => {
+    bg.clear();
+    const offset = pressed ? 3 : 0;
+    bg.fillStyle(Theme.folhaEscura, 1);
+    bg.fillRoundedRect(-cardSize / 2, -cardSize / 2 + offset, cardSize, cardSize, 18);
+    bg.fillStyle(Theme.papel, 1);
+    bg.fillRoundedRect(-cardSize / 2, -cardSize / 2, cardSize, cardSize - offset, 18);
+    bg.lineStyle(3, Theme.folhaEscura, 1);
+    bg.strokeRoundedRect(-cardSize / 2, -cardSize / 2, cardSize, cardSize - offset, 18);
+  };
+  draw();
+
+  const icon = scene.add.image(0, -Math.round(size * 0.08), iconDef.textureKey)
+    .setDisplaySize(size, size)
+    .setOrigin(0.5);
+
+  const text = scene.add.text(0, size * 0.42, label, {
+    fontFamily: Theme.fontFamily,
+    fontSize: `${Math.max(14, Math.round(size * 0.28))}px`,
+    color: '#1E6A30',
+    fontStyle: 'bold',
+  }).setOrigin(0.5);
+
+  container.add([bg, icon, text]);
+  container.setSize(cardSize, cardSize + Math.round(size * 0.2));
   container.setInteractive({ useHandCursor: true });
   container.on('pointerdown', () => draw(true));
   container.on('pointerup', () => {
@@ -153,7 +190,7 @@ export async function openDownloadApkModal(scene, { onClose } = {}) {
 
   const { width, height } = scene.scale;
   const s = uiScale(scene);
-  await Icon.preload(scene, [MODAL_DOWNLOAD_ICON, MODAL_HEADER_ICON, GITHUB_ICON, CLOSE_ICON]);
+  await Icon.preload(scene, [ANDROID_SYM, IOS_SYM, GITHUB_ICON, CLOSE_ICON]);
 
   const panelW = Math.min(Math.round(width * 0.92), 400);
   const padX = Math.round(28 * s);
@@ -165,13 +202,13 @@ export async function openDownloadApkModal(scene, { onClose } = {}) {
   const wrapW = panelW - padX * 2;
   const btnW = Math.min(panelW - Math.round(40 * s), 300);
   const btnH = 54;
-  const btnGap = Math.round(14 * s);
   const sectionGap = Math.round(16 * s);
   const footerGap = Math.round(20 * s);
   const closeInset = Math.max(22, Math.round(26 * s));
 
-  const message = 'Para Android — baixe e instale o .APK.';
-  const headerIconSize = Math.round(Math.min(panelW * 0.15, 52));
+  const message = 'Escolha sua plataforma';
+  const platformIconSize = Math.round(Math.min(panelW * 0.18, 56 * s));
+  const platformRowH = platformIconSize + Math.round(52 * s);
   const titleLineH = Math.round(titleSize * 1.2);
 
   const measureBody = scene.add.text(0, 0, message, {
@@ -200,14 +237,12 @@ export async function openDownloadApkModal(scene, { onClose } = {}) {
   }).setOrigin(0.5, 0);
 
   const contentH = padTop
-    + headerIconSize
-    + Math.round(10 * s)
     + titleLineH
     + sectionGap
     + measureBody.height
     + sectionGap
-    + btnH
-    + btnGap
+    + platformRowH
+    + sectionGap
     + btnH
     + footerGap
     + measureCredits.height
@@ -242,13 +277,6 @@ export async function openDownloadApkModal(scene, { onClose } = {}) {
 
   let y = -panelH / 2 + padTop;
 
-  const icon = scene.add
-    .image(0, y + headerIconSize / 2, MODAL_HEADER_ICON.textureKey)
-    .setDisplaySize(headerIconSize, headerIconSize)
-    .setOrigin(0.5);
-  panel.add(icon);
-  y += headerIconSize + Math.round(10 * s);
-
   const title = scene.add.text(0, y, 'Baixar o App', {
     fontFamily: Theme.fontFamily,
     fontSize: `${titleSize}px`,
@@ -265,9 +293,41 @@ export async function openDownloadApkModal(scene, { onClose } = {}) {
     align: 'center',
     wordWrap: { width: wrapW },
     lineSpacing: 4,
+    fontStyle: 'bold',
   }).setOrigin(0.5, 0);
   panel.add(body);
   y += body.height + sectionGap;
+
+  const cardSize = platformIconSize + Math.round(platformIconSize * 0.22) * 2;
+  const platformGap = cardSize / 2 + Math.round(12 * s);
+  const platformY = y + platformRowH / 2 - Math.round(8 * s);
+  const iosY = platformY + Math.round(10 * s);
+  const androidCard = createPlatformSymbol(
+    scene,
+    -platformGap,
+    platformY,
+    platformIconSize,
+    ANDROID_SYM,
+    'Android',
+    () => {
+      playSound(scene, 'clique');
+      startApkDownload();
+    },
+  );
+  const iosCard = createPlatformSymbol(
+    scene,
+    platformGap,
+    iosY,
+    platformIconSize,
+    IOS_SYM,
+    'iOS',
+    () => {
+      playSound(scene, 'clique');
+      startIosDownload();
+    },
+  );
+  panel.add([androidCard, iosCard]);
+  y += platformRowH + sectionGap;
 
   let closed = false;
 
@@ -279,24 +339,6 @@ export async function openDownloadApkModal(scene, { onClose } = {}) {
     if (activeModal?.close === close) activeModal = null;
     onClose?.();
   }
-
-  const downloadBtn = createActionButton(
-    scene,
-    0,
-    y + btnH / 2,
-    'Baixar .APK',
-    MODAL_DOWNLOAD_ICON,
-    {
-      width: btnW,
-      fontSize: Math.max(17, Math.round(19 * s)),
-      onClick: () => {
-        playSound(scene, 'clique');
-        startApkDownload();
-      },
-    },
-  );
-  panel.add(downloadBtn);
-  y += btnH + btnGap;
 
   const githubBtn = createActionButton(
     scene,

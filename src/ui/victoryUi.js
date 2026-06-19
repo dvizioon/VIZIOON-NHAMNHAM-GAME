@@ -7,9 +7,14 @@ export function buildVictoryStage(scene) {
   drawEnvironmentLayers(scene, { clouds: true, ground: true });
 }
 
-export function createVictoryTitleCard(scene, nome, y) {
+export function createVictoryTitleCard(scene, nome, y, genero = 'menino') {
   const s = uiScale(scene);
   const { width } = scene.scale;
+  const isGirl = genero === 'menina';
+  const strokeColor = isGirl ? '#D85A96' : '#1E6A30';
+  const subtitleColor = isGirl ? '#7a1f44' : '#4C3433';
+  const borderColor = isGirl ? Theme.rosa : 0x4C3433;
+  const shadowColor = isGirl ? 0xd85a96 : 0x1e6a30;
   const cardW = Math.min(width * 0.92, 520);
   const padY = Math.round(12 * s);
   const padX = Math.round(18 * s);
@@ -20,7 +25,7 @@ export function createVictoryTitleCard(scene, nome, y) {
     fontSize: `${Math.round(30 * s)}px`,
     color: '#FFFFFF',
     fontStyle: 'bold',
-    stroke: '#1E6A30',
+    stroke: strokeColor,
     strokeThickness: Math.round(5 * s),
     align: 'center',
     wordWrap: { width: cardW - padX * 2 },
@@ -29,7 +34,7 @@ export function createVictoryTitleCard(scene, nome, y) {
   const subtitle = scene.add.text(0, 0, 'Você virou uma linda borboleta!', {
     fontFamily: Theme.fontFamily,
     fontSize: `${Math.round(16 * s)}px`,
-    color: '#2d5016',
+    color: subtitleColor,
     fontStyle: 'bold',
     align: 'center',
     wordWrap: { width: cardW - padX * 2 },
@@ -40,12 +45,12 @@ export function createVictoryTitleCard(scene, nome, y) {
   const card = scene.add.container(width / 2, y).setDepth(42).setScrollFactor(0);
 
   const shadow = scene.add.graphics();
-  shadow.fillStyle(0x1e6a30, 0.18);
+  shadow.fillStyle(shadowColor, 0.18);
   shadow.fillRoundedRect(-cardW / 2 + 4, -cardH / 2 + 5, cardW, cardH, r);
 
   const bg = scene.add.graphics();
   bg.fillStyle(Theme.papel, 0.94);
-  bg.lineStyle(3, Theme.folhaEscura, 1);
+  bg.lineStyle(3, borderColor, 1);
   bg.fillRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, r);
   bg.strokeRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, r);
 
@@ -66,23 +71,39 @@ export function createVictoryTitleCard(scene, nome, y) {
   return card;
 }
 
-export function createVictoryDragHint(scene, y) {
+export function createVictoryDragHint(scene, y, genero = 'menino') {
   const s = uiScale(scene);
   const { width } = scene.scale;
-  const hint = scene.add.text(width / 2, y, 'Mexe o dedo na tela — solta para voltar!', {
+  const isGirl = genero === 'menina';
+  const strokeColor = isGirl ? 0xD85A96 : 0x1E6A30;
+  const fillColor = isGirl ? 0xD85A96 : 0x1E6A30;
+  const padX = Math.round(18 * s);
+  const padY = Math.round(10 * s);
+
+  const label = scene.add.text(0, 0, 'Toque na borboleta e arrasta na tela!', {
     fontFamily: Theme.fontFamily,
     fontSize: `${Math.round(15 * s)}px`,
     color: '#FFFFFF',
     fontStyle: 'bold',
-    stroke: '#1E6A30',
-    strokeThickness: Math.round(4 * s),
-    backgroundColor: '#1E6A30AA',
-    padding: { x: 12, y: 6 },
-  }).setOrigin(0.5).setDepth(43).setScrollFactor(0).setAlpha(0.9);
+    align: 'center',
+  }).setOrigin(0.5);
 
-  scene.tweens.add({
-    targets: hint,
-    alpha: { from: 0.72, to: 1 },
+  const bubbleW = label.width + padX * 2;
+  const bubbleH = label.height + padY * 2;
+  const radius = bubbleH / 2;
+
+  const container = scene.add.container(width / 2, y).setDepth(43).setScrollFactor(0).setAlpha(0.92);
+
+  const bg = scene.add.graphics();
+  bg.fillStyle(fillColor, 0.9);
+  bg.fillRoundedRect(-bubbleW / 2, -bubbleH / 2, bubbleW, bubbleH, radius);
+  bg.lineStyle(Math.round(2 * s), strokeColor, 1);
+  bg.strokeRoundedRect(-bubbleW / 2, -bubbleH / 2, bubbleW, bubbleH, radius);
+
+  container.add([bg, label]);
+
+  const floatTween = scene.tweens.add({
+    targets: container,
     y: y - Math.round(5 * s),
     duration: 1200,
     yoyo: true,
@@ -90,7 +111,22 @@ export function createVictoryDragHint(scene, y) {
     ease: 'Sine.easeInOut',
   });
 
-  return hint;
+  let dismissed = false;
+  const dismiss = () => {
+    if (dismissed || !container.active) return;
+    dismissed = true;
+    floatTween.stop();
+    scene.tweens.add({
+      targets: container,
+      alpha: 0,
+      y: y + Math.round(10 * s),
+      duration: 280,
+      ease: 'Sine.easeIn',
+      onComplete: () => container.destroy(),
+    });
+  };
+
+  return { container, dismiss };
 }
 
 export function spawnVictorySparkles(scene, count = 16) {

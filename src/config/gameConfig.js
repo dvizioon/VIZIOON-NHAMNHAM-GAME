@@ -25,6 +25,9 @@ export function createGameConfig() {
     backgroundColor: '#E8F9FF',
     title: 'Nhoc Nhoc! A Lagartinha da Turminha',
     version: '0.1.0',
+    render: {
+      preserveDrawingBuffer: true,
+    },
     scale: {
       mode: Phaser.Scale.RESIZE,
       autoCenter: Phaser.Scale.NO_CENTER,

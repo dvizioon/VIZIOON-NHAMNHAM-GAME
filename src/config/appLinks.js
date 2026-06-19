@@ -25,6 +25,18 @@ export function openSupportEmail(subject = 'Suporte — Nhoc Nhoc') {
   window.location.href = mail;
 }
 
+/** URL da App Store (iOS) — opcional via .env */
+export const APP_IOS_URL = import.meta.env.VITE_IOS_APP_URL ?? '';
+
+export function startIosDownload() {
+  if (APP_IOS_URL) {
+    openExternalUrl(APP_IOS_URL);
+    return true;
+  }
+  openSupportEmail('App iOS — Nhoc Nhoc');
+  return false;
+}
+
 export function startApkDownload() {
   if (typeof document === 'undefined') return false;
 

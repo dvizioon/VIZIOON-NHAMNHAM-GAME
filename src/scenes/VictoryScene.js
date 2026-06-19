@@ -6,7 +6,7 @@ import { GameState } from '../utils/GameState.js';
 import { syncRunScore } from '../services/playerSession.js';
 import { uiScale, isPortrait } from '../utils/responsive.js';
 import { createFlyableButterfly, destroyFlyableButterfly } from '../ui/butterflyVisual.js';
-import { downloadGameScreenshot } from '../utils/captureScreenshot.js';
+import { openVictoryPhotoModal } from '../ui/victoryPhotoModal.js';
 import { Icon } from '../ui/iconify.js';
 import {
   createIconCircleButton,
@@ -21,16 +21,28 @@ import {
   spawnVictorySparkles,
 } from '../ui/victoryUi.js';
 
-const VICTORY_ICONS = {
+const VICTORY_ICONS_BASE = {
   home: Icon.from('mynaui:home', { designSize: 24, color: '#ffffff' }),
-  photo: Icon.from('solar:camera-bold', { designSize: 24, color: '#D85A96' }),
 };
 
-async function preloadVictoryIcons(scene) {
+function getVictoryIcons(genero) {
+  const isGirl = genero === 'menina';
+  return {
+    ...VICTORY_ICONS_BASE,
+    photo: Icon.from('solar:camera-bold', {
+      designSize: 24,
+      color: isGirl ? '#D85A96' : '#1E6A30',
+    }),
+  };
+}
+
+async function preloadVictoryIcons(scene, genero) {
+  const icons = getVictoryIcons(genero);
   await Promise.all([
     preloadSplashIcons(scene),
-    Icon.preload(scene, Object.values(VICTORY_ICONS)),
+    Icon.preload(scene, Object.values(icons)),
   ]);
+  return icons;
 }
 
 /** Vitória — borboleta voando/arrastável + jardim */
@@ -49,11 +61,12 @@ export class VictoryScene extends Phaser.Scene {
 
     buildVictoryStage(this);
     spawnVictorySparkles(this);
-    await preloadVictoryIcons(this);
+    const isGirl = genero === 'menina';
+    const victoryIcons = await preloadVictoryIcons(this, genero);
 
     const titleY = Math.round(58 * s);
-    createVictoryTitleCard(this, nome, titleY);
-    createVictoryDragHint(this, height * 0.14);
+    createVictoryTitleCard(this, nome, titleY, genero);
+    const dragHint = createVictoryDragHint(this, height * 0.24, genero);
 
     const homeX = width / 2;
     const homeY = height * 0.52;
@@ -70,6 +83,7 @@ export class VictoryScene extends Phaser.Scene {
       flapMs: 580,
       faceScaleMul: 1.75,
       headHeightRatio: 1.72,
+      onFirstTouch: () => dragHint.dismiss(),
     });
 
     this.butterfly.setScale(0.15);
@@ -90,13 +104,14 @@ export class VictoryScene extends Phaser.Scene {
     const homeBtnX = width / 2 - (btnW + gap) / 2;
     const photoX = width / 2 + (btnW + gap) / 2;
 
-    createIconCircleButton(this, homeBtnX, rowY, VICTORY_ICONS.home, {
+    createIconCircleButton(this, homeBtnX, rowY, victoryIcons.home, {
+      ...SPLASH_CORNER_BTN_OPTS,
       size: btnSize,
       iconSize: btnIcon,
       absoluteSize: portrait,
       depth: 50,
       fillColor: Theme.botaoVerde,
-      ...SPLASH_CORNER_BTN_OPTS,
+      borderTint: isGirl ? 0xD85A96 : 0x1E6A30,
       onClick: () => {
         playSound(this, 'clique');
         GameState.resetForNewRun(this);
@@ -104,17 +119,21 @@ export class VictoryScene extends Phaser.Scene {
       },
     }).setScrollFactor(0);
 
-    createIconCircleButton(this, photoX, rowY, VICTORY_ICONS.photo, {
+    createIconCircleButton(this, photoX, rowY, victoryIcons.photo, {
+      ...SPLASH_CORNER_BTN_OPTS,
       size: btnSize,
       iconSize: btnIcon,
       absoluteSize: portrait,
       depth: 50,
       fillColor: Theme.papel,
-      ...SPLASH_CORNER_BTN_OPTS,
+      borderTint: isGirl ? 0xD85A96 : 0x1E6A30,
       onClick: () => {
         playSound(this, 'clique');
-        const ok = downloadGameScreenshot(this, `borboleta-${nome}.png`);
-        if (!ok) playSound(this, 'fail');
+        openVictoryPhotoModal(this, {
+          genero,
+          butterfly: this.butterfly,
+          filename: `borboleta-${nome}.png`,
+        });
       },
     }).setScrollFactor(0);
 

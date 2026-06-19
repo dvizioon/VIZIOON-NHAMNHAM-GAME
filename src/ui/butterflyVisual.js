@@ -11,14 +11,29 @@ const WING_PIVOT_Y = 168 / VIEW;
 const HEAD_Y = 96;
 const BODY_CENTER_Y = 150;
 
+/** Cores básicas da marca — modo menino */
+const BOY_BRAND = {
+  greenDark: '#1E6A30',
+  brown: '#4C3433',
+  greenLight: '#8CC769',
+  yellow: '#EBE350',
+};
+
 const PALETTES = {
   macho: {
-    g1: '#84C93E',
-    g2: '#3F8417',
-    border: '#143a08',
-    vein: '#1d4a0c',
-    veinW: 1.1,
+    g1: BOY_BRAND.greenLight,
+    g2: BOY_BRAND.greenDark,
+    border: BOY_BRAND.brown,
+    vein: BOY_BRAND.greenDark,
+    veinW: 1.2,
+    spotFill: BOY_BRAND.yellow,
+    spotStroke: BOY_BRAND.brown,
+    scentFill: BOY_BRAND.brown,
+    scentCore: BOY_BRAND.greenDark,
     scent: true,
+    body: BOY_BRAND.brown,
+    bodyDark: '#3A2625',
+    bodyDot: BOY_BRAND.yellow,
   },
   femea: {
     g1: '#F7A8C8',
@@ -26,11 +41,15 @@ const PALETTES = {
     border: '#5e1230',
     vein: '#7a1f44',
     veinW: 2.4,
+    spotFill: '#fff',
+    spotStroke: null,
     scent: false,
+    body: '#5E1230',
+    bodyDark: '#3A0A1E',
+    bodyDot: '#FFFFFF',
   },
 };
 
-const BODY = '#191107';
 const FOREWING = 'M148,108 C160,72 205,52 252,66 C272,73 280,97 267,120 C254,142 210,148 175,140 C160,136 150,124 148,112 Z';
 const HINDWING = 'M148,134 C172,138 208,150 226,178 C240,200 232,232 204,236 C180,240 158,218 150,188 C147,170 146,150 148,138 Z';
 
@@ -64,11 +83,14 @@ function halfWingMarkup(sex) {
   const veins = VEIN_PATHS.map(
     (d) => `<path d="${d}" fill="none" stroke="${p.vein}" stroke-width="${p.veinW}" stroke-linecap="round"/>`,
   ).join('');
-  const spots = SPOTS.map(
-    ([cx, cy]) => `<circle cx="${cx}" cy="${cy}" r="2.3" fill="#fff"/>`,
-  ).join('');
+  const spots = SPOTS.map(([cx, cy]) => {
+    const stroke = p.spotStroke ? ` stroke="${p.spotStroke}" stroke-width="0.8"` : '';
+    return `<circle cx="${cx}" cy="${cy}" r="2.3" fill="${p.spotFill}"${stroke}/>`;
+  }).join('');
   const scent = p.scent
-    ? `<ellipse cx="182" cy="192" rx="6" ry="8" fill="${BODY}"/><ellipse cx="182" cy="192" rx="2.6" ry="3.6" fill="#2c4a14"/>`
+    ? `<ellipse cx="182" cy="192" rx="6" ry="8" fill="${p.body}"/>`
+      + `<ellipse cx="182" cy="192" rx="4.2" ry="5.8" fill="${p.scentFill}"/>`
+      + `<ellipse cx="182" cy="192" rx="2.6" ry="3.6" fill="${p.scentCore}"/>`
     : '';
 
   return (
@@ -94,24 +116,20 @@ export function buildButterflyWingSvg(sex) {
   );
 }
 
-export function buildButterflyBodySvg() {
+export function buildButterflyBodySvg(sex) {
+  const p = PALETTES[sex];
   const dots = BODY_DOTS.map(
-    ([cx, cy]) => `<circle cx="${cx}" cy="${cy}" r="1.7" fill="#fff"/>`,
+    ([cx, cy]) => `<circle cx="${cx}" cy="${cy}" r="1.7" fill="${p.bodyDot}"/>`,
   ).join('');
-
-  // Antenas desligadas — rosto da criança fica mais limpo no centro
-  // + `<path d="M147,90 C140,78 136,66 132,57" .../>`
-  // + `<path d="M153,90 C160,78 164,66 168,57" .../>`
-  // + `<circle cx="131" cy="56" .../>` + `<circle cx="169" cy="56" .../>`
 
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" width="300" height="300">`
     + `<g>`
-    + `<ellipse cx="150" cy="178" rx="6.5" ry="42" fill="${BODY}"/>`
-    + `<ellipse cx="150" cy="120" rx="11" ry="20" fill="${BODY}"/>`
-    + `<circle cx="150" cy="96" r="8" fill="${BODY}"/>`
-    + `<circle cx="146.5" cy="95" r="2.4" fill="#070502"/>`
-    + `<circle cx="153.5" cy="95" r="2.4" fill="#070502"/>`
+    + `<ellipse cx="150" cy="178" rx="6.5" ry="42" fill="${p.body}"/>`
+    + `<ellipse cx="150" cy="120" rx="11" ry="20" fill="${p.body}"/>`
+    + `<circle cx="150" cy="96" r="8" fill="${p.body}"/>`
+    + `<circle cx="146.5" cy="95" r="2.4" fill="${p.bodyDark}"/>`
+    + `<circle cx="153.5" cy="95" r="2.4" fill="${p.bodyDark}"/>`
     + dots
     + `</g></svg>`
   );
@@ -147,12 +165,12 @@ export async function createAnimatedButterfly(scene, x, y, {
   headHeightRatio = 1.62,
 } = {}) {
   const sex = sexFromGenero(genero);
-  const wingKey = `bf_wing_${sex}`;
-  const bodyKey = 'bf_body_v2';
+  const wingKey = sex === 'macho' ? 'bf_wing_macho_brand' : `bf_wing_${sex}`;
+  const bodyKey = `bf_body_${sex}_brand`;
 
   await Promise.all([
     loadSvgTexture(scene, wingKey, buildButterflyWingSvg(sex)),
-    loadSvgTexture(scene, bodyKey, buildButterflyBodySvg()),
+    loadSvgTexture(scene, bodyKey, buildButterflyBodySvg(sex)),
   ]);
 
   const unit = displaySize / VIEW;
@@ -180,7 +198,7 @@ export async function createAnimatedButterfly(scene, x, y, {
   if (child) {
     const faceWrap = createCharacterFace(scene, child, 22, 0, {
       headHeightRatio,
-      animate: false,
+      animate: true,
     });
     if (faceWrap) {
       faceWrap.setPosition(0, (HEAD_Y - BODY_CENTER_Y) * unit);
@@ -268,15 +286,31 @@ export async function createFlyableButterfly(scene, x, y, options = {}) {
 
   const isOverButtons = (pointer) => pointer.y > scene.scale.height * 0.84;
 
+  const isPointerOnButterfly = (pointer) => {
+    const bounds = root.getBounds();
+    return bounds.contains(pointer.x, pointer.y);
+  };
+
+  let dragging = false;
+  let touched = false;
+
   const onPointerDown = (pointer) => {
     if (!state.ready || isOverButtons(pointer)) return;
+    if (!isPointerOnButterfly(pointer)) return;
+
+    if (!touched) {
+      touched = true;
+      options.onFirstTouch?.();
+    }
+
+    dragging = true;
     const p = clampTarget(pointer.x, pointer.y);
     state.targetX = p.x;
     state.targetY = p.y;
   };
 
   const onPointerMove = (pointer) => {
-    if (!state.ready || isOverButtons(pointer)) return;
+    if (!state.ready || !dragging || isOverButtons(pointer)) return;
     const p = clampTarget(pointer.x, pointer.y);
     state.targetX = p.x;
     state.targetY = p.y;
@@ -284,6 +318,7 @@ export async function createFlyableButterfly(scene, x, y, options = {}) {
 
   const onPointerUp = () => {
     if (!state.ready) return;
+    dragging = false;
     state.targetX = homeX;
     state.targetY = homeY;
   };
@@ -358,4 +393,27 @@ export async function createFlyableButterfly(scene, x, y, options = {}) {
 export function destroyFlyableButterfly(root) {
   root?.getData?.('bfFlightCleanup')?.();
   root?.getData?.('bfFlapTween')?.stop?.();
+}
+
+/** Pausa o bater de asas e abre as asas para foto. */
+export function prepareButterflyPhotoPose(root) {
+  if (!root?.active) return () => {};
+
+  const flapTween = root.getData('bfFlapTween');
+  const pivots = root.getData('bfWingPivots') ?? [];
+  const saved = {
+    flapWasPlaying: flapTween?.isPlaying?.() ?? false,
+    pivotScales: pivots.map((p) => ({ x: p.scaleX, y: p.scaleY })),
+  };
+
+  flapTween?.pause();
+  pivots.forEach((p) => p.setScale(1, 1));
+
+  return () => {
+    pivots.forEach((p, i) => {
+      const scale = saved.pivotScales[i];
+      if (scale) p.setScale(scale.x, scale.y);
+    });
+    if (saved.flapWasPlaying) flapTween?.resume();
+  };
 }
