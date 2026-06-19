@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">nhocnhoc</string>
-    <string name="title_activity_main">nhocnhoc</string>
+    <string name="app_name">Nhoc Nhoc!</string>
+    <string name="title_activity_main">Nhoc Nhoc!</string>
     <string name="package_name">com.dvizioon.nhocnhoc</string>
     <string name="custom_url_scheme">com.dvizioon.nhocnhoc</string>
 </resources>
