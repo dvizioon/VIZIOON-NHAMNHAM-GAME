@@ -3,6 +3,7 @@ import { defaultSettings } from '../config/constants.js';
 const SETTINGS_KEY = 'nhamnham_settings';
 const PROFILE_KEY = 'nhamnham_profile_cache';
 const LAST_RUN_KEY = 'nhamnham_last_run';
+const RELEASE_PROMPT_KEY = 'nhamnham_release_prompt';
 
 function normalizeSettings(raw) {
   if (!raw || typeof raw !== 'object') return null;
@@ -98,5 +99,23 @@ export function loadLastRunRecap() {
     return parsed;
   } catch {
     return null;
+  }
+}
+
+/** Evita repetir o aviso da mesma release na splash */
+export function loadDismissedReleaseVersion() {
+  try {
+    return localStorage.getItem(RELEASE_PROMPT_KEY) || '';
+  } catch {
+    return '';
+  }
+}
+
+export function saveDismissedReleaseVersion(version) {
+  if (!version) return;
+  try {
+    localStorage.setItem(RELEASE_PROMPT_KEY, String(version));
+  } catch {
+    /* ignore */
   }
 }

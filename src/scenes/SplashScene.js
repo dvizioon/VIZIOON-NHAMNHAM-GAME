@@ -39,6 +39,7 @@ import { createSplashConnectChip } from '../ui/loginUi.js';
 import { createSplashDownloadChip, openDownloadApkModal } from '../ui/downloadApkModal.js';
 import { openRankingModal } from '../ui/rankingUi.js';
 import { isWebBrowser } from '../utils/platform.js';
+import { maybePromptAppUpdate } from '../services/appUpdate.js';
 import {
   SPLASH_CATERPILLAR_GROUND_OFFSET_RATIO,
   getSplashCaterpillarOpts,
@@ -143,6 +144,10 @@ export class SplashScene extends Phaser.Scene {
     this.placeSplashButtons(width);
     await this.placeUserChip(width);
     await this.placeDownloadButton(width);
+
+    this.time.delayedCall(1800, () => {
+      maybePromptAppUpdate(this).catch(() => {});
+    });
 
     const caterpillar = this.caterpillar;
 

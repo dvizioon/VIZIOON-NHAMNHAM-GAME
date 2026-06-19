@@ -24,7 +24,7 @@ export function createGameConfig() {
     parent: 'game-container',
     backgroundColor: '#E8F9FF',
     title: 'Nhoc Nhoc! A Lagartinha da Turminha',
-    version: '0.1.0',
+    version: '0.0.1',
     render: {
       preserveDrawingBuffer: true,
     },

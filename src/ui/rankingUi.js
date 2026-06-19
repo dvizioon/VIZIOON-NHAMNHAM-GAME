@@ -8,7 +8,7 @@ import { GameState } from '../utils/GameState.js';
 import { GameApi } from '../services/gameApi.js';
 import { GUEST_PLAYER_NAME, UI_USER_JOGADOR_KEY } from './playerNameUi.js';
 import { openRunRecapModal } from './runRecapUi.js';
-import { PANEL_CORNER_RADIUS, PANEL_SHADOW_OFFSET, UI_DECO_3FOLHAS_KEY } from './settingsUi.js';
+import { PANEL_CORNER_RADIUS, PANEL_SHADOW_OFFSET } from './settingsUi.js';
 import { showWarningAlert } from './thematicAlert.js';
 
 const MODAL_DEPTH = 220;
@@ -31,21 +31,6 @@ function formatRankTime(ms) {
   return `${sec}s`;
 }
 
-function startRankingLeafAnim(scene, leaf, { baseAngle = 0, bob = 7 } = {}) {
-  if (!leaf?.active || !scene) return;
-  const anchorY = leaf.y;
-  scene.tweens.killTweensOf(leaf);
-  scene.tweens.add({
-    targets: leaf,
-    y: anchorY - bob,
-    angle: baseAngle + 6,
-    duration: 1600,
-    yoyo: true,
-    repeat: -1,
-    ease: 'Sine.easeInOut',
-  });
-}
-
 function createThemedPanel(scene, panelW, panelH, s) {
   const r = Math.round(PANEL_CORNER_RADIUS * (panelW / 420));
   const off = Math.round(PANEL_SHADOW_OFFSET * (panelW / 420));
@@ -59,24 +44,7 @@ function createThemedPanel(scene, panelW, panelH, s) {
   bg.lineStyle(Math.max(4, Math.round(4 * s)), Theme.folhaEscura, 1);
   bg.strokeRoundedRect(-panelW / 2, -panelH / 2, panelW, panelH, r);
 
-  const decor = [];
-  if (scene.textures.exists(UI_DECO_3FOLHAS_KEY)) {
-    const leafSize = Math.round(46 * s);
-    const leafL = scene.add.image(-panelW / 2 + Math.round(24 * s), -panelH / 2 + Math.round(22 * s), UI_DECO_3FOLHAS_KEY)
-      .setDisplaySize(leafSize, leafSize)
-      .setAlpha(0.62)
-      .setAngle(-22);
-    const leafR = scene.add.image(panelW / 2 - Math.round(24 * s), -panelH / 2 + Math.round(22 * s), UI_DECO_3FOLHAS_KEY)
-      .setDisplaySize(leafSize, leafSize)
-      .setAlpha(0.62)
-      .setAngle(22)
-      .setFlipX(true);
-    startRankingLeafAnim(scene, leafL, { baseAngle: -22, bob: Math.round(8 * s) });
-    startRankingLeafAnim(scene, leafR, { baseAngle: 22, bob: Math.round(8 * s) });
-    decor.push(leafL, leafR);
-  }
-
-  return { shadow, bg, decor };
+  return { shadow, bg };
 }
 
 function createPlayerAvatar(scene, x, y, size, { highlight = false } = {}) {
@@ -336,7 +304,7 @@ export async function openRankingModal(scene, { onClose } = {}) {
 
   const panel = scene.add.container(cx, cy);
   const themed = createThemedPanel(scene, panelW, panelH, s);
-  panel.add([themed.shadow, themed.bg, ...themed.decor]);
+  panel.add([themed.shadow, themed.bg]);
   panel.setInteractive(
     new Phaser.Geom.Rectangle(-panelW / 2, -panelH / 2, panelW, panelH),
     Phaser.Geom.Rectangle.Contains,

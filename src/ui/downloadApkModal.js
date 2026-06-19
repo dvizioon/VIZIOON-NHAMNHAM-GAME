@@ -19,6 +19,12 @@ import {
   openSupportEmail,
   startApkDownload,
 } from '../config/appLinks.js';
+import {
+  fetchLatestReleaseInfo,
+  formatAppVersion,
+  getCurrentAppVersion,
+  isUpdateAvailable,
+} from '../services/releaseUpdate.js';
 
 const MODAL_DEPTH = 225;
 const CHIP_LABEL_COLOR = '#1E6A30';
@@ -250,8 +256,13 @@ export async function openDownloadApkModal(scene, { onClose } = {}) {
     fontStyle: 'bold',
   }).setOrigin(0.5, 0);
 
+  const versionLineH = Math.round(smallSize * 1.35);
+  const versionGap = Math.round(8 * s);
+
   const contentH = padTop
     + titleLineH
+    + versionGap
+    + versionLineH
     + sectionGap
     + measureBody.height
     + sectionGap
@@ -298,7 +309,17 @@ export async function openDownloadApkModal(scene, { onClose } = {}) {
     fontStyle: 'bold',
   }).setOrigin(0.5, 0);
   panel.add(title);
-  y += title.height + sectionGap;
+  y += title.height + versionGap;
+
+  const versionText = scene.add.text(0, y, `Versão ${formatAppVersion()}`, {
+    fontFamily: Theme.fontFamily,
+    fontSize: `${smallSize}px`,
+    color: '#6B4226',
+    fontStyle: 'bold',
+    align: 'center',
+  }).setOrigin(0.5, 0);
+  panel.add(versionText);
+  y += versionText.height + sectionGap;
 
   const body = scene.add.text(0, y, message, {
     fontFamily: Theme.fontFamily,
@@ -314,6 +335,7 @@ export async function openDownloadApkModal(scene, { onClose } = {}) {
 
   const platformGap = platformCardW / 2 + Math.round(12 * s);
   const platformY = y + platformRowH / 2 - Math.round(8 * s);
+  let latestRelease = null;
   const androidCard = createPlatformSymbol(
     scene,
     -platformGap,
@@ -323,7 +345,7 @@ export async function openDownloadApkModal(scene, { onClose } = {}) {
     'Android',
     () => {
       playSound(scene, 'clique');
-      startApkDownload();
+      startApkDownload(latestRelease?.downloadUrl);
     },
   );
   const iosCard = createPlatformSymbol(
@@ -438,6 +460,19 @@ export async function openDownloadApkModal(scene, { onClose } = {}) {
   scene.events.once('shutdown', () => {
     if (activeModal === handle) activeModal = null;
   });
+
+  fetchLatestReleaseInfo().then((latest) => {
+    if (!latest || !versionText.active) return;
+    latestRelease = latest;
+    const current = getCurrentAppVersion();
+    const hasUpdate = isUpdateAvailable(current, latest.version);
+    versionText.setText(
+      hasUpdate
+        ? `Versão ${formatAppVersion()} · Nova: ${formatAppVersion(latest.version)}`
+        : `Versão ${formatAppVersion()} · Você está na mais recente`,
+    );
+    if (hasUpdate) versionText.setColor('#1E6A30');
+  }).catch(() => {});
 
   return handle;
 }

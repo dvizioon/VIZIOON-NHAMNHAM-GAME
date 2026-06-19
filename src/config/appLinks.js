@@ -37,11 +37,11 @@ export function startIosDownload() {
   return false;
 }
 
-export function startApkDownload() {
+export function startApkDownload(downloadUrl = APP_APK_DOWNLOAD_URL) {
   if (typeof document === 'undefined') return false;
 
   const link = document.createElement('a');
-  link.href = APP_APK_DOWNLOAD_URL;
+  link.href = downloadUrl || APP_APK_DOWNLOAD_URL;
   link.setAttribute('download', APP_APK_FILENAME);
   link.setAttribute('target', '_blank');
   link.setAttribute('rel', 'noopener noreferrer');
