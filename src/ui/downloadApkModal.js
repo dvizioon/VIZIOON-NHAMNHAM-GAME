@@ -94,6 +94,7 @@ export async function createSplashDownloadChip(scene, x, y, {
   iconSize,
   absoluteSize = true,
   iconOnly = true,
+  depth = 200,
 } = {}) {
   await Icon.preload(scene, [DOWNLOAD_ICON]);
 
@@ -105,7 +106,7 @@ export async function createSplashDownloadChip(scene, x, y, {
       size,
       iconSize: iconPx,
       absoluteSize,
-      depth: 200,
+      depth,
       ...SPLASH_CORNER_BTN_OPTS,
       borderTint: CHIP_BORDER_TINT,
       onClick: () => onClick?.(),
@@ -342,19 +343,20 @@ export async function openDownloadApkModal(scene, { onClose } = {}) {
   panel.add(mailLink);
 
   const closeBtnSize = 44;
-  createIconCircleButton(
+  const closeBtn = createIconCircleButton(
     scene,
-    cx + panelW / 2 - closeBtnSize / 2 - closeInset,
-    cy - panelH / 2 + closeBtnSize / 2 + closeInset,
+    panelW / 2 - closeInset - closeBtnSize / 2,
+    -panelH / 2 + closeInset + closeBtnSize / 2,
     CLOSE_ICON,
     {
       size: closeBtnSize,
       iconSize: 22,
       absoluteSize: true,
-      depth: MODAL_DEPTH + 1,
+      depth: MODAL_DEPTH + 2,
       onClick: () => close(true),
     },
   );
+  panel.add(closeBtn);
 
   overlay.on('pointerup', () => close(true));
 

@@ -3,6 +3,8 @@ import { RegistryKeys } from '../config/constants.js';
 
 export const BGM_KEY = 'bgm';
 
+let bgmWasPlaying = false;
+
 function getMusicVolume(scene) {
   const s = GameState.getSettings(scene);
   if (s.muted) return 0;
@@ -71,4 +73,24 @@ export function applyMusicVolume(scene) {
   if (music) {
     music.setVolume(getMusicVolume(scene));
   }
+}
+
+/** Pausa ao sair do app/aba — não toca em segundo plano */
+export function pauseBgm(scene) {
+  const music = scene?.registry?.get(RegistryKeys.BGM);
+  if (!music) {
+    bgmWasPlaying = false;
+    return;
+  }
+  bgmWasPlaying = music.isPlaying;
+  if (bgmWasPlaying) music.pause();
+}
+
+/** Retoma ao voltar pro app, se estava tocando */
+export function resumeBgm(scene) {
+  if (!scene?.registry || !bgmWasPlaying) return;
+  const music = scene.registry.get(RegistryKeys.BGM);
+  if (!music) return;
+  music.setVolume(getMusicVolume(scene));
+  if (!music.isPlaying) music.resume();
 }

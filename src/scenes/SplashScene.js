@@ -38,6 +38,7 @@ import {
 import { createSplashConnectChip } from '../ui/loginUi.js';
 import { createSplashDownloadChip, openDownloadApkModal } from '../ui/downloadApkModal.js';
 import { openRankingModal } from '../ui/rankingUi.js';
+import { isWebBrowser } from '../utils/platform.js';
 import {
   SPLASH_CATERPILLAR_GROUND_OFFSET_RATIO,
   getSplashCaterpillarOpts,
@@ -52,11 +53,20 @@ const SPLASH_LAYOUT = {
     logoY: 0.43,
     configTop: 0.045,
     buttonsY: 0.735,
-    sideMargin: 0.05,
+    sideMargin: 0.08,
+    cornerBtn: 0.18,
     playBtn: 0.22,
     btnGap: 0.08,
   },
-  landscape: { logoY: 0.31, buttonsY: 0.64, logoWidth: 0.38, playBtn: null, btnGap: 0.032 },
+  landscape: {
+    logoY: 0.31,
+    buttonsY: 0.64,
+    logoWidth: 0.38,
+    cornerBtn: null,
+    playBtn: null,
+    btnGap: 0.032,
+    sideMargin: 0.05,
+  },
 };
 const LOGO_MAX_WIDTH = 400;
 const FOOD_FRAMES = FOOD_FRUTAS.frames;
@@ -132,6 +142,7 @@ export class SplashScene extends Phaser.Scene {
     this.placeLogo(this.scale.width, DEPTH_UI);
     this.placeSplashButtons(width);
     await this.placeUserChip(width);
+    await this.placeDownloadButton(width);
 
     const caterpillar = this.caterpillar;
 
@@ -376,19 +387,22 @@ export class SplashScene extends Phaser.Scene {
   placeSplashButtons(width) {
     const portrait = isPortrait(this);
     const layout = portrait ? SPLASH_LAYOUT.portrait : SPLASH_LAYOUT.landscape;
-    const btnSize = mobileBtnSize(this, layout.playBtn ?? 0.19, SPLASH_BTN_SIZE);
-    const btnIcon = Math.round(btnSize * SPLASH_ICON_RATIO);
-    const { btnW, btnH } = getIconButtonSize(this, btnSize, { absolute: portrait });
+    const cornerSize = mobileBtnSize(this, layout.cornerBtn ?? layout.playBtn ?? 0.19, SPLASH_BTN_SIZE);
+    const playSize = mobileBtnSize(this, layout.playBtn ?? 0.22, SPLASH_BTN_SIZE);
+    const btnIcon = Math.round(playSize * SPLASH_ICON_RATIO);
+    const cornerIcon = Math.round(cornerSize * SPLASH_ICON_RATIO);
+    const { btnW, btnH } = getIconButtonSize(this, playSize, { absolute: portrait });
+    const { btnW: cornerW, btnH: cornerH } = getIconButtonSize(this, cornerSize, { absolute: portrait });
     const gap = Math.round(width * layout.btnGap);
     const rowY = layoutY(this, layout.buttonsY);
 
     if (portrait) {
       const topM = Math.max(10, Math.round(this.scale.height * (layout.configTop ?? 0.045)));
-      const sideM = Math.max(10, Math.round(width * (layout.sideMargin ?? 0.05)));
+      const sideM = Math.max(12, Math.round(width * (layout.sideMargin ?? 0.05)));
 
-      createIconCircleButton(this, width - sideM - btnW / 2, topM + btnH / 2, SPLASH_ICONS.config, {
-        size: btnSize,
-        iconSize: btnIcon,
+      createIconCircleButton(this, width - sideM - cornerW / 2, topM + cornerH / 2, SPLASH_ICONS.config, {
+        size: cornerSize,
+        iconSize: cornerIcon,
         absoluteSize: true,
         depth: DEPTH_UI,
         ...SPLASH_CORNER_BTN_OPTS,
@@ -401,8 +415,8 @@ export class SplashScene extends Phaser.Scene {
     } else {
       placeTopRightButton(this, SPLASH_ICONS.config, {
         marginRatio: layout.sideMargin ?? 0.04,
-        size: btnSize,
-        iconSize: btnIcon,
+        size: cornerSize,
+        iconSize: cornerIcon,
         absoluteSize: portrait,
         depth: DEPTH_UI,
         ...SPLASH_CORNER_BTN_OPTS,
@@ -418,7 +432,7 @@ export class SplashScene extends Phaser.Scene {
     const playX = showRanking ? width / 2 - (btnW + gap) / 2 : width / 2;
 
     createIconCircleButton(this, playX, rowY, SPLASH_ICONS.play, {
-      size: btnSize,
+      size: playSize,
       iconSize: btnIcon,
       absoluteSize: portrait,
       depth: DEPTH_UI,
@@ -433,7 +447,7 @@ export class SplashScene extends Phaser.Scene {
     if (showRanking) {
       const rankX = width / 2 + (btnW + gap) / 2;
       createIconCircleButton(this, rankX, rowY, SPLASH_ICONS.ranking, {
-        size: btnSize,
+        size: playSize,
         iconSize: btnIcon,
         absoluteSize: portrait,
         depth: DEPTH_UI,
@@ -448,20 +462,17 @@ export class SplashScene extends Phaser.Scene {
   async placeUserChip(width) {
     const portrait = isPortrait(this);
     const layout = portrait ? SPLASH_LAYOUT.portrait : SPLASH_LAYOUT.landscape;
-    const btnSize = mobileBtnSize(this, layout.playBtn ?? 0.19, SPLASH_BTN_SIZE);
+    const btnSize = mobileBtnSize(this, layout.cornerBtn ?? layout.playBtn ?? 0.19, SPLASH_BTN_SIZE);
     const btnIcon = Math.round(btnSize * SPLASH_ICON_RATIO);
     const { btnW, btnH } = getIconButtonSize(this, btnSize, { absolute: portrait });
     const topM = Math.max(10, Math.round(this.scale.height * (layout.configTop ?? 0.045)));
-    const sideM = Math.max(10, Math.round(width * (layout.sideMargin ?? 0.05)));
+    const sideM = Math.max(12, Math.round(width * (layout.sideMargin ?? 0.05)));
     const chipX = sideM + btnW / 2;
     const chipY = topM + btnH / 2;
     const chipOpts = { size: btnSize, iconSize: btnIcon, absoluteSize: portrait };
-    const chipGap = Math.max(14, Math.round(16 * (portrait ? 1 : uiScale(this))));
 
     this.userChip?.destroy();
     this.userChip = null;
-    this.downloadChip?.destroy();
-    this.downloadChip = null;
 
     if (GameState.isOnlineConnected(this)) {
       this.userChip = await createSplashUserChip(this, chipX, chipY, {
@@ -482,12 +493,34 @@ export class SplashScene extends Phaser.Scene {
         },
       });
     }
+  }
 
-    const chipRight = chipX + this.userChip.width / 2;
-    const downloadX = chipRight + chipGap + btnW / 2;
+  /** Ícone de download — só no navegador, ao lado do botão Config */
+  async placeDownloadButton(width) {
+    this.downloadChip?.destroy();
+    this.downloadChip = null;
+
+    if (!isWebBrowser()) return;
+
+    const portrait = isPortrait(this);
+    const layout = portrait ? SPLASH_LAYOUT.portrait : SPLASH_LAYOUT.landscape;
+    const configBtnSize = mobileBtnSize(this, layout.cornerBtn ?? layout.playBtn ?? 0.19, SPLASH_BTN_SIZE);
+    const downloadIcon = Math.round(configBtnSize * SPLASH_ICON_RATIO);
+    const { btnW, btnH } = getIconButtonSize(this, configBtnSize, { absolute: portrait });
+    const topM = Math.max(10, Math.round(this.scale.height * (layout.configTop ?? 0.045)));
+    const sideM = Math.max(12, Math.round(width * (layout.sideMargin ?? 0.05)));
+    const chipY = topM + btnH / 2;
+    const gap = Math.max(4, Math.round(6 * (portrait ? 1 : uiScale(this))));
+
+    const configX = width - sideM - btnW / 2;
+    const downloadX = configX - btnW - gap;
+
     this.downloadChip = await createSplashDownloadChip(this, downloadX, chipY, {
-      ...chipOpts,
+      size: configBtnSize,
+      iconSize: downloadIcon,
+      absoluteSize: portrait,
       iconOnly: true,
+      depth: DEPTH_UI,
       onClick: () => this.openDownloadModal(),
     });
   }
