@@ -130,7 +130,7 @@ export const GameState = {
     return Boolean(loadGuestSessionToken());
   },
 
-  /** Nome no chip da splash — visitante: visit_abc123 */
+  /** Nome no chip da splash — visitante: visite62afa */
   getSessionChipName(scene) {
     if (this.isOnlineConnected(scene)) {
       return this.getPlayerSession(scene)?.displayName ?? 'Jogador';

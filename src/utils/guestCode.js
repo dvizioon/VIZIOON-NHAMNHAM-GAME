@@ -8,9 +8,21 @@ function randomGuestSuffix() {
   return Math.random().toString(36).slice(2, 2 + CODE_LEN).toLowerCase();
 }
 
+function cleanSuffix(value) {
+  return String(value ?? '').replace(/[^a-z0-9]/gi, '').toLowerCase();
+}
+
+/** Sufixo estável a partir do token UUID — sempre o mesmo código */
+function suffixFromToken(token) {
+  if (!token || token === 'offline-guest') return null;
+  const clean = cleanSuffix(token);
+  if (!clean) return null;
+  return clean.length <= CODE_LEN ? clean : clean.slice(-CODE_LEN);
+}
+
 export function clearOfflineGuestCode() {
   try {
-    sessionStorage.removeItem(OFFLINE_CODE_KEY);
+    localStorage.removeItem(OFFLINE_CODE_KEY);
   } catch {
     /* ignore */
   }
@@ -18,10 +30,12 @@ export function clearOfflineGuestCode() {
 
 export function loadOrCreateOfflineGuestCode() {
   try {
-    let code = sessionStorage.getItem(OFFLINE_CODE_KEY);
+    let code = localStorage.getItem(OFFLINE_CODE_KEY);
     if (!code || code.length < 4) {
-      code = randomGuestSuffix();
-      sessionStorage.setItem(OFFLINE_CODE_KEY, code);
+      const token = loadGuestSessionToken();
+      const fromToken = suffixFromToken(token);
+      code = fromToken ?? randomGuestSuffix();
+      localStorage.setItem(OFFLINE_CODE_KEY, code);
     }
     return code.slice(0, CODE_LEN).toLowerCase();
   } catch {
@@ -29,28 +43,22 @@ export function loadOrCreateOfflineGuestCode() {
   }
 }
 
-/** Código curto do visitante — ex.: visit_a1b2c3 */
+/** Código curto do visitante — ex.: visite62afa (sem underscore) */
 export function formatGuestChipCode(session) {
   const token = session?.sessionToken || loadGuestSessionToken();
   const isGuest = session?.isGuest || Boolean(token);
   if (!isGuest) return null;
 
   const raw = session?.guestRawName ?? '';
-  if (raw) {
-    const guestMatch = String(raw).match(/^guest[-_]?([a-z0-9]+)$/i);
-    if (guestMatch?.[1]) {
-      const suffix = guestMatch[1].replace(/-/g, '').slice(0, CODE_LEN).toLowerCase();
-      if (suffix) return `${CHIP_PREFIX}_${suffix}`;
-    }
+  const guestMatch = String(raw).match(/^guest[-_]*([a-z0-9]+)$/i);
+  if (guestMatch?.[1]) {
+    const suffix = cleanSuffix(guestMatch[1]).slice(0, CODE_LEN);
+    if (suffix) return `${CHIP_PREFIX}${suffix}`;
   }
 
-  if (token && token !== 'offline-guest') {
-    const suffix = token.replace(/[^a-z0-9]/gi, '').slice(0, CODE_LEN).toLowerCase();
-    if (suffix) return `${CHIP_PREFIX}_${suffix}`;
-  }
+  const fromToken = suffixFromToken(token);
+  if (fromToken) return `${CHIP_PREFIX}${fromToken}`;
 
-  const offlineCode = session?.offlineGuestCode ?? loadOrCreateOfflineGuestCode();
-  const suffix = String(offlineCode).replace(/[^a-z0-9]/gi, '').slice(0, CODE_LEN).toLowerCase()
-    || randomGuestSuffix();
-  return `${CHIP_PREFIX}_${suffix}`;
+  const offline = cleanSuffix(session?.offlineGuestCode ?? loadOrCreateOfflineGuestCode()).slice(0, CODE_LEN);
+  return offline ? `${CHIP_PREFIX}${offline}` : CHIP_PREFIX;
 }

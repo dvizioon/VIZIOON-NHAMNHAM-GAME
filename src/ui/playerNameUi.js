@@ -6,6 +6,11 @@ import {
   getSplashButtonMetrics,
 } from './splashUi.js';
 import { playSound } from '../systems/ProceduralAudio.js';
+import {
+  PLAYER_USERNAME_MAX,
+  sanitizePlayerUsername,
+  isValidPlayerUsername,
+} from '../utils/username.js';
 
 function clamp(val, min, max) {
   return Math.min(max, Math.max(min, val));
@@ -86,7 +91,7 @@ export function createPlayerNameField(scene, x, y, contentW, {
 
   const domInput = document.createElement('input');
   domInput.type = 'text';
-  domInput.maxLength = 48;
+  domInput.maxLength = PLAYER_USERNAME_MAX;
   domInput.autocomplete = 'username';
   domInput.style.cssText = `
     position:absolute; opacity:0; pointer-events:none;
@@ -104,7 +109,9 @@ export function createPlayerNameField(scene, x, y, contentW, {
   };
 
   domInput.addEventListener('input', () => {
-    value = domInput.value;
+    const next = sanitizePlayerUsername(domInput.value);
+    if (next !== domInput.value) domInput.value = next;
+    value = next;
     syncDisplay();
   });
 
@@ -119,7 +126,7 @@ export function createPlayerNameField(scene, x, y, contentW, {
   return {
     root,
     focus: () => domInput.focus(),
-    getValue: () => value.trim(),
+    getValue: () => sanitizePlayerUsername(value),
     setValue: (next) => {
       value = next ?? '';
       domInput.value = value;

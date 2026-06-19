@@ -10,6 +10,11 @@ import {
   SPLASH_ICON_RATIO,
 } from './splashUi.js';
 import { playSound } from '../systems/ProceduralAudio.js';
+import {
+  PLAYER_USERNAME_MAX,
+  sanitizePlayerUsername,
+  isValidPlayerUsername,
+} from '../utils/username.js';
 
 export const UI_LOGO_LOGIN_KEY = 'ui_logo_login';
 export const UI_LOGO_CADASTRAR_KEY = 'ui_logo_cadastrar';
@@ -108,7 +113,7 @@ export function createLoginUsernameField(scene, x, y, contentW, { onChange, onSu
 
   const domInput = document.createElement('input');
   domInput.type = 'text';
-  domInput.maxLength = 48;
+  domInput.maxLength = PLAYER_USERNAME_MAX;
   domInput.autocomplete = 'username';
   domInput.style.cssText = `
     position:absolute; opacity:0; pointer-events:none;
@@ -117,7 +122,7 @@ export function createLoginUsernameField(scene, x, y, contentW, { onChange, onSu
   document.body.appendChild(domInput);
 
   const updateSubmitState = () => {
-    const enabled = value.trim().length >= 2;
+    const enabled = isValidPlayerUsername(value);
     if (enabled !== submitEnabled) {
       submitEnabled = enabled;
       sendBtn.setAlpha(enabled ? 1 : 0.82);
@@ -142,7 +147,9 @@ export function createLoginUsernameField(scene, x, y, contentW, { onChange, onSu
   };
 
   domInput.addEventListener('input', () => {
-    value = domInput.value;
+    const next = sanitizePlayerUsername(domInput.value);
+    if (next !== domInput.value) domInput.value = next;
+    value = next;
     syncDisplay();
   });
   domInput.addEventListener('blur', () => {
@@ -174,7 +181,7 @@ export function createLoginUsernameField(scene, x, y, contentW, { onChange, onSu
     borderScale: BTN_BORDER_SCALE,
     fillColor: BTN_SEND_FILL,
     onClick: () => {
-      if (value.trim().length < 2) return;
+      if (!isValidPlayerUsername(value)) return;
       onSubmit?.();
     },
   });
@@ -190,7 +197,7 @@ export function createLoginUsernameField(scene, x, y, contentW, { onChange, onSu
       domInput.focus();
       syncDisplay();
     },
-    getValue: () => value.trim(),
+    getValue: () => sanitizePlayerUsername(value),
     setValue: (next) => {
       value = next ?? '';
       domInput.value = value;

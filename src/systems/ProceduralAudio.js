@@ -75,10 +75,6 @@ export class ProceduralAudio {
         tocar(280, 420, 0.12, 0.28, 'triangle');
         tocar(420, 260, 0.14, 0.22, 'sine', 0.08);
       },
-      aiolhaosapo: () => {
-        tocar(320, 180, 0.2, 0.3, 'sawtooth');
-        tocar(520, 280, 0.15, 0.22, 'triangle', 0.12);
-      },
       increase: () => {
         tocar(440, 620, 0.12, 0.28);
         tocar(620, 880, 0.14, 0.24, 'sine', 0.1);

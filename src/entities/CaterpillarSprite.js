@@ -1022,6 +1022,26 @@ export class CaterpillarSprite {
         return { x: container.x, y: container.y - visibleStack };
       },
 
+      /** Cabeça + segmentos visíveis — hit do sapo no corpo inteiro */
+      getBodyHitTargets(hitRadius) {
+        const r = hitRadius ?? Math.max(18, frameH * scale * 0.34);
+        const targets = [];
+        const head = api.getHeadPosition();
+        targets.push({ x: head.x, y: head.y, r });
+
+        const firstVisible = segments.length - activeSegmentCount;
+        segments.forEach(({ sprite, index }) => {
+          if (!sprite.visible || index < firstVisible) return;
+          targets.push({
+            x: container.x + sprite.x,
+            y: container.y + sprite.y,
+            r,
+          });
+        });
+
+        return targets;
+      },
+
       setPosition(nx, ny) {
         container.setPosition(nx, ny);
       },

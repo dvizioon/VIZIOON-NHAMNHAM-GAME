@@ -53,13 +53,30 @@ export function resolveCharacterCabecaPath(cabeca) {
   return `assets/sprites/characters/childs/${cabeca}`;
 }
 
+/** Caminho completo do MP3 da voz (childs/) — URL da API ou assets locais */
+export function resolveCharacterVozPath(voz) {
+  if (!voz) return null;
+  if (/^https?:\/\//i.test(voz)) return voz;
+  if (voz.startsWith('assets/')) {
+    if (/^assets\/[^/]+\.mp3$/i.test(voz)) {
+      return `${CHAR_VOICE_DIR}/${voz.slice('assets/'.length)}`;
+    }
+    return voz;
+  }
+  return `${CHAR_VOICE_DIR}/${voz}`;
+}
+
 export function normalizeCriancaRecord(crianca) {
   if (!crianca || typeof crianca !== 'object') return crianca;
-  if (!crianca.cabeca) return { ...crianca };
-  return {
-    ...crianca,
-    cabeca: resolveCharacterCabecaPath(crianca.cabeca),
-  };
+  const next = { ...crianca };
+  if (next.cabeca) {
+    next.cabeca = resolveCharacterCabecaPath(next.cabeca);
+  }
+  const vozSrc = next.voz ?? next.vozPath ?? null;
+  if (vozSrc) {
+    next.voz = resolveCharacterVozPath(vozSrc);
+  }
+  return next;
 }
 
 export function normalizeCriancasList(criancas = []) {
@@ -139,6 +156,55 @@ export function listCharacterFaceAssets(criancas = []) {
 
     }));
 
+}
+
+
+
+const CHAR_VOICE_DIR = 'assets/sounds/sfx/childs';
+
+
+
+/** Nome do .mp3 — opcional no JSON; padrão: {id}.mp3 (ex.: larah → larah.mp3) */
+export function resolveCharacterVoiceFilename(voz, id) {
+  const raw = (voz ?? id ?? '').trim();
+  if (!raw) return null;
+  if (/^https?:\/\//i.test(raw)) return raw;
+  const file = raw.includes('/') ? raw.split('/').pop() : raw;
+  return file.endsWith('.mp3') ? file : `${file}.mp3`;
+}
+
+
+
+export function resolveCharacterVoicePath(voz, id) {
+  const resolved = resolveCharacterVoiceFilename(voz, id);
+  if (!resolved) return null;
+  if (/^https?:\/\//i.test(resolved)) return resolved;
+  return `${CHAR_VOICE_DIR}/${resolved}`;
+}
+
+
+
+export function getCharacterVoiceKey(crianca) {
+
+  if (!crianca?.id) return null;
+
+  return `char_voice_${crianca.id}`;
+
+}
+
+
+
+export function getCharacterVoicePath(crianca) {
+  if (!crianca) return null;
+  if (crianca.voz) return resolveCharacterVozPath(crianca.voz);
+  return resolveCharacterVoicePath(crianca.vozPath, crianca.id);
+}
+
+
+
+/** Countdown 3-2-1 — voz masculina ou feminina conforme o personagem */
+export function getCountdownSoundKey(crianca) {
+  return crianca?.genero === 'menina' ? 'countdown_girl' : 'countdown_boy';
 }
 
 

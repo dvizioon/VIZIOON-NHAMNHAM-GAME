@@ -27,6 +27,7 @@ import {
   computePlayerNameLayout,
 } from '../ui/playerNameUi.js';
 import { bootstrapPlayerSession } from '../services/playerSession.js';
+import { isValidPlayerUsername } from '../utils/username.js';
 
 const REGISTER_FROG_DEPTH = 12;
 
@@ -104,7 +105,7 @@ export class RegisterScene extends Phaser.Scene {
 
     const submit = async () => {
       const nome = nameField.getValue();
-      if (nome.length < 2) return;
+      if (!isValidPlayerUsername(nome)) return;
       playSound(this, 'clique');
       GameState.setParentName(this, nome);
       GameState.setPlayerAge(this, ageSlider.getValue());
@@ -117,20 +118,20 @@ export class RegisterScene extends Phaser.Scene {
 
     nameField = createPlayerNameField(this, width / 2, layout.fieldY, layout.contentW, {
       onChange: (value) => {
-        nav?.setSubmitEnabled(value.trim().length >= 2);
+        nav?.setSubmitEnabled(isValidPlayerUsername(value));
       },
     });
 
     nav = createPlayerNavButtons(this, width, layout.btnY, layout.btnMetrics, {
       onHome: () => this.scene.start(SceneKeys.LOGIN),
       onSubmit: submit,
-      canSubmit: () => nameField.getValue().length >= 2,
+      canSubmit: () => isValidPlayerUsername(nameField.getValue()),
     });
 
-    nav.setSubmitEnabled(nameField.getValue().length >= 2);
+    nav.setSubmitEnabled(isValidPlayerUsername(nameField.getValue()));
 
     this.input.keyboard.on('keydown-ENTER', () => {
-      if (nameField.getValue().length >= 2) submit();
+      if (isValidPlayerUsername(nameField.getValue())) submit();
     });
 
     nameField.focus();

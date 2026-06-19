@@ -7,7 +7,8 @@
     "ativo": true,
     "tipo": "Focado",
     "personalidade": "Lagartinha determinada que adora um desafio novo. Quando aparece uma fruta no caminho, Anderson já pensa em como alcançá-la!",
-    "cabeca": "anderson_gabriel.png"
+    "cabeca": "anderson_gabriel.png",
+    "voz": "anderson_gabriel.mp3"
   },
   {
     "id": "anna",
@@ -17,7 +18,8 @@
     "ativo": true,
     "tipo": "Carinhosa",
     "personalidade": "Lagartinha doce e cheia de imaginação. Anna espalha carinho por onde passa e faz amizade com todo mundo da turminha.",
-    "cabeca": "anna_geovana.png"
+    "cabeca": "anna_geovana.png",
+    "voz": "anna_geovana.mp3"
   },
   {
     "id": "ellaynne",
@@ -27,7 +29,8 @@
     "ativo": true,
     "tipo": "Alegre",
     "personalidade": "Lagartinha sorridente que ilumina o dia de todos. Ellaynne ri alto, dança no chão e nunca deixa a turma ficar triste.",
-    "cabeca": "ellaynne_gabrielly.png"
+    "cabeca": "ellaynne_gabrielly.png",
+    "voz": "ellaynne_gabrielly.mp3"
   },
   {
     "id": "heitor",
@@ -37,7 +40,8 @@
     "ativo": true,
     "tipo": "Aventureiro",
     "personalidade": "Lagartinha curiosa que adora explorar. Heitor investiga cada folha, cada galho e cada cantinho do jardim.",
-    "cabeca": "heitor_rocha.png"
+    "cabeca": "heitor_rocha.png",
+    "voz": "heitor_rocha.mp3"
   },
   {
     "id": "joao_miguel",
@@ -47,7 +51,8 @@
     "ativo": true,
     "tipo": "Brincalhão",
     "personalidade": "Lagartinha cheia de energia e piadas. João Miguel transforma qualquer passeio numa festa com a turminha.",
-    "cabeca": "joao_miguel.png"
+    "cabeca": "joao_miguel.png",
+    "voz": "joao_miguel.mp3"
   },
   {
     "id": "josias",
@@ -57,7 +62,8 @@
     "ativo": true,
     "tipo": "Calmo",
     "personalidade": "Lagartinha tranquila que pensa antes de agir. Josias é o amigo sensato que ajuda todo mundo a fazer a coisa certa.",
-    "cabeca": "josias_rocha.png"
+    "cabeca": "josias_rocha.png",
+    "voz": "josias_rocha.mp3"
   },
   {
     "id": "kaue",
@@ -67,7 +73,8 @@
     "ativo": true,
     "tipo": "Veloz",
     "personalidade": "Lagartinha elétrica que não para quieto. Kaue corre, pula e encara cada obstáculo com um sorriso no rosto.",
-    "cabeca": "kaue_davi.png"
+    "cabeca": "kaue_davi.png",
+    "voz": "kaue_davi.mp3"
   },
   {
     "id": "kiara",
@@ -77,7 +84,8 @@
     "ativo": true,
     "tipo": "Criativa",
     "personalidade": "Lagartinha inventiva com mil ideias na cabeça. Kiara adora criar brincadeiras novas para os amigos.",
-    "cabeca": "kiara_louise.png"
+    "cabeca": "kiara_louise.png",
+    "voz": "kiara_louise.mp3"
   },
   {
     "id": "lara_eloa",
@@ -87,7 +95,8 @@
     "ativo": true,
     "tipo": "Gentil",
     "personalidade": "Lagartinha cuidadosa que protege os amigos. Lara Eloa tem um coração enorme e mãozinhas sempre prontas para ajudar.",
-    "cabeca": "lara_eloa.png"
+    "cabeca": "lara_eloa.png",
+    "voz": "lara_eloa.mp3"
   },
   {
     "id": "larah",
@@ -97,7 +106,8 @@
     "ativo": true,
     "tipo": "Leve",
     "personalidade": "Lagartinha graciosa como uma nuvem. Larah Sofhia se move com leveza e traz paz para a turminha.",
-    "cabeca": "larah_sofhia.png"
+    "cabeca": "larah_sofhia.png",
+    "voz": "larah_sofhia.mp3"
   },
   {
     "id": "maria_paula",
@@ -107,7 +117,8 @@
     "ativo": true,
     "tipo": "Esperta",
     "personalidade": "Lagartinha inteligente que adora aprender. Maria Paula descobre truques novos e compartilha com a galera.",
-    "cabeca": "maria_paula.png"
+    "cabeca": "maria_paula.png",
+    "voz": "maria_paula.mp3"
   },
   {
     "id": "noah",
@@ -117,7 +128,8 @@
     "ativo": true,
     "tipo": "Curioso",
     "personalidade": "Lagartinha investigadora cheia de perguntas. Noah quer saber como tudo funciona — e acha respostas divertidas!",
-    "cabeca": "noah_benjamin.png"
+    "cabeca": "noah_benjamin.png",
+    "voz": "noah_benjamin.mp3"
   },
   {
     "id": "ravi",
@@ -127,7 +139,8 @@
     "ativo": true,
     "tipo": "Valente",
     "personalidade": "Lagartinha valente que nunca desiste! Ravi encara cada desafio de peito aberto e inspira a turminha a continuar.",
-    "cabeca": "ravi_maia.png"
+    "cabeca": "ravi_maia.png",
+    "voz": "ravi_maia.mp3"
   },
   {
     "id": "rosa_maria",
@@ -137,7 +150,8 @@
     "ativo": true,
     "tipo": "Amorosa",
     "personalidade": "Lagartinha afetuosa com um coração gigante. Rosa Maria abraça a turminha com palavras doces e muito carinho.",
-    "cabeca": "rosa_maria.png"
+    "cabeca": "rosa_maria.png",
+    "voz": "rosa_maria.mp3"
   },
   {
     "id": "theo",
@@ -147,6 +161,7 @@
     "ativo": true,
     "tipo": "Destemido",
     "personalidade": "Lagartinha corajosa que puxa a turma pra frente. Theo lidera com confiança e nunca deixa ninguém para trás.",
-    "cabeca": "theo_lucca.png"
+    "cabeca": "theo_lucca.png",
+    "voz": "theo_lucca.mp3"
   }
 ]

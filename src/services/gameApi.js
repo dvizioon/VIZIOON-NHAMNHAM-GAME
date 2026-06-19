@@ -118,7 +118,7 @@ export function loadStoredSessionToken() {
 
 export function loadGuestSessionToken() {
   try {
-    return sessionStorage.getItem(GUEST_STORAGE_KEY) ?? '';
+    return localStorage.getItem(GUEST_STORAGE_KEY) ?? '';
   } catch {
     return '';
   }
@@ -135,8 +135,8 @@ export function storeSessionToken(token, { persist = true } = {}) {
 
 export function storeGuestSessionToken(token) {
   try {
-    if (token) sessionStorage.setItem(GUEST_STORAGE_KEY, token);
-    else sessionStorage.removeItem(GUEST_STORAGE_KEY);
+    if (token) localStorage.setItem(GUEST_STORAGE_KEY, token);
+    else localStorage.removeItem(GUEST_STORAGE_KEY);
   } catch {
     /* ignore */
   }

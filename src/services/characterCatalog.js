@@ -12,6 +12,7 @@ export function mapApiCharacterToCrianca(character) {
 
   const personKey = character.personKey ?? character.person_key ?? character.slug;
   const cabeca = character.cabeca ?? normalizeLocalAssetPath(character.cabecaPath);
+  const voz = character.voz ?? normalizeLocalAssetPath(character.vozPath);
 
   return normalizeCriancaRecord({
     id: personKey,
@@ -22,6 +23,8 @@ export function mapApiCharacterToCrianca(character) {
     tipo: character.tipo ?? null,
     personalidade: character.personalidade ?? null,
     cabeca,
+    vozPath: character.vozPath ?? null,
+    voz,
     ativo: character.ativo !== false,
   });
 }

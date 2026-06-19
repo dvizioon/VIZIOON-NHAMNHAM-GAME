@@ -54,7 +54,35 @@ export const DEFAULT_FROG_ATTACK_TUNE = {
   yOffsetPx: GAME_FROG_Y_OFFSET_PX,
   yOffsetLeftPx: GAME_FROG_Y_OFFSET_LEFT_PX,
   yOffsetRightPx: GAME_FROG_Y_OFFSET_RIGHT_PX,
+  tongueReachMulLeft: GAME_FROG_TONGUE_REACH_MUL,
+  tongueReachMulRight: GAME_FROG_TONGUE_REACH_MUL,
+  tongueHitHalfHLeft: 119,
+  tongueHitHalfHRight: 115,
+  tongueAnchorShiftLeft: 30,
+  tongueAnchorShiftRight: 90,
+  tongueExtraPadLeft: 0,
+  tongueExtraPadRight: 0,
 };
+
+export function getFrogTongueReachMul(fromLeft, tune = DEFAULT_FROG_ATTACK_TUNE) {
+  if (fromLeft) return tune.tongueReachMulLeft ?? tune.tongueReachMul ?? GAME_FROG_TONGUE_REACH_MUL;
+  return tune.tongueReachMulRight ?? tune.tongueReachMul ?? GAME_FROG_TONGUE_REACH_MUL;
+}
+
+export function getFrogTongueHitHalfH(fromLeft, tune = DEFAULT_FROG_ATTACK_TUNE) {
+  if (fromLeft) return tune.tongueHitHalfHLeft ?? tune.tongueHitHalfH ?? GAME_FROG_HIT_Y_TOLERANCE_PX;
+  return tune.tongueHitHalfHRight ?? tune.tongueHitHalfH ?? GAME_FROG_HIT_Y_TOLERANCE_PX;
+}
+
+export function getFrogTongueAnchorShift(fromLeft, tune = DEFAULT_FROG_ATTACK_TUNE) {
+  if (fromLeft) return tune.tongueAnchorShiftLeft ?? 0;
+  return tune.tongueAnchorShiftRight ?? 0;
+}
+
+export function getFrogTongueExtraPad(fromLeft, tune = DEFAULT_FROG_ATTACK_TUNE) {
+  if (fromLeft) return tune.tongueExtraPadLeft ?? 0;
+  return tune.tongueExtraPadRight ?? 0;
+}
 
 /** Y base do sapo — mesma referência p/ esquerda e direita (não sobe com a lagarta). */
 export function getGameFrogBaseY(scene, climberLiftRatio = GAME_CLIMBER_Y_LIFT) {
@@ -125,19 +153,25 @@ export function pickNextSapoLado(rotation, lastLado = null) {
 
 /**
  * Zona retangular do hit da língua (debug + lógica).
+ * Esq: sai do canto esquerdo do sapo em direção à árvore.
+ * Dir: espelho — sai do canto direito, sem “grudar” no meio da lagarta.
  */
-export function getFrogTongueHitZone(sprite, fromLeft, extraRadius = 0) {
+export function getFrogTongueHitZone(sprite, fromLeft, extraRadius = 0, tune = DEFAULT_FROG_ATTACK_TUNE) {
   if (!sprite?.active) return null;
 
   const w = sprite.displayWidth || FROG_ATTACK_FRAME_W;
   const bodyReach = (1 - FROG_ATTACK_ORIGIN_X) * w;
-  const maxReach = bodyReach * GAME_FROG_TONGUE_REACH_MUL + extraRadius;
-  const safePad = Math.max(12, extraRadius * 0.45);
-  const anchorX = sprite.x;
+  const reachMul = getFrogTongueReachMul(fromLeft, tune);
+  const sidePad = getFrogTongueExtraPad(fromLeft, tune);
+  const maxReach = bodyReach * reachMul + extraRadius + sidePad;
+  const safePad = Math.max(12, (extraRadius + sidePad) * 0.45);
+  const pinX = sprite.getData('frogPinX') ?? sprite.x;
   const anchorY = sprite.getData('frogPinY') ?? sprite.y;
-  const halfH = GAME_FROG_HIT_Y_TOLERANCE_PX;
+  const halfH = getFrogTongueHitHalfH(fromLeft, tune);
+  const anchorShift = getFrogTongueAnchorShift(fromLeft, tune);
 
   if (fromLeft) {
+    const anchorX = pinX + anchorShift;
     return {
       x: anchorX - safePad,
       y: anchorY - halfH,
@@ -149,8 +183,9 @@ export function getFrogTongueHitZone(sprite, fromLeft, extraRadius = 0) {
     };
   }
 
+  const anchorX = pinX + FROG_ATTACK_ORIGIN_X * w + anchorShift;
   return {
-    x: anchorX - maxReach,
+    x: anchorX - maxReach - safePad,
     y: anchorY - halfH,
     width: maxReach + safePad,
     height: halfH * 2,
@@ -161,20 +196,31 @@ export function getFrogTongueHitZone(sprite, fromLeft, extraRadius = 0) {
 }
 
 /**
- * Hit da língua — zona entre o sapo e a árvore (inclui perto do sapo; seguro só “atrás” dele).
+ * Hit da língua — qualquer parte visível da lagarta (cabeça + segmentos do corpo).
  */
-export function doesFrogTongueHitHead(sprite, head, fromLeft, extraRadius = 0) {
-  if (!sprite?.active || !head) return false;
+export function doesFrogTongueHitCaterpillar(sprite, targets, fromLeft, extraRadius = 0, tune = DEFAULT_FROG_ATTACK_TUNE) {
+  if (!sprite?.active || !targets?.length) return false;
 
-  const zone = getFrogTongueHitZone(sprite, fromLeft, extraRadius);
+  const zone = getFrogTongueHitZone(sprite, fromLeft, extraRadius, tune);
   if (!zone) return false;
 
-  return (
-    head.x >= zone.x
-    && head.x <= zone.x + zone.width
-    && head.y >= zone.y
-    && head.y <= zone.y + zone.height
-  );
+  return targets.some((target) => {
+    const r = target.r ?? 0;
+    const pad = r;
+    return (
+      target.x >= zone.x - pad
+      && target.x <= zone.x + zone.width + pad
+      && target.y >= zone.y - pad
+      && target.y <= zone.y + zone.height + pad
+    );
+  });
+}
+
+/** @deprecated use doesFrogTongueHitCaterpillar */
+export function doesFrogTongueHitHead(sprite, head, fromLeft, extraRadius = 0, tune = DEFAULT_FROG_ATTACK_TUNE) {
+  if (!head) return false;
+  const r = head.r ?? 14;
+  return doesFrogTongueHitCaterpillar(sprite, [{ ...head, r }], fromLeft, extraRadius, tune);
 }
 
 /** Corpo alinhado na normalização do spritesheet (tools/normalize_frog_attack.py) */

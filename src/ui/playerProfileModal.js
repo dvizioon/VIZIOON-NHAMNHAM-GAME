@@ -9,7 +9,7 @@ import { logoutPlayerSession } from '../services/playerSession.js';
 import { SceneKeys } from '../config/constants.js';
 import { hasTexture } from '../systems/AssetLoader.js';
 import { GUEST_PLAYER_NAME, UI_USER_JOGADOR_KEY } from './playerNameUi.js';
-import { formatGuestChipCode, loadOrCreateOfflineGuestCode } from '../utils/guestCode.js';
+import { formatGuestChipCode } from '../utils/guestCode.js';
 
 const MODAL_DEPTH = 220;
 const CHIP_LABEL_COLOR = '#1E6A30';
@@ -46,13 +46,23 @@ export async function createSplashGuestChip(scene, x, y, { onClick, size = 52, i
     iconSize,
     absoluteSize,
     name: GameState.getSessionChipName(scene) ?? GUEST_PLAYER_NAME,
+    compactLabel: true,
   });
 }
 
-async function createSplashSessionChip(scene, x, y, { onClick, size, iconSize, absoluteSize = true, name }) {
+async function createSplashSessionChip(scene, x, y, {
+  onClick,
+  size,
+  iconSize,
+  absoluteSize = true,
+  name,
+  compactLabel = false,
+}) {
   const s = uiScale(scene);
   await Icon.preload(scene, [USER_ICON]);
-  const fontSize = Math.max(15, Math.round(18 * s));
+  const fontSize = compactLabel
+    ? Math.max(14, Math.round(16 * s))
+    : Math.max(15, Math.round(18 * s));
   const gap = Math.round(8 * s);
   const iconPx = iconSize ?? Math.round(size * SPLASH_ICON_RATIO);
   const { btnW, btnH } = getIconButtonSize(scene, size, { absolute: absoluteSize });
@@ -76,7 +86,9 @@ async function createSplashSessionChip(scene, x, y, { onClick, size, iconSize, a
     fontStyle: 'bold',
   }).setOrigin(0, 0.5);
 
-  const maxLabelW = Math.max(80, scene.scale.width * 0.34);
+  const maxLabelW = compactLabel
+    ? Math.max(72, scene.scale.width * 0.28)
+    : Math.max(80, scene.scale.width * 0.34);
   if (label.width > maxLabelW) {
     let trimmed = name;
     while (trimmed.length > 1 && label.setText(`${trimmed}…`), label.width > maxLabelW) {
@@ -329,7 +341,7 @@ export async function openGuestProfileModal(scene, { onClose, onLogout, onConnec
 
   const guestCode = formatGuestChipCode(
     GameState.getPlayerSession(scene) ?? { isGuest: true },
-  ) ?? `visit_${loadOrCreateOfflineGuestCode()}`;
+  ) ?? 'visitante';
 
   const { root, panel, overlay, cx, cy, y: startY } = createProfileModalShell(scene, {
     titleText: GUEST_PLAYER_NAME,

@@ -26,6 +26,7 @@ import {
   listCharacterHeadAssets,
   listCharacterFaceAssets,
   normalizeCriancasList,
+  getCountdownSoundKey,
 } from '../config/characterUiConfig.js';
 import {
   ENV_SKY_KEY,
@@ -72,6 +73,7 @@ import {
   COCOON_FRAME_H,
   registerCocoonAnimations,
 } from '../config/cocoonConfig.js';
+import { loadLocalSettings } from '../utils/localPreferences.js';
 import {
   getInitialSceneKey,
   seedDebugState,
@@ -271,7 +273,7 @@ export class PreloadScene extends Phaser.Scene {
     this.registry.set(RegistryKeys.GAME_CONFIG, gameConfig);
     this.registry.set(RegistryKeys.POINTS, 0);
     this.registry.set(RegistryKeys.LIVES, gameConfig.maxVidas ?? 3);
-    this.registry.set(RegistryKeys.SETTINGS, { ...defaultSettings });
+    this.registry.set(RegistryKeys.SETTINGS, loadLocalSettings() ?? { ...defaultSettings });
     seedDebugState(this);
 
     this.loadingUi?.setProgress(1);

@@ -65,8 +65,7 @@ import {
   playFrogAttackAnim,
   stopFrogAttackAnim,
   setFrogAttackFrame,
-  doesFrogTongueHitHead,
-  GAME_SAPO_SOUND_FALLBACK_MS,
+  doesFrogTongueHitCaterpillar,
   GAME_SAPO_AVISO_MS,
   GAME_SAPO_VOLTANDO_FRAMES,
 } from '../config/frogAttackConfig.js';
@@ -74,10 +73,14 @@ import {
   drawBoundsHit,
   drawCircleHit,
   drawFrogTongueHitDebug,
+  FROG_DEBUG_FREEZE_FRAME,
   getGameObjectCircle,
+  isDebugFreezeFrog,
   isDebugHitboxes,
+  toggleDebugFreezeFrog,
 } from '../utils/debug.js';
 import { stopBgm, ensureBgmPlaying } from '../systems/MusicManager.js';
+import { getCountdownSoundKey } from '../config/characterUiConfig.js';
 
 /**
  * tronco_game = background fixo
@@ -155,6 +158,18 @@ export class GameScene extends Phaser.Scene {
     this.gameplayG = this.add.graphics().setDepth(30).setScrollFactor(0);
     if (import.meta.env.DEV) {
       this.frogHitDbgGfx = this.add.graphics().setDepth(252).setScrollFactor(0);
+      this.freezeHint = this.add.text(width * 0.5, 56, 'SAPO PAUSADO — P retoma', {
+        fontFamily: Theme.fontFamily,
+        fontSize: '14px',
+        color: '#FFEB3B',
+        stroke: '#1E6A30',
+        strokeThickness: 4,
+        align: 'center',
+      }).setOrigin(0.5, 0).setDepth(260).setScrollFactor(0).setVisible(false);
+      this.input.keyboard.on('keydown-P', () => this.toggleDebugFrogFreeze());
+      if (isDebugFreezeFrog(this)) {
+        this.time.delayedCall(800, () => this.applyDebugFrogFreeze(true));
+      }
     }
     this.frogSprite = null;
     this.sapo = {
@@ -311,7 +326,7 @@ export class GameScene extends Phaser.Scene {
     const cy = Math.round(this.anchorY - this.scale.height * 0.22);
     let index = 0;
 
-    playSound(this, 'countdown');
+    playSound(this, getCountdownSoundKey(this.child));
 
     const showStep = () => {
       if (index >= steps.length) {
@@ -420,6 +435,15 @@ export class GameScene extends Phaser.Scene {
       return this.caterpillarApi.getHeadPosition();
     }
     return { x: this.lagarta?.x ?? this.trunkCX, y: this.motion.climberY };
+  }
+
+  getCaterpillarHitTargets() {
+    const r = Math.round((this.lagarta?.raio ?? 40) * 0.82);
+    if (this.caterpillarApi?.getBodyHitTargets) {
+      return this.caterpillarApi.getBodyHitTargets(r);
+    }
+    const head = this.getHeadPos();
+    return [{ x: head.x, y: head.y, r }];
   }
 
   getFrogBaseY() {
@@ -858,6 +882,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   ativarSapo() {
+    if (isDebugFreezeFrog(this)) return;
     if (!this.jogoAtivo || this.sapo.ativo || this.sapo.avisoSom) return;
     if (this.frutasComidas < (this.config.minComidaAntesSapo ?? 4)) return;
 
@@ -895,9 +920,7 @@ export class GameScene extends Phaser.Scene {
       }
     };
 
-    const fallbackMs = GAME_SAPO_SOUND_FALLBACK_MS;
-    playSound(this, 'aiolhaosapo', { volumeMul: 0.85, onComplete: mostrarSapo });
-    this.sapoSomFallback = this.time.delayedCall(fallbackMs, mostrarSapo);
+    mostrarSapo();
   }
 
   bumpSapoAttackId() {
@@ -1054,27 +1077,31 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (this.sapo.ativo) {
-      this.sapo.timer++;
-      if (this.sapo.estado === 'avisando'
-        && this.time.now - (this.sapo.avisandoAt ?? 0) >= GAME_SAPO_AVISO_MS) {
-        this.sapo.estado = 'atacando';
-        this.sapo.timer = 0;
-        if (this.sapo.frogAnchorY == null) this.sapo.frogAnchorY = this.getFrogBaseY();
-        this.sapo.attackAnchored = false;
-        this.sapo.avisandoAnchored = false;
-        this.sapo.voltandoAnchored = false;
-        playSound(this, 'lingua');
-      }
-      if (this.sapo.estado === 'voltando' && this.sapo.timer > GAME_SAPO_VOLTANDO_FRAMES) {
-        this.sapo.lastLado = this.sapo.lado;
-        this.sapo.ativo = false;
-        this.sapo.frogAnchorY = null;
-        this.sapo.attackAnchored = false;
-        this.sapo.avisandoAnchored = false;
-        this.sapo.voltandoAnchored = false;
-        this.sapo.layoutLado = null;
-        this.sapo.frogLayoutWidth = 0;
-        this.bumpSapoAttackId();
+      if (!isDebugFreezeFrog(this)) {
+        this.sapo.timer++;
+        if (this.sapo.estado === 'avisando'
+          && this.time.now - (this.sapo.avisandoAt ?? 0) >= GAME_SAPO_AVISO_MS) {
+          this.sapo.estado = 'atacando';
+          this.sapo.timer = 0;
+          if (this.sapo.frogAnchorY == null) this.sapo.frogAnchorY = this.getFrogBaseY();
+          this.sapo.attackAnchored = false;
+          this.sapo.avisandoAnchored = false;
+          this.sapo.voltandoAnchored = false;
+          playSound(this, 'lingua');
+        }
+        if (this.sapo.estado === 'voltando' && this.sapo.timer > GAME_SAPO_VOLTANDO_FRAMES) {
+          this.sapo.lastLado = this.sapo.lado;
+          this.sapo.ativo = false;
+          this.sapo.frogAnchorY = null;
+          this.sapo.attackAnchored = false;
+          this.sapo.avisandoAnchored = false;
+          this.sapo.voltandoAnchored = false;
+          this.sapo.layoutLado = null;
+          this.sapo.frogLayoutWidth = 0;
+          this.bumpSapoAttackId();
+        }
+      } else {
+        this.holdDebugFrogFrozen();
       }
     }
 
@@ -1120,16 +1147,17 @@ export class GameScene extends Phaser.Scene {
   }
 
   checkSapoHitOnAttackFrame() {
+    if (isDebugFreezeFrog(this)) return;
     if (this.sapo.estado !== 'atacando' || this.tonta > 0 || this.invulneravel > 0) return;
 
     const spr = this.frogSprite;
     if (!spr?.active) return;
 
-    const head = this.getHeadPos();
+    const targets = this.getCaterpillarHitTargets();
     const fromLeft = this.sapo.lado === 0;
     const hitPad = Math.round((this.lagarta?.raio ?? 40) * 0.35);
 
-    if (!doesFrogTongueHitHead(spr, head, fromLeft, hitPad)) return;
+    if (!doesFrogTongueHitCaterpillar(spr, targets, fromLeft, hitPad)) return;
 
     this.perderVida('sapoHit');
     this.tonta = 70;
@@ -1141,6 +1169,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   beginSapoAttackAnim() {
+    if (isDebugFreezeFrog(this)) return;
     const spr = this.frogSprite;
     if (!spr?.active) return;
     const attackId = this.sapo.attackId;
@@ -1251,7 +1280,13 @@ export class GameScene extends Phaser.Scene {
           fromLeft,
         });
         this.sapo.attackAnchored = true;
-        this.beginSapoAttackAnim();
+        if (isDebugFreezeFrog(this)) {
+          this.lockFrogAtFreezeFrame(spr);
+        } else {
+          this.beginSapoAttackAnim();
+        }
+      } else if (isDebugFreezeFrog(this)) {
+        this.lockFrogAtFreezeFrame(spr);
       }
       return;
     }
@@ -1266,6 +1301,67 @@ export class GameScene extends Phaser.Scene {
     }
     const backFrame = this.sapo.timer > 4 ? (this.sapo.timer > 7 ? 0 : 1) : 2;
     setFrogAttackFrame(spr, backFrame);
+  }
+
+  lockFrogAtFreezeFrame(spr) {
+    if (!spr?.active) return;
+    stopFrogAttackAnim(spr);
+    setFrogAttackFrame(spr, FROG_DEBUG_FREEZE_FRAME);
+  }
+
+  toggleDebugFrogFreeze() {
+    if (!import.meta.env.DEV) return;
+    const on = toggleDebugFreezeFrog(this.game);
+    this.applyDebugFrogFreeze(on);
+  }
+
+  applyDebugFrogFreeze(on) {
+    this.freezeHint?.setVisible(on);
+    if (on) {
+      if (!this.sapo.ativo) {
+        this.spawnDebugFrozenSapo();
+        return;
+      }
+
+      stopFrogAttackAnim(this.frogSprite);
+      this.sapo.estado = 'atacando';
+      this.sapo.attackAnchored = false;
+      this.sapo.voltandoAnchored = false;
+      if (this.sapo.frogAnchorY == null) this.sapo.frogAnchorY = this.getFrogBaseY();
+      return;
+    }
+
+    if (this.sapo?.ativo && this.sapo.estado === 'atacando') {
+      this.sapo.attackAnchored = false;
+      this.beginSapoAttackAnim();
+    }
+  }
+
+  spawnDebugFrozenSapo() {
+    if (this.sapo.ativo) return;
+    this.sapo.ativo = true;
+    this.sapo.avisoSom = false;
+    this.sapo.spawned = true;
+    this.sapo.lado = pickNextSapoLado(this.sapoSideRotation, this.sapo.lastLado);
+    this.sapo.estado = 'atacando';
+    this.sapo.timer = 0;
+    this.sapo.frogAnchorY = this.getFrogBaseY();
+    this.sapo.attackAnchored = false;
+    this.sapo.avisandoAnchored = false;
+    this.sapo.voltandoAnchored = false;
+    this.sapo.layoutLado = null;
+    this.sapo.frogLayoutWidth = 0;
+    this.bumpSapoAttackId();
+  }
+
+  holdDebugFrogFrozen() {
+    if (this.sapo.estado !== 'atacando') {
+      this.sapo.estado = 'atacando';
+      this.sapo.attackAnchored = false;
+      this.sapo.voltandoAnchored = false;
+      if (this.sapo.frogAnchorY == null) this.sapo.frogAnchorY = this.getFrogBaseY();
+    }
+    stopFrogAttackAnim(this.frogSprite);
   }
 
   drawDebugOverlay() {
@@ -1319,7 +1415,7 @@ export class GameScene extends Phaser.Scene {
     if (this.sapo?.ativo && this.frogSprite?.active) {
       const fromLeft = this.sapo.lado === 0;
       const hitPad = Math.round((this.lagarta?.raio ?? 40) * 0.35);
-      drawFrogTongueHitDebug(g, this.frogSprite, fromLeft, hitPad, this.getHeadPos());
+      drawFrogTongueHitDebug(g, this.frogSprite, fromLeft, hitPad, this.getCaterpillarHitTargets());
     }
   }
 
@@ -1332,7 +1428,7 @@ export class GameScene extends Phaser.Scene {
 
     const fromLeft = this.sapo.lado === 0;
     const hitPad = Math.round((this.lagarta?.raio ?? 40) * 0.35);
-    drawFrogTongueHitDebug(g, this.frogSprite, fromLeft, hitPad, this.getHeadPos());
+    drawFrogTongueHitDebug(g, this.frogSprite, fromLeft, hitPad, this.getCaterpillarHitTargets());
   }
 
   drawGameplayOverlay() {

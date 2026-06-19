@@ -29,6 +29,7 @@ import {
   bootstrapGuestSession,
   loginPlayerSession,
 } from '../services/playerSession.js';
+import { isValidPlayerUsername } from '../utils/username.js';
 
 const LOGIN_FROG_DEPTH = 12;
 
@@ -92,7 +93,7 @@ export class LoginScene extends Phaser.Scene {
 
     const connect = async () => {
       const username = usernameField.getValue();
-      if (username.length < 2) return;
+      if (!isValidPlayerUsername(username)) return;
       playSound(this, 'clique');
       const ok = await loginPlayerSession(this, username);
       if (ok) {

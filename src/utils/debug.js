@@ -1,11 +1,38 @@
 /** Debug visual de hitboxes — `?debug=1` força on, `?debug=0` força off */
-import { getFrogTongueHitZone } from '../config/frogAttackConfig.js';
+import { FROG_ATTACK_FRAME_COUNT, getFrogTongueHitZone } from '../config/frogAttackConfig.js';
+
+export const FROG_DEBUG_FREEZE_FRAME = FROG_ATTACK_FRAME_COUNT - 1;
+
+function getRegistry(sceneOrGame) {
+  return sceneOrGame?.registry ?? sceneOrGame?.game?.registry;
+}
+
 export function isDebugHitboxes(scene) {
-  const reg = scene.registry ?? scene.game?.registry;
+  const reg = getRegistry(scene);
   if (reg?.has('debugHitboxes')) {
     return reg.get('debugHitboxes') === true;
   }
   return false;
+}
+
+/** Congela o sapo com língua estendida — `?frogFreeze=1` ou tecla P no jogo */
+export function isDebugFreezeFrog(scene) {
+  const reg = getRegistry(scene);
+  if (reg?.has('debugFreezeFrog')) {
+    return reg.get('debugFreezeFrog') === true;
+  }
+  return false;
+}
+
+export function setDebugFreezeFrog(game, value) {
+  game.registry.set('debugFreezeFrog', value === true);
+  return value === true;
+}
+
+export function toggleDebugFreezeFrog(game) {
+  const next = !isDebugFreezeFrog(game);
+  setDebugFreezeFrog(game, next);
+  return next;
 }
 
 export function initDebugFlags(game) {
@@ -13,16 +40,24 @@ export function initDebugFlags(game) {
 
   if (q.get('debug') === '0' || q.get('debug') === 'false') {
     game.registry.set('debugHitboxes', false);
-    return;
-  }
-
-  if (q.get('debug') === '1' || q.get('debug') === 'true') {
+  } else if (q.get('debug') === '1' || q.get('debug') === 'true') {
     game.registry.set('debugHitboxes', true);
-    return;
+  } else {
+    const prodBuild = import.meta.env.VITE_DEBUG === 'false' || import.meta.env.PROD;
+    game.registry.set('debugHitboxes', !prodBuild && import.meta.env.DEV);
   }
 
-  const prodBuild = import.meta.env.VITE_DEBUG === 'false' || import.meta.env.PROD;
-  game.registry.set('debugHitboxes', !prodBuild && import.meta.env.DEV);
+  if (q.get('frogFreeze') === '0' || q.get('frogFreeze') === 'false') {
+    game.registry.set('debugFreezeFrog', false);
+  } else if (
+    q.get('frogFreeze') === '1'
+    || q.get('frogFreeze') === 'true'
+    || import.meta.env.VITE_FROG_FREEZE === 'true'
+  ) {
+    game.registry.set('debugFreezeFrog', true);
+  } else {
+    game.registry.set('debugFreezeFrog', false);
+  }
 }
 
 export function drawCircleHit(g, { x, y, r }, color, alpha = 0.35) {
@@ -40,10 +75,10 @@ export function drawBoundsHit(g, bounds, color, alpha = 0.15) {
   g.strokeRect(bounds.x, bounds.y, bounds.width, bounds.height);
 }
 
-/** Debug — zona vermelha da língua + linha até a ponta */
-export function drawFrogTongueHitDebug(g, sprite, fromLeft, extraRadius = 0, head = null) {
+/** Debug — zona vermelha da língua + alvos do corpo (verde) */
+export function drawFrogTongueHitDebug(g, sprite, fromLeft, extraRadius = 0, targets = null, tune = null) {
   if (!g || !sprite?.active) return;
-  const zone = getFrogTongueHitZone(sprite, fromLeft, extraRadius);
+  const zone = getFrogTongueHitZone(sprite, fromLeft, extraRadius, tune ?? undefined);
   if (!zone) return;
 
   drawBoundsHit(g, zone, 0xff1744, 0.28);
@@ -52,19 +87,21 @@ export function drawFrogTongueHitDebug(g, sprite, fromLeft, extraRadius = 0, hea
   g.fillStyle(0xffeb3b, 0.9);
   g.fillCircle(zone.tipX, zone.anchorY, 8);
 
-  if (head) {
-    drawCircleHit(g, { x: head.x, y: head.y, r: 14 }, 0x00e676, 0.35);
+  const list = Array.isArray(targets) ? targets : (targets ? [targets] : []);
+  list.forEach((target) => {
+    const r = target.r ?? 14;
+    drawCircleHit(g, { x: target.x, y: target.y, r }, 0x00e676, 0.28);
     const inside = (
-      head.x >= zone.x
-      && head.x <= zone.x + zone.width
-      && head.y >= zone.y
-      && head.y <= zone.y + zone.height
+      target.x >= zone.x - r
+      && target.x <= zone.x + zone.width + r
+      && target.y >= zone.y - r
+      && target.y <= zone.y + zone.height + r
     );
     if (inside) {
       g.lineStyle(3, 0x00e676, 1);
-      g.strokeCircle(head.x, head.y, 18);
+      g.strokeCircle(target.x, target.y, r + 4);
     }
-  }
+  });
 }
 
 /** Centro visual via GetBounds — alinhado com rotação/origin */
