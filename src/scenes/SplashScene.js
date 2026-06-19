@@ -13,7 +13,7 @@ import { playSound } from '../systems/ProceduralAudio.js';
 import { GameState } from '../utils/GameState.js';
 import { CaterpillarSprite } from '../entities/CaterpillarSprite.js';
 import { ensureBgmPlaying } from '../systems/MusicManager.js';
-import { responsiveWidth, layoutY, isPortrait, mobileBtnSize } from '../utils/responsive.js';
+import { responsiveWidth, layoutY, isPortrait, mobileBtnSize, uiScale } from '../utils/responsive.js';
 import { hasTexture } from '../systems/AssetLoader.js';
 import {
   drawBoundsHit,
@@ -36,6 +36,7 @@ import {
   openPlayerProfileModal,
 } from '../ui/playerProfileModal.js';
 import { createSplashConnectChip } from '../ui/loginUi.js';
+import { createSplashDownloadChip, openDownloadApkModal } from '../ui/downloadApkModal.js';
 import { openRankingModal } from '../ui/rankingUi.js';
 import {
   SPLASH_CATERPILLAR_GROUND_OFFSET_RATIO,
@@ -78,7 +79,9 @@ export class SplashScene extends Phaser.Scene {
 
   init() {
     this.userChip = null;
+    this.downloadChip = null;
     this.profileModalClose = null;
+    this.downloadModalClose = null;
   }
 
   async create() {
@@ -453,32 +456,51 @@ export class SplashScene extends Phaser.Scene {
     const chipX = sideM + btnW / 2;
     const chipY = topM + btnH / 2;
     const chipOpts = { size: btnSize, iconSize: btnIcon, absoluteSize: portrait };
+    const chipGap = Math.max(14, Math.round(16 * (portrait ? 1 : uiScale(this))));
 
     this.userChip?.destroy();
     this.userChip = null;
+    this.downloadChip?.destroy();
+    this.downloadChip = null;
 
     if (GameState.isOnlineConnected(this)) {
       this.userChip = await createSplashUserChip(this, chipX, chipY, {
         ...chipOpts,
         onClick: () => this.openUserProfile(),
       });
-      return;
-    }
-
-    if (GameState.hasActiveGuestSession(this)) {
+    } else if (GameState.hasActiveGuestSession(this)) {
       this.userChip = await createSplashGuestChip(this, chipX, chipY, {
         ...chipOpts,
         onClick: () => this.openGuestProfile(),
       });
-      return;
+    } else {
+      this.userChip = await createSplashConnectChip(this, chipX, chipY, {
+        ...chipOpts,
+        onClick: () => {
+          playSound(this, 'clique');
+          this.scene.start(SceneKeys.LOGIN);
+        },
+      });
     }
 
-    this.userChip = await createSplashConnectChip(this, chipX, chipY, {
+    const chipRight = chipX + this.userChip.width / 2;
+    const downloadX = chipRight + chipGap + btnW / 2;
+    this.downloadChip = await createSplashDownloadChip(this, downloadX, chipY, {
       ...chipOpts,
-      onClick: () => {
-        playSound(this, 'clique');
-        this.scene.start(SceneKeys.LOGIN);
+      iconOnly: true,
+      onClick: () => this.openDownloadModal(),
+    });
+  }
+
+  openDownloadModal() {
+    if (this.downloadModalClose) return;
+    playSound(this, 'clique');
+    openDownloadApkModal(this, {
+      onClose: () => {
+        this.downloadModalClose = null;
       },
+    }).then(({ close }) => {
+      this.downloadModalClose = close;
     });
   }
 

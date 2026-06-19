@@ -12,6 +12,7 @@ const COLLECTION_LOADERS = {
   mynaui: () => import('@iconify-json/mynaui/icons.json'),
   solar: () => import('@iconify-json/solar/icons.json'),
   hugeicons: () => import('@iconify-json/hugeicons/icons.json'),
+  mdi: () => import('@iconify-json/mdi/icons.json'),
 };
 
 const iconSetCache = new Map();
