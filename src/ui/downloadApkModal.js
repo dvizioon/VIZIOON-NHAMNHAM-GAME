@@ -82,29 +82,41 @@ function createActionButton(scene, x, y, label, iconDef, {
   return container;
 }
 
+function getPlatformCardMetrics(size) {
+  const pad = Math.round(size * 0.22);
+  const cardW = size + pad * 2;
+  const cardH = cardW + Math.round(size * 0.18);
+  return {
+    pad,
+    cardW,
+    cardH,
+    iconY: -Math.round(size * 0.1),
+    labelY: Math.round(cardH * 0.28),
+  };
+}
+
 function createPlatformSymbol(scene, x, y, size, iconDef, label, onClick) {
   const container = scene.add.container(x, y);
-  const pad = Math.round(size * 0.22);
-  const cardSize = size + pad * 2;
+  const { cardW, cardH, iconY, labelY } = getPlatformCardMetrics(size);
 
   const bg = scene.add.graphics();
   const draw = (pressed = false) => {
     bg.clear();
     const offset = pressed ? 3 : 0;
     bg.fillStyle(Theme.folhaEscura, 1);
-    bg.fillRoundedRect(-cardSize / 2, -cardSize / 2 + offset, cardSize, cardSize, 18);
+    bg.fillRoundedRect(-cardW / 2, -cardH / 2 + offset, cardW, cardH, 18);
     bg.fillStyle(Theme.papel, 1);
-    bg.fillRoundedRect(-cardSize / 2, -cardSize / 2, cardSize, cardSize - offset, 18);
+    bg.fillRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH - offset, 18);
     bg.lineStyle(3, Theme.folhaEscura, 1);
-    bg.strokeRoundedRect(-cardSize / 2, -cardSize / 2, cardSize, cardSize - offset, 18);
+    bg.strokeRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH - offset, 18);
   };
   draw();
 
-  const icon = scene.add.image(0, -Math.round(size * 0.08), iconDef.textureKey)
+  const icon = scene.add.image(0, iconY, iconDef.textureKey)
     .setDisplaySize(size, size)
     .setOrigin(0.5);
 
-  const text = scene.add.text(0, size * 0.42, label, {
+  const text = scene.add.text(0, labelY, label, {
     fontFamily: Theme.fontFamily,
     fontSize: `${Math.max(14, Math.round(size * 0.28))}px`,
     color: '#1E6A30',
@@ -112,7 +124,7 @@ function createPlatformSymbol(scene, x, y, size, iconDef, label, onClick) {
   }).setOrigin(0.5);
 
   container.add([bg, icon, text]);
-  container.setSize(cardSize, cardSize + Math.round(size * 0.2));
+  container.setSize(cardW, cardH);
   container.setInteractive({ useHandCursor: true });
   container.on('pointerdown', () => draw(true));
   container.on('pointerup', () => {
@@ -208,7 +220,8 @@ export async function openDownloadApkModal(scene, { onClose } = {}) {
 
   const message = 'Escolha sua plataforma';
   const platformIconSize = Math.round(Math.min(panelW * 0.18, 56 * s));
-  const platformRowH = platformIconSize + Math.round(52 * s);
+  const { cardW: platformCardW, cardH: platformCardH } = getPlatformCardMetrics(platformIconSize);
+  const platformRowH = platformCardH + Math.round(16 * s);
   const titleLineH = Math.round(titleSize * 1.2);
 
   const measureBody = scene.add.text(0, 0, message, {
@@ -298,10 +311,8 @@ export async function openDownloadApkModal(scene, { onClose } = {}) {
   panel.add(body);
   y += body.height + sectionGap;
 
-  const cardSize = platformIconSize + Math.round(platformIconSize * 0.22) * 2;
-  const platformGap = cardSize / 2 + Math.round(12 * s);
+  const platformGap = platformCardW / 2 + Math.round(12 * s);
   const platformY = y + platformRowH / 2 - Math.round(8 * s);
-  const iosY = platformY + Math.round(10 * s);
   const androidCard = createPlatformSymbol(
     scene,
     -platformGap,
@@ -317,7 +328,7 @@ export async function openDownloadApkModal(scene, { onClose } = {}) {
   const iosCard = createPlatformSymbol(
     scene,
     platformGap,
-    iosY,
+    platformY,
     platformIconSize,
     IOS_SYM,
     'iOS',
