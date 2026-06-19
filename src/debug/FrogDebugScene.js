@@ -27,6 +27,7 @@ import {
   syncFrogJumpDisplay,
 } from '../config/introFrogConfig.js';
 import { SPLASH_CATERPILLAR_SCALE } from '../config/caterpillarConfig.js';
+import { playSound } from '../systems/ProceduralAudio.js';
 
 const GROUND_OFFSET_RATIO = 0.080;
 const FRAME_GAP = 10;
@@ -284,6 +285,8 @@ export class FrogDebugScene extends Phaser.Scene {
 
     const playCycle = () => {
       if (!this.jumpPreviewActive || !spr.active) return;
+
+      playSound(this, 'jump', { volumeMul: 0.78 });
 
       spr.setY(groundY);
       spr.setFrame(0);

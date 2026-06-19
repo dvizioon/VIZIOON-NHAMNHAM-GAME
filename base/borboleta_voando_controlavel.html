@@ -1,0 +1,115 @@
+<h2 class="sr-only">Borboleta interativa que voa seguindo o mouse, o toque ou as setas do teclado, com opção de cor verde ou rosa.</h2>
+<div style="padding:1rem 0;">
+  <div id="scene" tabindex="0" style="position:relative; width:100%; height:360px; background:#e9f4ff; border-radius:var(--border-radius-lg); overflow:hidden; cursor:crosshair; outline:none; touch-action:none;">
+    <div style="position:absolute; left:0; right:0; bottom:0; height:70px; background:#a9dd7e;"></div>
+    <div style="position:absolute; left:0; right:0; bottom:62px; height:16px; background:#bce796;"></div>
+    <div style="position:absolute; left:14%; bottom:54px; width:4px; height:46px; background:#5b9a36;"></div>
+    <div style="position:absolute; left:13%; bottom:92px; width:22px; height:22px; border-radius:50%; background:#f2c14e;"></div>
+    <div style="position:absolute; left:46%; bottom:54px; width:4px; height:60px; background:#5b9a36;"></div>
+    <div style="position:absolute; left:45%; bottom:104px; width:22px; height:22px; border-radius:50%; background:#ef6f9c;"></div>
+    <div style="position:absolute; left:80%; bottom:54px; width:4px; height:40px; background:#5b9a36;"></div>
+    <div style="position:absolute; left:79%; bottom:84px; width:22px; height:22px; border-radius:50%; background:#7cc0ee;"></div>
+    <div id="bf-wrap" style="--dur:0.6s; position:absolute; width:70px; height:70px; left:50%; top:45%; will-change:transform; pointer-events:none;"></div>
+    <div id="hint" style="position:absolute; left:12px; top:10px; font-size:12px; color:#3a5168; background:rgba(255,255,255,0.6); padding:3px 8px; border-radius:var(--border-radius-md);">Mexe o mouse, arrasta o dedo ou usa as setas</div>
+  </div>
+  <div style="display:flex; align-items:center; gap:10px; margin-top:1rem;">
+    <span style="font-size:14px; color:var(--color-text-secondary);">Cor:</span>
+    <button id="btn-verde" style="border-color:var(--color-border-info);">Verde (macho)</button>
+    <button id="btn-rosa">Rosa (fêmea)</button>
+  </div>
+</div>
+<script>
+(function(){
+  function butterfly(sex){
+    var fem = sex === "femea";
+    var veinW = fem ? 2.4 : 1.1;
+    var g1 = fem ? "#F7A8C8" : "#84C93E";
+    var g2 = fem ? "#E25B92" : "#3F8417";
+    var BORDER = fem ? "#5e1230" : "#143a08";
+    var VEIN = fem ? "#7a1f44" : "#1d4a0c";
+    var BODY = "#191107";
+    var forewing = "M148,108 C160,72 205,52 252,66 C272,73 280,97 267,120 C254,142 210,148 175,140 C160,136 150,124 148,112 Z";
+    var hindwing = "M148,134 C172,138 208,150 226,178 C240,200 232,232 204,236 C180,240 158,218 150,188 C147,170 146,150 148,138 Z";
+    var veins = ["M150,116 C185,100 220,82 248,70","M150,118 C195,108 235,102 266,108","M150,122 C195,122 230,128 252,134","M150,126 C180,134 205,140 224,142","M150,142 C180,150 205,162 222,180","M150,150 C175,164 200,186 214,210","M150,160 C168,182 182,210 192,230","M150,172 C158,192 162,210 160,226"].map(function(d){return '<path d="'+d+'" fill="none" stroke="'+VEIN+'" stroke-width="'+veinW+'" stroke-linecap="round"/>';}).join("");
+    var spots = [[246,73],[263,92],[265,112],[251,131],[226,141],[201,144],[221,181],[229,202],[217,225],[196,233],[171,231]].map(function(p){return '<circle cx="'+p[0]+'" cy="'+p[1]+'" r="2.3" fill="#fff"/>';}).join("");
+    var scent = fem ? "" : '<ellipse cx="182" cy="192" rx="6" ry="8" fill="'+BODY+'"/><ellipse cx="182" cy="192" rx="2.6" ry="3.6" fill="#2c4a14"/>';
+    var halfWing = '<path d="'+forewing+'" fill="url(#og'+sex+')" stroke="'+BORDER+'" stroke-width="6.5" stroke-linejoin="round"/><path d="'+hindwing+'" fill="url(#og'+sex+')" stroke="'+BORDER+'" stroke-width="6.5" stroke-linejoin="round"/>'+veins+scent+spots;
+    var bodyDots = [[146,114],[154,114],[150,123],[146,131],[154,131],[150,148],[146,158],[154,158],[150,170],[146,182],[154,182],[150,194]].map(function(p){return '<circle cx="'+p[0]+'" cy="'+p[1]+'" r="1.7" fill="#fff"/>';}).join("");
+    return '<svg viewBox="0 0 300 300" width="100%" role="img" xmlns="http://www.w3.org/2000/svg"><title>Borboleta '+(fem?"rosa":"verde")+' voando</title><desc>Borboleta '+(fem?"fêmea rosa":"macho verde")+' batendo as asas.</desc><defs><linearGradient id="og'+sex+'" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="'+g1+'"/><stop offset="1" stop-color="'+g2+'"/></linearGradient></defs><g class="bfly"><g class="wing wing-left"><g transform="translate(300,0) scale(-1,1)">'+halfWing+'</g></g><g class="wing wing-right">'+halfWing+'</g><g class="body"><ellipse cx="150" cy="178" rx="6.5" ry="42" fill="'+BODY+'"/><ellipse cx="150" cy="120" rx="11" ry="20" fill="'+BODY+'"/><circle cx="150" cy="96" r="8" fill="'+BODY+'"/><circle cx="146.5" cy="95" r="2.4" fill="#070502"/><circle cx="153.5" cy="95" r="2.4" fill="#070502"/><path d="M147,90 C140,78 136,66 132,57" fill="none" stroke="'+BODY+'" stroke-width="2" stroke-linecap="round"/><path d="M153,90 C160,78 164,66 168,57" fill="none" stroke="'+BODY+'" stroke-width="2" stroke-linecap="round"/><circle cx="131" cy="56" r="3.4" fill="'+BODY+'"/><circle cx="169" cy="56" r="3.4" fill="'+BODY+'"/>'+bodyDots+'</g></g></svg>';
+  }
+
+  var st = document.createElement("style");
+  st.textContent = ".wing{transform-box:fill-box;animation:flap var(--dur) ease-in-out infinite;}.wing-right{transform-origin:left center;}.wing-left{transform-origin:right center;}@keyframes flap{0%,100%{transform:scaleX(1)}50%{transform:scaleX(0.26)}}";
+  document.head.appendChild(st);
+
+  var scene = document.getElementById("scene");
+  var wrap = document.getElementById("bf-wrap");
+  var sex = "macho";
+  wrap.innerHTML = butterfly(sex);
+
+  var W = scene.clientWidth, H = scene.clientHeight;
+  var pos = {x: W/2, y: H*0.45};
+  var target = {x: W/2, y: H*0.45};
+  var heading = -90;
+  var keys = {};
+
+  function setTargetFromEvent(e){
+    var r = scene.getBoundingClientRect();
+    var cx = (e.touches ? e.touches[0].clientX : e.clientX) - r.left;
+    var cy = (e.touches ? e.touches[0].clientY : e.clientY) - r.top;
+    target.x = Math.max(20, Math.min(W-20, cx));
+    target.y = Math.max(20, Math.min(H-20, cy));
+  }
+  scene.addEventListener("pointermove", setTargetFromEvent);
+  scene.addEventListener("pointerdown", function(e){ scene.focus(); setTargetFromEvent(e); });
+  scene.addEventListener("keydown", function(e){
+    var k = e.key.toLowerCase();
+    if(["arrowup","arrowdown","arrowleft","arrowright","w","a","s","d"].indexOf(k)>-1){ keys[k]=true; e.preventDefault(); }
+  });
+  scene.addEventListener("keyup", function(e){ keys[e.key.toLowerCase()]=false; });
+
+  function shortAngle(from,to){
+    var d = ((to-from+540)%360)-180;
+    return from + d*0.15;
+  }
+
+  function loop(){
+    W = scene.clientWidth; H = scene.clientHeight;
+    var step = 5;
+    if(keys["arrowup"]||keys["w"]) target.y -= step;
+    if(keys["arrowdown"]||keys["s"]) target.y += step;
+    if(keys["arrowleft"]||keys["a"]) target.x -= step;
+    if(keys["arrowright"]||keys["d"]) target.x += step;
+    target.x = Math.max(20, Math.min(W-20, target.x));
+    target.y = Math.max(20, Math.min(H-20, target.y));
+
+    var dx = target.x - pos.x, dy = target.y - pos.y;
+    pos.x += dx*0.07; pos.y += dy*0.07;
+    var vx = dx*0.07, vy = dy*0.07;
+    var speed = Math.hypot(vx, vy);
+
+    if(speed > 0.4){
+      var want = Math.atan2(vy, vx)*180/Math.PI + 90;
+      heading = shortAngle(heading, want);
+    }
+    var dur = Math.max(0.2, Math.min(0.65, 0.65 - speed*0.04)).toFixed(2);
+    wrap.style.setProperty("--dur", dur + "s");
+
+    var scale = 1 + Math.min(speed*0.01, 0.12);
+    wrap.style.transform = "translate("+(pos.x-35)+"px,"+(pos.y-35)+"px) rotate("+heading.toFixed(1)+"deg) scale("+scale.toFixed(3)+")";
+    wrap.style.transformOrigin = "center";
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  var bv = document.getElementById("btn-verde"), br = document.getElementById("btn-rosa");
+  function pick(s){
+    sex = s;
+    wrap.innerHTML = butterfly(sex);
+    bv.style.borderColor = s==="macho" ? "var(--color-border-info)" : "var(--color-border-tertiary)";
+    br.style.borderColor = s==="femea" ? "var(--color-border-info)" : "var(--color-border-tertiary)";
+  }
+  bv.addEventListener("click", function(){ pick("macho"); });
+  br.addEventListener("click", function(){ pick("femea"); });
+})();
+</script>

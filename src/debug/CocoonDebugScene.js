@@ -7,13 +7,17 @@ import { playSound } from '../systems/ProceduralAudio.js';
 import {
   COCOON_WOBBLE_KEY,
   COCOON_TRUNK_KEY,
-  COCOON_OPEN_ANIM,
+  COCOON_TRUNK_DEPTH,
+  COCOON_SPRITE_DEPTH,
   COCOON_FRAME_COUNT,
   COCOON_HINT_Y_RATIO,
   DEFAULT_COCOON_TUNE,
   layoutCocoonStage,
   getCocoonTapZone,
   showCocoonFrame,
+  playCocoonTapWobble,
+  playCocoonOpenAnim,
+  stopCocoonAnim,
 } from '../config/cocoonConfig.js';
 import {
   createCocoonStoryCard,
@@ -42,6 +46,7 @@ export class CocoonDebugScene extends Phaser.Scene {
     this.hitGfx = null;
     this.infoText = null;
     this.tuneText = null;
+    this.cocoonBusy = false;
   }
 
   async create() {
@@ -63,15 +68,15 @@ export class CocoonDebugScene extends Phaser.Scene {
   buildCocoonStage(width, height) {
     drawEnvironmentLayers(this, { clouds: true, ground: true });
 
-    if (this.textures.exists(COCOON_TRUNK_KEY)) {
-      this.trunkImage = this.add.image(width / 2, 0, COCOON_TRUNK_KEY)
-        .setDepth(8)
+    if (this.textures.exists(COCOON_WOBBLE_KEY)) {
+      this.cocoonSprite = this.add.sprite(0, 0, COCOON_WOBBLE_KEY, 0)
+        .setDepth(COCOON_SPRITE_DEPTH)
         .setScrollFactor(0);
     }
 
-    if (this.textures.exists(COCOON_WOBBLE_KEY)) {
-      this.cocoonSprite = this.add.sprite(0, 0, COCOON_WOBBLE_KEY, 0)
-        .setDepth(10)
+    if (this.textures.exists(COCOON_TRUNK_KEY)) {
+      this.trunkImage = this.add.image(width / 2, 0, COCOON_TRUNK_KEY)
+        .setDepth(COCOON_TRUNK_DEPTH)
         .setScrollFactor(0);
     }
 
@@ -259,7 +264,7 @@ export class CocoonDebugScene extends Phaser.Scene {
   }
 
   onCocoonTap() {
-    if (this.opening) return;
+    if (this.opening || this.cocoonBusy) return;
     this.cliques += 1;
     const isLast = this.cliques >= this.maxCliques;
     playSound(this, isLast ? 'nascer' : 'egg_crack');
@@ -269,9 +274,15 @@ export class CocoonDebugScene extends Phaser.Scene {
       return;
     }
 
-    this.previewFrame = Math.min(this.cliques, COCOON_FRAME_COUNT - 1);
-    showCocoonFrame(this.cocoonSprite, this.previewFrame);
-    this.refreshInfo(this.scale.width, this.scale.height);
+    this.cocoonBusy = true;
+    playCocoonTapWobble(this.cocoonSprite, this, this.cliques, {
+      onComplete: () => {
+        this.cocoonBusy = false;
+        this.previewFrame = 0;
+        showCocoonFrame(this.cocoonSprite, 0);
+        this.refreshInfo(this.scale.width, this.scale.height);
+      },
+    });
   }
 
   openCocoon() {
@@ -280,9 +291,8 @@ export class CocoonDebugScene extends Phaser.Scene {
     this.tapZone?.disableInteractive();
 
     const spr = this.cocoonSprite;
-    if (spr?.anims && this.anims.exists(COCOON_OPEN_ANIM)) {
-      spr.anims.play(COCOON_OPEN_ANIM);
-      spr.once('animationcomplete', () => this.goVictory());
+    if (spr) {
+      playCocoonOpenAnim(spr, this, { onComplete: () => this.goVictory() });
       return;
     }
 
@@ -296,6 +306,7 @@ export class CocoonDebugScene extends Phaser.Scene {
   }
 
   shutdown() {
+    stopCocoonAnim(this.cocoonSprite);
     this.scale.off('resize');
     this.input.keyboard.removeAllListeners('keydown');
   }

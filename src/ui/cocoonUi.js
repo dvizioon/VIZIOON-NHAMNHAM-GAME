@@ -129,14 +129,41 @@ export function createCocoonStoryCard(scene, x, y, { nome = 'Lagartinha', genero
   return card;
 }
 
+export function startCocoonTapHintAnim(scene, hint, x, y) {
+  if (!hint?.active || !scene) return;
+
+  scene.tweens.killTweensOf(hint);
+  hint.setPosition(x, y);
+  hint.setScale(1);
+  hint.setAlpha(0.88);
+  hint._hintAnchorX = x;
+  hint._hintAnchorY = y;
+
+  const s = uiScale(scene);
+  const bob = Math.round(9 * s);
+
+  scene.tweens.add({
+    targets: hint,
+    y: y - bob,
+    alpha: 1,
+    duration: 1500,
+    yoyo: true,
+    repeat: -1,
+    ease: 'Sine.easeInOut',
+  });
+}
+
 export function createCocoonTapHint(scene, x, y) {
   const s = uiScale(scene);
-  return scene.add.text(x, y, 'Toque três vezes no casulo', {
+  const hint = scene.add.text(x, y, 'Toque três vezes no casulo', {
     fontFamily: Theme.fontFamily,
     fontSize: `${Math.round(17 * s)}px`,
     color: '#FFFFFF',
     fontStyle: 'bold',
     stroke: '#1E6A30',
     strokeThickness: Math.round(4 * s),
-  }).setOrigin(0.5).setDepth(32).setAlpha(0.92);
+  }).setOrigin(0.5).setDepth(32).setAlpha(0.88);
+
+  startCocoonTapHintAnim(scene, hint, x, y);
+  return hint;
 }
