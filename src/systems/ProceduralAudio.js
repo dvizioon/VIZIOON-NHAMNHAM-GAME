@@ -32,16 +32,11 @@ export class ProceduralAudio {
 
   play(tipo, volumeMul = 1) {
     this.unlock();
-    if (!this.ctx) {
-      try {
-        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-      } catch {
-        return;
-      }
-    }
+    if (!this.ctx) return;
 
     if (this.ctx.state === 'suspended') {
-      this.ctx.resume();
+      this.ctx.resume().catch(() => {});
+      if (this.ctx.state === 'suspended') return;
     }
 
     const settings = this.scene.registry.get(RegistryKeys.SETTINGS) || defaultSettings;

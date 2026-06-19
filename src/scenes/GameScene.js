@@ -479,7 +479,7 @@ export class GameScene extends Phaser.Scene {
       delay: Phaser.Math.Between(FRUIT_FALL_INTERVAL_MIN, FRUIT_FALL_INTERVAL_MAX),
       loop: true,
       callback: () => {
-        if (!this.jogoAtivo) return;
+        if (!this.jogoAtivo || !this.scene?.isActive()) return;
         this.spawnFruitWave();
         this.fruitSpawnTimer.delay = Phaser.Math.Between(
           FRUIT_FALL_INTERVAL_MIN,
@@ -487,6 +487,17 @@ export class GameScene extends Phaser.Scene {
         );
       },
     });
+  }
+
+  clearPendingFruitSpawns() {
+    this._pendingFruitTimers?.forEach((timer) => timer?.remove?.());
+    this._pendingFruitTimers = [];
+  }
+
+  stopFruitSpawning() {
+    this.fruitSpawnTimer?.remove();
+    this.fruitSpawnTimer = null;
+    this.clearPendingFruitSpawns();
   }
 
   countFallingFruits() {
@@ -679,7 +690,7 @@ export class GameScene extends Phaser.Scene {
       point.y -= Math.round(i * yStep);
       usedPoints.push({ x: point.x, y: point.y });
       const timer = this.time.delayedCall(i * 900, () => {
-        if (!this.scene?.isActive() || !this.jogoAtivo) return;
+        if (!this.scene?.isActive() || !this.jogoAtivo || !this.fruitGroup) return;
         this.dropFruitAt(point);
       });
       this._pendingFruitTimers.push(timer);
@@ -707,6 +718,8 @@ export class GameScene extends Phaser.Scene {
     const spawnY = spawn.y;
 
     const sprite = this.physics.add.image(spawnX, spawnY, FOOD_FRUTAS.key, frame);
+    if (!sprite?.body) return;
+
     sprite.setDisplaySize(size, size);
     sprite.setDepth(DEPTH_FRUIT + Math.round(spawnY * 0.08));
     sprite.setScrollFactor(0);
@@ -721,6 +734,11 @@ export class GameScene extends Phaser.Scene {
     const inset = (size - radius * 2) / 2;
     sprite.body.setCircle(radius, inset, inset);
     this.applyFruitLaunchVelocity(sprite, tier, { ...spawn, x: spawnX });
+
+    if (!this.fruitGroup?.add) {
+      sprite.destroy();
+      return;
+    }
 
     this.fruitGroup.add(sprite);
 
@@ -1008,6 +1026,7 @@ export class GameScene extends Phaser.Scene {
 
     if (this.pontos >= GAME_SCORE_MAX) {
       this.jogoAtivo = false;
+      this.stopFruitSpawning();
       GameState.finishRun(this);
       if (GameState.isOnlineConnected(this)) {
         syncRunScore(this, {
@@ -1043,6 +1062,7 @@ export class GameScene extends Phaser.Scene {
   showGameOver() {
     this.gameOverActive = true;
     this.jogoAtivo = false;
+    this.stopFruitSpawning();
     ensureBgmPlaying(this);
     playSound(this, 'fail');
 
@@ -1469,9 +1489,7 @@ export class GameScene extends Phaser.Scene {
     this.timerSapo?.remove();
     this.sapoSomFallback?.remove();
     this.sapoSomFallback = null;
-    this.fruitSpawnTimer?.remove();
-    this._pendingFruitTimers?.forEach((timer) => timer?.remove?.());
-    this._pendingFruitTimers = [];
+    this.stopFruitSpawning();
     if (this.debugDraw) this.events.off('update', this.debugDraw);
     this.debugGfx?.destroy();
     this.frogHitDbgGfx?.destroy();

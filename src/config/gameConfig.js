@@ -37,7 +37,7 @@ export function createGameConfig() {
     },
     input: {
       activePointers: 2,
-      touch: { capture: true },
+      touch: { capture: false },
     },
     audio: {
       disableWebAudio: false,

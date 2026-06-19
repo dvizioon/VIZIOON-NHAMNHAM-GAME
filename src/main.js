@@ -9,6 +9,19 @@ setupMobileGate();
 const game = new Phaser.Game(createGameConfig());
 initDebugFlags(game);
 
+function unlockGameAudio() {
+  try {
+    game.sound.unlock();
+  } catch {
+    /* ignore */
+  }
+  resumeBgm(getActiveScene());
+}
+
+['pointerdown', 'touchstart', 'keydown'].forEach((eventName) => {
+  document.addEventListener(eventName, unlockGameAudio, { once: true, passive: true });
+});
+
 const refreshScale = () => game.scale.refresh();
 window.addEventListener('resize', refreshScale);
 window.addEventListener('orientationchange', () => setTimeout(refreshScale, 150));
