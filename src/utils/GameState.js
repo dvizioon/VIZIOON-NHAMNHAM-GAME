@@ -4,6 +4,7 @@ import { formatGuestChipCode } from '../utils/guestCode.js';
 import { CORES } from '../config/theme.js';
 import { loadGuestSessionToken } from '../services/gameApi.js';
 import { normalizeCriancaRecord } from '../config/characterUiConfig.js';
+import { saveLastRunRecap } from '../utils/localPreferences.js';
 
 /** Helpers para ler/gravar estado global via registry */
 export const GameState = {
@@ -94,6 +95,55 @@ export const GameState = {
     const config = scene.registry.get(RegistryKeys.GAME_CONFIG);
     scene.registry.set(RegistryKeys.POINTS, 0);
     scene.registry.set(RegistryKeys.LIVES, config?.maxVidas ?? 3);
+    scene.registry.set(RegistryKeys.RUN_STATS, {
+      startedAt: Date.now(),
+      finishedAt: null,
+      fruitCounts: {},
+    });
+  },
+
+  getRunStats(scene) {
+    return scene.registry.get(RegistryKeys.RUN_STATS) ?? {
+      startedAt: Date.now(),
+      finishedAt: null,
+      fruitCounts: {},
+    };
+  },
+
+  recordFruitEat(scene, frameIndex) {
+    const stats = this.getRunStats(scene);
+    const key = String(frameIndex);
+    const next = { ...stats.fruitCounts };
+    next[key] = (next[key] ?? 0) + 1;
+    scene.registry.set(RegistryKeys.RUN_STATS, {
+      ...stats,
+      fruitCounts: next,
+    });
+  },
+
+  finishRun(scene) {
+    const stats = this.getRunStats(scene);
+    const finishedAt = Date.now();
+    scene.registry.set(RegistryKeys.RUN_STATS, {
+      ...stats,
+      finishedAt,
+    });
+
+    const child = this.getChild(scene);
+    saveLastRunRecap({
+      points: this.getPoints(scene),
+      durationMs: Math.max(0, finishedAt - (stats.startedAt ?? finishedAt)),
+      fruitCounts: stats.fruitCounts ?? {},
+      genero: child?.genero ?? 'menino',
+      personName: child?.nome ?? '',
+      finishedAt: new Date(finishedAt).toISOString(),
+    });
+  },
+
+  getRunDurationMs(scene) {
+    const stats = this.getRunStats(scene);
+    const end = stats.finishedAt ?? Date.now();
+    return Math.max(0, end - (stats.startedAt ?? end));
   },
 
   getPlayerSession(scene) {

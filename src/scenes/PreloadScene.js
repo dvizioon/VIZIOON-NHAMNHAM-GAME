@@ -76,7 +76,7 @@ import {
   registerCocoonAnimations,
   patchCocoonFrames,
 } from '../config/cocoonConfig.js';
-import { loadLocalSettings } from '../utils/localPreferences.js';
+import { loadLocalSettings, saveLocalSettings } from '../utils/localPreferences.js';
 import {
   getInitialSceneKey,
   seedDebugState,
@@ -283,7 +283,12 @@ export class PreloadScene extends Phaser.Scene {
     this.registry.set(RegistryKeys.GAME_CONFIG, gameConfig);
     this.registry.set(RegistryKeys.POINTS, 0);
     this.registry.set(RegistryKeys.LIVES, gameConfig.maxVidas ?? 3);
-    this.registry.set(RegistryKeys.SETTINGS, loadLocalSettings() ?? { ...defaultSettings });
+    let settings = loadLocalSettings();
+    if (!settings) {
+      settings = { ...defaultSettings };
+      saveLocalSettings(settings);
+    }
+    this.registry.set(RegistryKeys.SETTINGS, settings);
     seedDebugState(this);
 
     this.loadingUi?.setProgress(1);

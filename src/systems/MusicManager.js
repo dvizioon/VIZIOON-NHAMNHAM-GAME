@@ -1,3 +1,4 @@
+import Phaser from 'phaser';
 import { GameState } from '../utils/GameState.js';
 import { RegistryKeys } from '../config/constants.js';
 
@@ -8,7 +9,7 @@ let bgmWasPlaying = false;
 function getMusicVolume(scene) {
   const s = GameState.getSettings(scene);
   if (s.muted) return 0;
-  return s.volumeMusica ?? 0.5;
+  return Phaser.Math.Clamp(s.volumeMusica ?? 0.5, 0, 1);
 }
 
 function attachLoopGuard(music) {

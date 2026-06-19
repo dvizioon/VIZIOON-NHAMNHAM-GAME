@@ -9,14 +9,15 @@ import {
   SPLASH_ICON_RATIO,
 } from './splashUi.js';
 import { playSound } from '../systems/ProceduralAudio.js';
+import { showWarningAlert } from './thematicAlert.js';
 import {
   APP_CREDITS,
   APP_GITHUB_REPO,
+  APP_IOS_URL,
   APP_SUPPORT_EMAIL,
   openExternalUrl,
   openSupportEmail,
   startApkDownload,
-  startIosDownload,
 } from '../config/appLinks.js';
 
 const MODAL_DEPTH = 225;
@@ -334,7 +335,15 @@ export async function openDownloadApkModal(scene, { onClose } = {}) {
     'iOS',
     () => {
       playSound(scene, 'clique');
-      startIosDownload();
+      if (APP_IOS_URL) {
+        openExternalUrl(APP_IOS_URL);
+        return;
+      }
+      showWarningAlert(
+        scene,
+        'O app para iOS ainda não está disponível.\nFique de olho nas novidades!',
+        { title: 'Em breve no iOS' },
+      );
     },
   );
   panel.add([androidCard, iosCard]);

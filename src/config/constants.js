@@ -14,6 +14,7 @@ export const RegistryKeys = {
   BGM: 'bgm',
   PLAYER_SESSION: 'playerSession',
   ACTIVE_PERSON_ID: 'activePersonId',
+  RUN_STATS: 'runStats',
 };
 
 export const SceneKeys = {
@@ -40,7 +41,7 @@ export const SceneKeys = {
 
 export const defaultSettings = {
   volumeMusica: 0.5,
-  volumeEfeitos: 0.5,
+  volumeEfeitos: 0.7,
   muted: false,
   modo: 'toque',
 };

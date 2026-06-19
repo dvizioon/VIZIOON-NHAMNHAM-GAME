@@ -67,7 +67,7 @@ export function getSettingsPanelSize(scene) {
 
   if (isPortrait(scene)) {
     const w = Math.round(width * 0.94);
-    const h = Math.round(w * (PANEL_DESIGN_HEIGHT / PANEL_DESIGN_WIDTH) * 1.12);
+    const h = Math.round(w * (PANEL_DESIGN_HEIGHT / PANEL_DESIGN_WIDTH) * 1.04);
     const panelScale = w / PANEL_DESIGN_WIDTH;
     return {
       w,

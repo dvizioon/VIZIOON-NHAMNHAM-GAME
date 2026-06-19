@@ -4,10 +4,11 @@ import { resolvePublicAssetUrl } from '../utils/assetUrl.js';
 
 let activeVoice = null;
 
-function getEffectVolume(scene) {
+/** Voz da criança — sempre 100% (só respeita mudo global) */
+function getCharacterVoiceVolume(scene) {
   const settings = scene.registry.get(RegistryKeys.SETTINGS) || {};
   if (settings.muted) return 0;
-  return settings.volumeEfeitos ?? 0.8;
+  return 1;
 }
 
 export function stopCharacterVoice() {
@@ -27,7 +28,7 @@ export function playCharacterVoice(scene, crianca) {
   const path = getCharacterVoicePath(crianca);
   if (!path) return null;
 
-  const vol = getEffectVolume(scene);
+  const vol = getCharacterVoiceVolume(scene);
   if (vol <= 0) return null;
 
   const url = resolvePublicAssetUrl(path);

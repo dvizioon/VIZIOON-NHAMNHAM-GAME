@@ -79,7 +79,8 @@ import {
   isDebugHitboxes,
   toggleDebugFreezeFrog,
 } from '../utils/debug.js';
-import { stopBgm, ensureBgmPlaying } from '../systems/MusicManager.js';
+import { ensureBgmPlaying } from '../systems/MusicManager.js';
+import { syncRunScore } from '../services/playerSession.js';
 import { getCountdownSoundKey } from '../config/characterUiConfig.js';
 
 /**
@@ -126,7 +127,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   create() {
-    stopBgm(this);
+    ensureBgmPlaying(this);
 
     this.config = GameState.getConfig(this);
     this.child = GameState.getChild(this);
@@ -726,6 +727,7 @@ export class GameScene extends Phaser.Scene {
     const entry = {
       x: spawnX,
       sprite,
+      frame,
       falling: true,
       multiplier: pickFruitMultiplier(),
     };
@@ -762,7 +764,7 @@ export class GameScene extends Phaser.Scene {
     const hint = this.add.text(width / 2, 100, `${this.child.nome}, mova a lagartinha!`, {
       fontFamily: Theme.fontFamily,
       fontSize: '16px',
-      color: '#3B3024',
+      color: '#490808',
       fontStyle: 'bold',
       backgroundColor: '#FFF8E7',
       padding: { x: 14, y: 8 },
@@ -808,7 +810,7 @@ export class GameScene extends Phaser.Scene {
     this.avisoText = this.add.text(0, 0, '', {
       fontFamily: Theme.fontFamily,
       fontSize: '16px',
-      color: '#3B3024',
+      color: '#490808',
       fontStyle: 'bold',
       align: 'left',
     }).setOrigin(0, 0.5);
@@ -955,6 +957,17 @@ export class GameScene extends Phaser.Scene {
     this.frutasComidas += 1;
     this.pontos = Math.min(this.pontos + mult, GAME_SCORE_MAX);
     GameState.setPoints(this, this.pontos);
+    if (c.frame != null) {
+      GameState.recordFruitEat(this, c.frame);
+    }
+    if (GameState.isOnlineConnected(this)) {
+      syncRunScore(this, {
+        points: this.pontos,
+        livesLeft: this.vidas,
+        levelLabel: 'jogo',
+        won: false,
+      }).catch(() => {});
+    }
     playSound(this, 'eat');
     playSound(this, 'point', { volumeMul: 0.85 });
 
@@ -995,6 +1008,16 @@ export class GameScene extends Phaser.Scene {
 
     if (this.pontos >= GAME_SCORE_MAX) {
       this.jogoAtivo = false;
+      GameState.finishRun(this);
+      if (GameState.isOnlineConnected(this)) {
+        syncRunScore(this, {
+          points: this.pontos,
+          livesLeft: this.vidas,
+          levelLabel: 'casulo',
+          won: true,
+          durationMs: GameState.getRunDurationMs(this),
+        }).catch(() => {});
+      }
       this.time.delayedCall(900, () => this.scene.start(SceneKeys.COCOON));
     }
   }

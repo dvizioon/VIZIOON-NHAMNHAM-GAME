@@ -19,6 +19,8 @@ function clamp(val, min, max) {
 export const UI_LOGO_JOGADOR_KEY = 'ui_logo_cadastrar';
 export const UI_USER_JOGADOR_KEY = 'ui_user_jogador';
 export const UI_SAPO_KEY = 'ui_sapo';
+/** viewBox do Sapo.svg — 180×153 */
+const SAPO_DISPLAY_ASPECT = 153 / 180;
 
 export const PLAYER_AGE_MIN = 3;
 export const PLAYER_AGE_MAX = 99;
@@ -43,11 +45,18 @@ export async function preloadPlayerNameIcons(scene) {
   await Icon.preload(scene, Object.values(PLAYER_NAME_ICONS));
 }
 
-/** Avatar cadastro — Sapo.svg (mesmo tamanho da lagarta no login) */
+/** Avatar cadastro — Sapo.svg (proporção correta, sem espremer) */
 export function createRegisterAvatar(scene, x, y, size) {
+  const tex = scene.textures.get(UI_SAPO_KEY);
+  const src = tex?.getSourceImage?.();
+  const aspect = src?.width > 0 && src?.height > 0
+    ? src.height / src.width
+    : SAPO_DISPLAY_ASPECT;
+  const displayW = size;
+  const displayH = size * aspect;
   return scene.add
     .image(x, y, UI_SAPO_KEY)
-    .setDisplaySize(size, size * (168 / 142))
+    .setDisplaySize(displayW, displayH)
     .setOrigin(0.5);
 }
 
@@ -68,6 +77,9 @@ export function createPlayerNameField(scene, x, y, contentW, {
   const labelSize = Math.max(18, Math.round(24 * scale));
   const textSize = Math.max(18, Math.round(22 * scale));
   const labelGap = Math.round(12 * scale);
+  const textPadLeft = Math.round(22 * scale);
+  const textPadRight = Math.round(18 * scale);
+  const maxTextW = Math.max(40, fieldW - textPadLeft - textPadRight);
 
   const root = scene.add.container(x, y);
   let value = '';
@@ -89,11 +101,26 @@ export function createPlayerNameField(scene, x, y, contentW, {
   };
   drawBg();
 
-  const display = scene.add.text(-fieldW / 2 + Math.round(22 * scale), 0, placeholder, {
+  const display = scene.add.text(-fieldW / 2 + textPadLeft, 0, placeholder, {
     fontFamily: Theme.fontFamily,
     fontSize: `${textSize}px`,
-    color: '#ffffff',
+    color: '#ffffffaa',
   }).setOrigin(0, 0.5);
+
+  const caret = scene.add.graphics();
+  const getCaretX = () => {
+    const textW = value.length === 0 ? 0 : Math.min(display.width, maxTextW);
+    return -fieldW / 2 + textPadLeft + textW + 2;
+  };
+  const drawCaret = (visible) => {
+    caret.clear();
+    if (!visible) return;
+    const caretX = getCaretX();
+    caret.lineStyle(2, 0xffffff, 1);
+    caret.lineBetween(caretX, -textSize * 0.42, caretX, textSize * 0.42);
+  };
+
+  let focused = false;
 
   const domInput = document.createElement('input');
   domInput.type = 'text';
@@ -109,10 +136,17 @@ export function createPlayerNameField(scene, x, y, contentW, {
 
   const syncDisplay = () => {
     if (value.length === 0) {
-      display.setText(placeholder).setColor('#ffffff');
+      display.setText(placeholder).setColor('#ffffffaa');
+      display.setCrop();
     } else {
       display.setText(value).setColor('#ffffff');
+      if (display.width > maxTextW) {
+        display.setCrop(display.width - maxTextW, 0, maxTextW, display.height);
+      } else {
+        display.setCrop();
+      }
     }
+    drawCaret(focused);
     onChange?.(value);
   };
 
@@ -122,23 +156,32 @@ export function createPlayerNameField(scene, x, y, contentW, {
     value = next;
     syncDisplay();
   });
+  domInput.addEventListener('blur', () => {
+    focused = false;
+    domInput.readOnly = true;
+    drawCaret(false);
+  });
 
   scene.events.once('shutdown', () => domInput.remove());
 
   const activateInput = () => {
     domInput.readOnly = false;
+    focused = true;
     domInput.focus();
+    syncDisplay();
   };
 
   const blurInput = () => {
+    focused = false;
     domInput.readOnly = true;
     domInput.blur();
+    drawCaret(false);
   };
 
   const hit = scene.add.zone(0, 0, fieldW, fieldH).setInteractive({ useHandCursor: true });
   hit.on('pointerdown', activateInput);
 
-  root.add([labelText, bg, display, hit]);
+  root.add([labelText, bg, display, caret, hit]);
   root.setDepth(20);
 
   return {
@@ -198,6 +241,15 @@ export function createAgeSlider(scene, x, y, initial, { min = PLAYER_AGE_MIN, ma
     return clamp(Math.round(min + raw * (max - min)), min, max);
   };
 
+  const hintSize = Math.max(12, Math.round(14 * scale));
+  const ageHintH = Math.round(20 * scale);
+  const dragHint = scene.add.text(0, trackH / 2 + Math.round(10 * scale), '← Arraste para escolher a idade →', {
+    fontFamily: Theme.fontFamily,
+    fontSize: `${hintSize}px`,
+    color: '#6B4226',
+    fontStyle: 'bold',
+  }).setOrigin(0.5, 0);
+
   const redraw = () => {
     trackBg.clear();
     trackBg.fillStyle(FIELD_GREEN, 1);
@@ -218,7 +270,7 @@ export function createAgeSlider(scene, x, y, initial, { min = PLAYER_AGE_MIN, ma
   redraw();
 
   const zone = scene.add
-    .zone(0, 0, innerW, Math.max(trackH + 24, 64))
+    .zone(0, Math.round(8 * scale), innerW, Math.max(trackH + ageHintH + 12, 72))
     .setInteractive({ useHandCursor: true });
 
   const applyX = (localX) => {
@@ -244,8 +296,17 @@ export function createAgeSlider(scene, x, y, initial, { min = PLAYER_AGE_MIN, ma
     isDragging = false;
   });
 
-  root.add([label, trackBg, knob, ageText, zone]);
+  root.add([label, trackBg, knob, ageText, dragHint, zone]);
   root.setDepth(20);
+
+  scene.tweens.add({
+    targets: dragHint,
+    alpha: { from: 0.72, to: 1 },
+    duration: 900,
+    yoyo: true,
+    repeat: -1,
+    ease: 'Sine.easeInOut',
+  });
 
   return {
     root,
@@ -265,6 +326,8 @@ export function computePlayerNameLayout(scene, logoH, grassTop) {
   const labelSize = Math.max(18, Math.round(24 * s));
   const labelGap = Math.round(12 * s);
   const blockH = fieldH + labelGap + labelSize;
+  const ageHintH = Math.round(20 * s);
+  const ageBlockH = blockH + ageHintH;
   const contentW = Math.min(width * 0.86, 420);
 
   const topPad = Math.max(8, height * 0.012);
@@ -280,7 +343,7 @@ export function computePlayerNameLayout(scene, logoH, grassTop) {
 
   const btnYFromGrass = grassTop - grassMargin - btnMetrics.btnH / 2;
   const btnY = Math.max(btnYFromGrass, height * 0.772);
-  const maxAgeY = btnY - btnMetrics.btnH / 2 - btnAgeGap - blockH / 2;
+  const maxAgeY = btnY - btnMetrics.btnH / 2 - btnAgeGap - ageBlockH / 2;
   const ageY = maxAgeY;
   const fieldY = ageY - fieldGap - blockH;
 
@@ -294,7 +357,7 @@ export function computePlayerNameLayout(scene, logoH, grassTop) {
     avatarY = contentTop + (fieldTop - avatarGapAboveField - contentTop) / 2;
   }
 
-  const ageBottom = ageY + blockH / 2;
+  const ageBottom = ageY + ageBlockH / 2;
   const btnTop = btnY - btnMetrics.btnH / 2;
   const guestNudgeUp = Math.max(8, height * 0.01);
   const guestY = (ageBottom + btnTop) / 2 - guestNudgeUp;

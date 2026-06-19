@@ -94,6 +94,11 @@ export const GameApi = {
     return json.data ?? [];
   },
 
+  async fetchScoreFruits(token, scoreId) {
+    const json = await request(`/api/v1/game/scores/run/${scoreId}/fruits`, { token });
+    return json.data;
+  },
+
   async fetchCharacters() {
     const json = await request('/api/v1/game/characters');
     return json.data ?? [];

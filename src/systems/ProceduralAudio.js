@@ -1,7 +1,21 @@
 /**
  * Sons procedurais via Web Audio — fallback quando arquivos .mp3 não existem.
- * Compatível com a base v2 (lagarta-comilona-v2.html).
  */
+import Phaser from 'phaser';
+import { RegistryKeys, defaultSettings } from '../config/constants.js';
+
+const SFX_GAIN = 1.15;
+
+function getEffectVolume(scene, volumeMul = 1) {
+  const settings = scene.registry.get(RegistryKeys.SETTINGS) || defaultSettings;
+  if (settings.muted) return 0;
+  return Phaser.Math.Clamp(
+    (settings.volumeEfeitos ?? defaultSettings.volumeEfeitos) * volumeMul * SFX_GAIN,
+    0,
+    1,
+  );
+}
+
 export class ProceduralAudio {
   constructor(scene) {
     this.scene = scene;
@@ -30,9 +44,9 @@ export class ProceduralAudio {
       this.ctx.resume();
     }
 
-    const settings = this.scene.registry.get('settings') || {};
+    const settings = this.scene.registry.get(RegistryKeys.SETTINGS) || defaultSettings;
     if (settings.muted) return;
-    const baseVol = (settings.volumeEfeitos ?? 0.8) * volumeMul;
+    const baseVol = getEffectVolume(this.scene, volumeMul);
 
     const t = this.ctx.currentTime;
     const tocar = (f1, f2, dur, vol = 0.25, onda = 'sine', ini = 0) => {
@@ -105,14 +119,14 @@ export class ProceduralAudio {
 }
 
 /** Toca SFX — Phaser SoundManager; fallback procedural se o .mp3 não existir */
-export function playSound(scene, key, { volumeMul = 0.6, onComplete } = {}) {
-  const settings = scene.registry.get('settings') || { volumeEfeitos: 0.8, muted: false };
+export function playSound(scene, key, { volumeMul = 0.9, onComplete } = {}) {
+  const settings = scene.registry.get(RegistryKeys.SETTINGS) || defaultSettings;
   if (settings.muted) {
     onComplete?.();
     return null;
   }
 
-  const vol = (settings.volumeEfeitos ?? 0.8) * volumeMul;
+  const vol = getEffectVolume(scene, volumeMul);
 
   if (scene.cache.audio.exists(key)) {
     const snd = scene.sound.add(key);
@@ -128,7 +142,7 @@ export function playSound(scene, key, { volumeMul = 0.6, onComplete } = {}) {
     return snd;
   }
 
-  scene.registry.get('audio')?.play(key, vol);
+  scene.registry.get(RegistryKeys.AUDIO)?.play(key, volumeMul);
   if (onComplete) {
     scene.time.delayedCall(900, onComplete);
   }

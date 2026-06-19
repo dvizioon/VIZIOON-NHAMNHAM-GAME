@@ -2,6 +2,7 @@ import { defaultSettings } from '../config/constants.js';
 
 const SETTINGS_KEY = 'nhamnham_settings';
 const PROFILE_KEY = 'nhamnham_profile_cache';
+const LAST_RUN_KEY = 'nhamnham_last_run';
 
 function normalizeSettings(raw) {
   if (!raw || typeof raw !== 'object') return null;
@@ -68,5 +69,34 @@ export function clearCachedAccountProfile() {
     localStorage.removeItem(PROFILE_KEY);
   } catch {
     /* ignore */
+  }
+}
+
+/** Última partida — visitante (local) e conta (cache local da última run) */
+export function saveLastRunRecap(recap) {
+  if (!recap) return;
+  try {
+    localStorage.setItem(LAST_RUN_KEY, JSON.stringify({
+      points: recap.points ?? 0,
+      durationMs: recap.durationMs ?? 0,
+      fruitCounts: recap.fruitCounts ?? {},
+      genero: recap.genero ?? 'menino',
+      personName: recap.personName ?? '',
+      finishedAt: recap.finishedAt ?? new Date().toISOString(),
+    }));
+  } catch {
+    /* ignore */
+  }
+}
+
+export function loadLastRunRecap() {
+  try {
+    const raw = localStorage.getItem(LAST_RUN_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return null;
+    return parsed;
+  } catch {
+    return null;
   }
 }

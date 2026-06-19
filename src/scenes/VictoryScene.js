@@ -146,6 +146,7 @@ export class VictoryScene extends Phaser.Scene {
       livesLeft: GameState.getLives(this),
       levelLabel: 'vitoria',
       won: true,
+      durationMs: GameState.getRunDurationMs(this),
     });
   }
 

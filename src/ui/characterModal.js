@@ -139,7 +139,7 @@ export async function openCharacterDetailModal(scene, crianca, {
   const actionsGap = 28;
 
   const topPad = 22;
-
+  const avatarTextGap = 36;
   const bottomPad = 20;
 
   const panelH = Math.min(
@@ -150,7 +150,7 @@ export async function openCharacterDetailModal(scene, crianca, {
 
       Math.round(height * 0.5),
 
-      topPad + avatarR * 2 + 34 + 26 + 16 + 12 + bioH + actionsGap + btnH + bottomPad,
+      topPad + avatarR * 2 + avatarTextGap + 26 + 16 + 12 + bioH + actionsGap + btnH + bottomPad,
 
     ),
 
@@ -204,19 +204,22 @@ export async function openCharacterDetailModal(scene, crianca, {
 
 
 
+  const closeBtnSize = 44;
+  const closeInset = Math.max(16, Math.round(20 * s));
+
   const closeBtn = createIconCircleButton(
 
     scene,
 
-    panelW / 2 - 28,
+    panelW / 2 - closeInset - closeBtnSize / 2,
 
-    top + 28,
+    top + closeInset + closeBtnSize / 2,
 
     CLOSE_ICON,
 
     {
 
-      size: 44,
+      size: closeBtnSize,
 
       iconSize: 24,
 
@@ -258,7 +261,7 @@ export async function openCharacterDetailModal(scene, crianca, {
 
 
 
-  const nameText = scene.add.text(0, avatarY + avatarR + 22, crianca.nome, {
+  const nameText = scene.add.text(0, avatarY + avatarR + avatarTextGap, crianca.nome, {
 
     fontFamily: Theme.fontFamily,
 
@@ -276,7 +279,7 @@ export async function openCharacterDetailModal(scene, crianca, {
 
 
 
-  const tipoText = scene.add.text(0, nameText.y + 24, profile.tipo, {
+  const tipoText = scene.add.text(0, nameText.y + 26, profile.tipo, {
 
     fontFamily: Theme.fontFamily,
 
@@ -296,11 +299,11 @@ export async function openCharacterDetailModal(scene, crianca, {
 
 
 
-  const dividerY = tipoText.y + 16;
+  const dividerY = tipoText.y + 18;
 
   const divider = scene.add.graphics();
 
-  divider.lineStyle(2, CHAR_TEXT_COLOR, 0.2);
+  divider.lineStyle(2, 0x490808, 1);
 
   divider.lineBetween(-panelW * 0.36, dividerY, panelW * 0.36, dividerY);
 
@@ -308,7 +311,7 @@ export async function openCharacterDetailModal(scene, crianca, {
 
 
 
-  const bioText = scene.add.text(0, dividerY + 12, profile.personalidade, {
+  const bioText = scene.add.text(0, dividerY + 14, profile.personalidade, {
 
     fontFamily: Theme.fontFamily,
 

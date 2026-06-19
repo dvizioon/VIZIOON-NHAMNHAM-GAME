@@ -19,6 +19,7 @@ import {
 } from '../utils/localPreferences.js';
 import { loadOrCreateOfflineGuestCode, clearOfflineGuestCode } from '../utils/guestCode.js';
 import { sanitizePlayerUsername } from '../utils/username.js';
+import { applyMusicVolume } from '../systems/MusicManager.js';
 
 function normalizeGuestSession(session) {
   if (!session?.isGuest) return session;
@@ -61,9 +62,11 @@ function applySessionToState(scene, session, { persistAs }) {
     };
     GameState.setSettings(scene, settings);
     saveLocalSettings(settings);
+    applyMusicVolume(scene);
   } else {
-    const localSettings = loadLocalSettings();
-    if (localSettings) GameState.setSettings(scene, localSettings);
+    const localSettings = loadLocalSettings() ?? { ...defaultSettings };
+    GameState.setSettings(scene, localSettings);
+    applyMusicVolume(scene);
   }
 
   if (session.activePerson?.id) {
@@ -299,7 +302,7 @@ export async function registerSelectedPerson(scene, crianca, custom) {
 }
 
 /** Salva pontuação por personagem (conta registrada) */
-export async function syncRunScore(scene, { points, livesLeft, levelLabel, won }) {
+export async function syncRunScore(scene, { points, livesLeft, levelLabel, won, durationMs }) {
   const session = GameState.getPlayerSession(scene);
   if (!session?.sessionToken || session.isGuest) return null;
 
@@ -313,6 +316,8 @@ export async function syncRunScore(scene, { points, livesLeft, levelLabel, won }
       livesLeft,
       levelLabel,
       won,
+      durationMs: durationMs ?? GameState.getRunDurationMs(scene),
+      fruitCounts: GameState.getRunStats(scene).fruitCounts ?? {},
     });
   } catch (err) {
     console.warn('[GameApi] score não salvo', err.message);

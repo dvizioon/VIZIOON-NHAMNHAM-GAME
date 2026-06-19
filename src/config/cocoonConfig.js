@@ -14,7 +14,7 @@ export const COCOON_FRAME_H = 1174;
 export const COCOON_WOBBLE_FRAME_RATE = 10;
 export const COCOON_OPEN_FRAME_RATE = 12;
 
-export const COCOON_STORY_CARD_Y_RATIO = 0.16;
+export const COCOON_STORY_CARD_Y_RATIO = 0.17;
 export const COCOON_HINT_Y_RATIO = 0.95;
 export const COCOON_TRUNK_DEPTH = 12;
 export const COCOON_SPRITE_DEPTH = 6;

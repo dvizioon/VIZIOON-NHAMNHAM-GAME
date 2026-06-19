@@ -27,6 +27,7 @@ export const DEFAULT_SCORE_HUD_TUNE = {
 
 const SCORE_BUBBLE = { x: 46.4, y: 49 };
 const HUD_SCALE_MUL = 1.08;
+const GAME_UI_BROWN = '#490808';
 
 function resolveScoreHudMetrics(scoreW, scoreH, tune = DEFAULT_SCORE_HUD_TUNE) {
   const tube = tune.tube;
@@ -107,8 +108,17 @@ const FRUIT_MULTIPLIER_POOL = [
   { mul: 10, weight: 8 },
 ];
 
+export const GAME_OVER_ICONS = {
+  retry: Icon.from('solar:restart-bold', { designSize: 28, color: '#FFFFFF' }),
+  home: Icon.from('mynaui:home', { designSize: 28, color: GAME_UI_BROWN }),
+  heart: Icon.from('solar:heart-broken-bold', { designSize: 28, color: '#E84545' }),
+};
+
 export function preloadGameIcons(scene) {
-  return Icon.preload(scene, Object.values(GAME_AVISO_ICONS));
+  return Icon.preload(scene, [
+    ...Object.values(GAME_AVISO_ICONS),
+    ...Object.values(GAME_OVER_ICONS),
+  ]);
 }
 
 export function pickFruitMultiplier() {
@@ -336,16 +346,22 @@ function createGameOverActionButton(scene, x, y, label, iconDef, {
   };
   draw();
 
-  const icon = scene.add.image(-width / 2 + 28, -1, iconDef.textureKey)
-    .setDisplaySize(iconSize, iconSize)
-    .setOrigin(0.5);
-
-  const text = scene.add.text(-width / 2 + 52, -2, label, {
+  const text = scene.add.text(0, -2, label, {
     fontFamily: Theme.fontFamily,
     fontSize: `${fontSize}px`,
     color: textColor,
     fontStyle: 'bold',
   }).setOrigin(0, 0.5);
+
+  const gap = 8;
+  const contentW = iconSize + gap + text.width;
+  const contentLeft = -contentW / 2;
+
+  const icon = scene.add.image(contentLeft + iconSize / 2, -1, iconDef.textureKey)
+    .setDisplaySize(iconSize, iconSize)
+    .setOrigin(0.5);
+
+  text.setX(contentLeft + iconSize + gap);
 
   container.add([bg, icon, text]);
   container.setSize(width, btnH);
@@ -366,9 +382,7 @@ export async function showGameOverModal(scene, {
   onRetry,
   onHome,
 } = {}) {
-  const retryIcon = Icon.from('solar:restart-bold', { designSize: 28, color: '#FFFFFF' });
-  const homeIcon = Icon.from('solar:home-smile-bold', { designSize: 28, color: '#3B3024' });
-  const heartIcon = Icon.from('solar:heart-broken-bold', { designSize: 28, color: '#E84545' });
+  const { retry: retryIcon, home: homeIcon, heart: heartIcon } = GAME_OVER_ICONS;
   await Icon.preload(scene, [retryIcon, homeIcon, heartIcon]);
 
   const { width, height } = scene.scale;
@@ -400,7 +414,7 @@ export async function showGameOverModal(scene, {
   const measureBody = scene.add.text(0, 0, message, {
     fontFamily: Theme.fontFamily,
     fontSize: `${bodySize}px`,
-    color: '#3B3024',
+    color: GAME_UI_BROWN,
     align: 'center',
     wordWrap: { width: wrapW },
     lineSpacing: 6,
@@ -457,7 +471,7 @@ export async function showGameOverModal(scene, {
   const bodyText = scene.add.text(0, textY, message, {
     fontFamily: Theme.fontFamily,
     fontSize: `${bodySize}px`,
-    color: '#3B3024',
+    color: GAME_UI_BROWN,
     align: 'center',
     wordWrap: { width: wrapW },
     lineSpacing: 6,
@@ -476,7 +490,7 @@ export async function showGameOverModal(scene, {
       fontSize: btnFont,
       fill: Theme.papel,
       dark: Theme.folhaEscura,
-      textColor: '#3B3024',
+      textColor: GAME_UI_BROWN,
       onClick: () => {
         playSound(scene, 'clique');
         root.destroy();
@@ -496,6 +510,7 @@ export async function showGameOverModal(scene, {
       fontSize: btnFont,
       fill: Theme.botaoVerde,
       dark: Theme.folhaEscura,
+      textColor: '#FFFFFF',
       onClick: () => {
         playSound(scene, 'clique');
         root.destroy();
