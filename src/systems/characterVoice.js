@@ -5,6 +5,27 @@ import { resolvePublicAssetUrl } from '../utils/assetUrl.js';
 let activeVoice = null;
 let activeVoiceUrl = '';
 let playToken = 0;
+let pendingResume = null;
+
+function clearPendingResume() {
+  if (!pendingResume) return;
+  const { scene, handler } = pendingResume;
+  pendingResume = null;
+  try {
+    scene?.input?.off?.('pointerdown', handler);
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * Cancela só o retry pendente de autoplay (sem cortar a voz já tocando).
+ * Usado ao abrir o modal: evita que o próximo toque (ex.: botão JOGAR)
+ * re-dispare a apresentação da criança.
+ */
+export function cancelPendingCharacterVoice() {
+  clearPendingResume();
+}
 
 /** Voz da criança — sempre 100% (só respeita mudo global) */
 function getCharacterVoiceVolume(scene) {
@@ -15,6 +36,7 @@ function getCharacterVoiceVolume(scene) {
 
 export function stopCharacterVoice() {
   playToken += 1;
+  clearPendingResume();
   if (!activeVoice) return;
   try {
     activeVoice.pause();
@@ -67,12 +89,17 @@ export function playCharacterVoice(scene, crianca) {
     }
     const promise = audio.play();
     promise?.catch?.(() => {
+      // Falhou (autoplay bloqueado). Reagenda só UMA vez, no próximo gesto,
+      // e mantém referência para poder cancelar — senão o listener "sequestra"
+      // o próximo toque (ex.: botão JOGAR) e a voz toca de novo e corta.
       if (token !== playToken) return;
+      clearPendingResume();
       const resume = () => {
+        clearPendingResume();
         if (token !== playToken) return;
         audio.play().catch(() => {});
-        scene.input?.off?.('pointerdown', resume);
       };
+      pendingResume = { scene, handler: resume };
       scene.input?.once?.('pointerdown', resume);
     });
   };

@@ -14,6 +14,7 @@ const MODAL_DEPTH = 225;
 const ICON_GREEN = '#4E9A2E';
 
 let activeModal = null;
+let opening = false;
 const CLOSE_ICON = Icon.from('solar:close-circle-bold', { designSize: 24, color: ICON_GREEN });
 const HEADER_CAMERA_ICON = Icon.from('solar:camera-bold', { designSize: 28, color: ICON_GREEN });
 const DOWNLOAD_ICON = Icon.from('solar:download-minimalistic-bold', { designSize: 22, color: '#ffffff' });
@@ -85,7 +86,20 @@ function drawCheckerBg(gfx, size, cell = 14) {
 /**
  * Modal de foto — preview só da borboleta (sem fundo) + botão de baixar.
  */
-export async function openVictoryPhotoModal(scene, {
+export async function openVictoryPhotoModal(scene, options = {}) {
+  // Trava síncrona: o open é async (captura + ícones + textura). Sem isso, um
+  // toque duplo (ou o evento-fantasma do touch) abre dois modais antes de
+  // qualquer um registrar `activeModal` — e o primeiro nunca fecha.
+  if (opening) return { close: () => {} };
+  opening = true;
+  try {
+    return await buildVictoryPhotoModal(scene, options);
+  } finally {
+    opening = false;
+  }
+}
+
+async function buildVictoryPhotoModal(scene, {
   genero = 'menino',
   butterfly = null,
   filename = 'nhamnham-borboleta.png',
@@ -127,8 +141,8 @@ export async function openVictoryPhotoModal(scene, {
   }
 
   const s = uiScale(scene);
-  const panelW = Math.min(Math.round(width * 0.88), 360);
-  const wrapW = panelW - Math.round(48 * s);
+  const panelW = Math.min(Math.round(width * 0.92), 380);
+  const wrapW = panelW - Math.round(28 * s);
   const padTop = Math.max(40, Math.round(46 * s));
   const padBottom = Math.max(28, Math.round(32 * s));
   const btnH = 54;
@@ -139,7 +153,7 @@ export async function openVictoryPhotoModal(scene, {
   const bodySize = Math.max(15, Math.round(17 * s));
   const framePad = Math.round(8 * s);
 
-  const previewSize = Math.min(wrapW, Math.round(height * 0.36));
+  const previewSize = Math.min(wrapW, Math.round(height * 0.44));
   const frameOuter = previewSize + framePad * 2;
 
   const subtitleText = photoSubtitle(genero);
@@ -166,7 +180,9 @@ export async function openVictoryPhotoModal(scene, {
     + padBottom;
 
   const cx = width / 2;
-  const cy = height * 0.48;
+  const cy = height / 2;
+  // Garante que o painel nunca estoura a tela (sem sobrar de lado/embaixo).
+  const fitScale = Math.min(1, (height * 0.94) / panelH, (width * 0.96) / panelW);
   const root = scene.add.container(0, 0).setDepth(MODAL_DEPTH).setScrollFactor(0);
 
   const overlay = scene.add.rectangle(cx, height / 2, width, height, 0x061018, 0.68);
@@ -293,10 +309,10 @@ export async function openVictoryPhotoModal(scene, {
   overlay.on('pointerup', () => close(true));
   root.add([overlay, panel]);
 
-  panel.setScale(0.92).setAlpha(0);
+  panel.setScale(0.92 * fitScale).setAlpha(0);
   scene.tweens.add({
     targets: panel,
-    scale: 1,
+    scale: fitScale,
     alpha: 1,
     duration: 220,
     ease: 'Back.easeOut',

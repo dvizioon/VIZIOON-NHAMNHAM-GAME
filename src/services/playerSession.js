@@ -22,6 +22,14 @@ import { gotoScene } from '../utils/sceneRun.js';
 import { sanitizePlayerUsername } from '../utils/username.js';
 import { applyMusicVolume } from '../systems/MusicManager.js';
 
+function configEquals(a, b) {
+  if (!a || !b) return false;
+  return a.volumeMusica === b.volumeMusica
+    && a.volumeEfeitos === b.volumeEfeitos
+    && Boolean(a.muted) === Boolean(b.muted)
+    && a.modo === b.modo;
+}
+
 function normalizeGuestSession(session) {
   if (!session?.isGuest) return session;
 
@@ -53,7 +61,21 @@ function applySessionToState(scene, session, { persistAs }) {
     clearStoredSessionToken();
   }
 
-  if (session.config) {
+  const localSettings = loadLocalSettings();
+  if (localSettings) {
+    // Preferências locais sempre vencem: a conexão só "adiciona" (envia ao
+    // servidor), nunca sobrescreve o que o jogador ajustou offline.
+    GameState.setSettings(scene, localSettings);
+    applyMusicVolume(scene);
+    if (!session.isGuest && session.sessionToken && !configEquals(localSettings, session.config)) {
+      void GameApi.updateConfig(session.sessionToken, {
+        volumeMusica: localSettings.volumeMusica,
+        volumeEfeitos: localSettings.volumeEfeitos,
+        muted: localSettings.muted,
+        modo: localSettings.modo,
+      }).catch(() => {});
+    }
+  } else if (session.config) {
     const settings = {
       ...defaultSettings,
       volumeMusica: session.config.volumeMusica,
@@ -65,8 +87,8 @@ function applySessionToState(scene, session, { persistAs }) {
     saveLocalSettings(settings);
     applyMusicVolume(scene);
   } else {
-    const localSettings = loadLocalSettings() ?? { ...defaultSettings };
-    GameState.setSettings(scene, localSettings);
+    const settings = { ...defaultSettings };
+    GameState.setSettings(scene, settings);
     applyMusicVolume(scene);
   }
 

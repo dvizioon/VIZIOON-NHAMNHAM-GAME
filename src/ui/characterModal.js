@@ -14,7 +14,7 @@ import { getCharacterProfile, CHAR_TEXT_COLOR } from '../config/characterUiConfi
 import { createCharacterFace } from './characterAvatar.js';
 
 import { playSound } from '../systems/ProceduralAudio.js';
-import { stopCharacterVoice } from '../systems/characterVoice.js';
+import { stopCharacterVoice, cancelPendingCharacterVoice } from '../systems/characterVoice.js';
 
 
 
@@ -94,6 +94,8 @@ export async function openCharacterDetailModal(scene, crianca, {
 
   scene._activeCharModalClose?.(true);
   scene._activeCharModalClose = null;
+
+  cancelPendingCharacterVoice();
 
   const { width, height } = scene.scale;
 
@@ -362,7 +364,7 @@ export async function openCharacterDetailModal(scene, crianca, {
 
       playSound(scene, 'clique');
 
-      close(true);
+      close(true, { play: true });
 
       onPlay?.();
 
@@ -428,7 +430,7 @@ export async function openCharacterDetailModal(scene, crianca, {
 
   let closed = false;
 
-  function close(immediate = false) {
+  function close(immediate = false, { play = false } = {}) {
 
     if (closed) return;
 
@@ -443,7 +445,9 @@ export async function openCharacterDetailModal(scene, crianca, {
 
       root.destroy();
 
-      onClose?.();
+      // Ao jogar, não restauramos a busca (quem cuida é o startGameWith) —
+      // evita o input "piscar" antes da transição para a próxima cena.
+      if (!play) onClose?.();
 
       return;
 

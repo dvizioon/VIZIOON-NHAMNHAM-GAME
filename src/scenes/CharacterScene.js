@@ -87,6 +87,7 @@ export class CharacterScene extends Phaser.Scene {
     this._onSwipeUp = null;
     this._swipeActive = false;
     this._lastPageShiftAt = 0;
+    this._leaving = false;
   }
 
   async create() {
@@ -384,6 +385,8 @@ export class CharacterScene extends Phaser.Scene {
 
     createIconCircleButton(this, width / 2, homeY, NAV_ICONS.home, {
       onClick: () => {
+        if (this._leaving) return;
+        this._leaving = true;
         playSound(this, 'clique');
         this.modalClose?.(true);
         this.modalClose = null;
@@ -566,10 +569,13 @@ export class CharacterScene extends Phaser.Scene {
     container.add(hitZone);
     container.bringToTop(hitZone);
 
-    hitZone.on('pointerdown', () => container.setScale(0.95));
+    hitZone.on('pointerdown', () => {
+      if (this._leaving) return;
+      container.setScale(0.95);
+    });
     hitZone.on('pointerup', () => {
       container.setScale(1);
-      if (this.swipeBlockedTap) return;
+      if (this._leaving || this.swipeBlockedTap) return;
       playCharacterVoice(this, crianca);
       this.openCharacterModal(crianca, frameHint);
     });
@@ -592,7 +598,7 @@ export class CharacterScene extends Phaser.Scene {
   }
 
   async openCharacterModal(crianca, frameHint = 0) {
-    if (this.modalClose || this._openingModal) return;
+    if (this._leaving || this.modalClose || this._openingModal) return;
 
     this._openingModal = true;
     playSound(this, 'clique');
@@ -620,6 +626,8 @@ export class CharacterScene extends Phaser.Scene {
   }
 
   startGameWith(crianca) {
+    if (this._leaving) return;
+    this._leaving = true;
     const custom = defaultCustom(crianca);
     GameState.setChild(this, crianca);
     GameState.setCustom(this, custom);
