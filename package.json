@@ -18,6 +18,7 @@
   },
   "devDependencies": {
     "@capacitor/cli": "^8.4.1",
+    "@iconify-json/healthicons": "^1.2.12",
     "@iconify-json/hugeicons": "^1.2.29",
     "@iconify-json/material-symbols": "^1.2.78",
     "@iconify-json/mdi": "^1.2.3",

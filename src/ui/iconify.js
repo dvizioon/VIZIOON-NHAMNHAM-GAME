@@ -13,6 +13,7 @@ const COLLECTION_LOADERS = {
   solar: () => import('@iconify-json/solar/icons.json'),
   hugeicons: () => import('@iconify-json/hugeicons/icons.json'),
   mdi: () => import('@iconify-json/mdi/icons.json'),
+  healthicons: () => import('@iconify-json/healthicons/icons.json'),
 };
 
 const iconSetCache = new Map();

@@ -79,6 +79,7 @@ async function createSplashSessionChip(scene, x, y, {
     depth: 201,
     ...SPLASH_CORNER_BTN_OPTS,
     borderTint: CHIP_BORDER_TINT,
+    onClick: () => onClick?.(),
   });
 
   const label = scene.add.text(btnW / 2 + gap, 0, name, {
@@ -99,13 +100,8 @@ async function createSplashSessionChip(scene, x, y, {
   }
 
   root.add([btn, label]);
-  root.setSize(btnW + gap + label.width, btnH);
-  root.setInteractive(
-    new Phaser.Geom.Rectangle(-btnW / 2, -btnH / 2, root.width, btnH),
-    Phaser.Geom.Rectangle.Contains,
-  );
-  root.input.cursor = 'pointer';
-  root.on('pointerup', () => onClick?.());
+  label.setInteractive({ useHandCursor: true });
+  label.on('pointerup', () => onClick?.());
 
   return root;
 }
@@ -171,7 +167,15 @@ function createProfileModalShell(scene, {
 
   const overlay = scene.add.rectangle(cx, height / 2, width, height, 0x061018, 0.68);
   overlay.setInteractive();
-  overlay.on('pointerup', () => onOverlayClose());
+
+  let overlayReady = false;
+  scene.time.delayedCall(280, () => {
+    overlayReady = true;
+  });
+  overlay.on('pointerup', () => {
+    if (!overlayReady) return;
+    onOverlayClose();
+  });
 
   const panel = scene.add.container(cx, cy);
   const panelBg = scene.add.graphics();
@@ -204,7 +208,7 @@ function createProfileModalShell(scene, {
 /** Modal — informações da conta conectada */
 export async function openPlayerProfileModal(scene, { onClose, onLogout } = {}) {
   const session = GameState.getPlayerSession(scene);
-  if (!session || session.isGuest) return { close: () => {} };
+  if (!session || session.isGuest) return null;
 
   activeModal?.close?.(false);
   activeModal = null;
@@ -212,7 +216,7 @@ export async function openPlayerProfileModal(scene, { onClose, onLogout } = {}) 
   const { width, height } = scene.scale;
   const s = uiScale(scene);
   await Icon.preload(scene, [CLOSE_ICON, LOGOUT_ICON]);
-  if (!scene.sys.isActive()) return { close: () => {} };
+  if (!scene.sys.isActive()) return null;
 
   const panelW = Math.min(Math.round(width * 0.88), 360);
   const topPad = Math.max(40, Math.round(46 * s));
@@ -322,7 +326,7 @@ export async function openPlayerProfileModal(scene, { onClose, onLogout } = {}) 
 
 /** Modal — visitante (sair ou conectar conta) */
 export async function openGuestProfileModal(scene, { onClose, onLogout, onConnect } = {}) {
-  if (!GameState.hasActiveGuestSession(scene)) return { close: () => {} };
+  if (!GameState.hasActiveGuestSession(scene)) return null;
 
   activeModal?.close?.(false);
   activeModal = null;
@@ -330,7 +334,7 @@ export async function openGuestProfileModal(scene, { onClose, onLogout, onConnec
   const { width, height } = scene.scale;
   const s = uiScale(scene);
   await Icon.preload(scene, [CLOSE_ICON, LOGOUT_ICON, CONNECT_ICON]);
-  if (!scene.sys.isActive()) return { close: () => {} };
+  if (!scene.sys.isActive()) return null;
 
   const panelW = Math.min(Math.round(width * 0.88), 360);
   const topPad = Math.max(40, Math.round(46 * s));

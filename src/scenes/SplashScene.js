@@ -91,6 +91,7 @@ export class SplashScene extends Phaser.Scene {
     this.userChip = null;
     this.downloadChip = null;
     this.profileModalClose = null;
+    this._profileOpening = false;
     this.downloadModalClose = null;
     this.rankingModalClose = null;
   }
@@ -554,43 +555,52 @@ export class SplashScene extends Phaser.Scene {
   }
 
   openUserProfile() {
-    if (this.profileModalClose) return;
-    this.profileModalClose = true;
+    if (this.profileModalClose || this._profileOpening) return;
+    this._profileOpening = true;
     playSound(this, 'clique');
     openPlayerProfileModal(this, {
       onClose: () => {
         this.profileModalClose = null;
+        this._profileOpening = false;
       },
       onLogout: () => {
         this.profileModalClose = null;
+        this._profileOpening = false;
         restartSceneOnce(this);
       },
-    }).then(({ close }) => {
-      this.profileModalClose = close;
+    }).then((handle) => {
+      this._profileOpening = false;
+      if (handle?.close) this.profileModalClose = handle.close;
     }).catch(() => {
       this.profileModalClose = null;
+      this._profileOpening = false;
     });
   }
 
   openGuestProfile() {
-    if (this.profileModalClose) return;
-    this.profileModalClose = true;
+    if (this.profileModalClose || this._profileOpening) return;
+    this._profileOpening = true;
     playSound(this, 'clique');
     openGuestProfileModal(this, {
       onClose: () => {
         this.profileModalClose = null;
+        this._profileOpening = false;
       },
       onLogout: () => {
         this.profileModalClose = null;
+        this._profileOpening = false;
         restartSceneOnce(this);
       },
       onConnect: () => {
         this.profileModalClose = null;
+        this._profileOpening = false;
       },
-    }).then(({ close }) => {
-      this.profileModalClose = close;
+    }).then((handle) => {
+      this._profileOpening = false;
+      if (handle?.close) this.profileModalClose = handle.close;
     }).catch(() => {
       this.profileModalClose = null;
+      this._profileOpening = false;
     });
   }
 }

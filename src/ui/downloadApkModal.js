@@ -36,6 +36,9 @@ const ANDROID_SYM = Icon.from('mdi:android', { designSize: 56, color: '#3DDC84' 
 const IOS_SYM = Icon.from('mdi:apple', { designSize: 56, color: '#4C3433' });
 const GITHUB_ICON = Icon.from('mdi:github', { designSize: 22, color: '#ffffff' });
 const CLOSE_ICON = Icon.from('solar:close-circle-bold', { designSize: 24, color: '#4E9A2E' });
+const SUPPORT_ICON = Icon.from('healthicons:contact-support-outline', { designSize: 20, color: '#4E9A2E' });
+
+const FOOTER_BROWN = '#6B4226';
 
 let activeModal = null;
 
@@ -207,7 +210,7 @@ export async function openDownloadApkModal(scene, { onClose } = {}) {
 
   const { width, height } = scene.scale;
   const s = uiScale(scene);
-  await Icon.preload(scene, [ANDROID_SYM, IOS_SYM, GITHUB_ICON, CLOSE_ICON]);
+  await Icon.preload(scene, [ANDROID_SYM, IOS_SYM, GITHUB_ICON, CLOSE_ICON, SUPPORT_ICON]);
   if (!scene.sys.isActive()) return { close: () => {} };
 
   const panelW = Math.min(Math.round(width * 0.92), 400);
@@ -233,7 +236,7 @@ export async function openDownloadApkModal(scene, { onClose } = {}) {
   const measureBody = scene.add.text(0, 0, message, {
     fontFamily: Theme.fontFamily,
     fontSize: `${bodySize}px`,
-    color: '#3B3024',
+    color: FOOTER_BROWN,
     align: 'center',
     wordWrap: { width: wrapW },
     lineSpacing: 4,
@@ -323,7 +326,7 @@ export async function openDownloadApkModal(scene, { onClose } = {}) {
   const body = scene.add.text(0, y, message, {
     fontFamily: Theme.fontFamily,
     fontSize: `${bodySize}px`,
-    color: '#3B3024',
+    color: FOOTER_BROWN,
     align: 'center',
     wordWrap: { width: wrapW },
     lineSpacing: 4,
@@ -410,20 +413,35 @@ export async function openDownloadApkModal(scene, { onClose } = {}) {
   panel.add(credits);
   y += credits.height + Math.round(10 * s);
 
-  const mailLink = scene.add.text(0, y, APP_SUPPORT_EMAIL, {
+  const mailIconSize = Math.round(20 * s);
+  const mailGap = Math.round(6 * s);
+  const mailRow = scene.add.container(0, y + Math.round(smallSize * 0.55));
+  const mailText = scene.add.text(0, 0, APP_SUPPORT_EMAIL, {
     fontFamily: Theme.fontFamily,
     fontSize: `${smallSize}px`,
     color: '#4E9A2E',
     fontStyle: 'bold',
-  }).setOrigin(0.5, 0);
-  mailLink.setInteractive({ useHandCursor: true });
-  mailLink.on('pointerover', () => mailLink.setColor('#1E6A30'));
-  mailLink.on('pointerout', () => mailLink.setColor('#4E9A2E'));
-  mailLink.on('pointerup', () => {
+  }).setOrigin(0, 0.5);
+  const mailIcon = scene.add.image(0, 0, SUPPORT_ICON.textureKey)
+    .setDisplaySize(mailIconSize, mailIconSize)
+    .setOrigin(1, 0.5);
+  const mailRowW = mailIconSize + mailGap + mailText.width;
+  mailIcon.setPosition(-mailRowW / 2 + mailIconSize, 0);
+  mailText.setPosition(-mailRowW / 2 + mailIconSize + mailGap, 0);
+  mailRow.add([mailIcon, mailText]);
+  mailRow.setSize(mailRowW, mailIconSize);
+  mailRow.setInteractive(
+    new Phaser.Geom.Rectangle(-mailRowW / 2, -mailIconSize / 2, mailRowW, mailIconSize),
+    Phaser.Geom.Rectangle.Contains,
+  );
+  mailRow.input.cursor = 'pointer';
+  mailRow.on('pointerover', () => mailText.setColor('#1E6A30'));
+  mailRow.on('pointerout', () => mailText.setColor('#4E9A2E'));
+  mailRow.on('pointerup', () => {
     playSound(scene, 'clique');
     openSupportEmail();
   });
-  panel.add(mailLink);
+  panel.add(mailRow);
 
   const closeBtnSize = 44;
   const closeBtn = createIconCircleButton(

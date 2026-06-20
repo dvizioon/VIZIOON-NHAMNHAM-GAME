@@ -85,6 +85,8 @@ export class CharacterScene extends Phaser.Scene {
     this._searchSuppressed = false;
     this._onSwipeDown = null;
     this._onSwipeUp = null;
+    this._swipeActive = false;
+    this._lastPageShiftAt = 0;
   }
 
   async create() {
@@ -401,12 +403,26 @@ export class CharacterScene extends Phaser.Scene {
   }
 
   setupGridSwipe() {
-    this._onSwipeDown = (p) => {
-      this.swipeStartX = p.x;
+    this._onSwipeDown = (pointer) => {
+      const { gridTop, gridW, gridH } = this.layout;
+      const { width } = this.scale;
+      const gridLeft = width / 2 - gridW / 2;
+      const inGrid = pointer.x >= gridLeft
+        && pointer.x <= gridLeft + gridW
+        && pointer.y >= gridTop
+        && pointer.y <= gridTop + gridH;
+
+      this._swipeActive = inGrid;
+      if (!inGrid) return;
+
+      this.swipeStartX = pointer.x;
       this.swipeBlockedTap = false;
     };
-    this._onSwipeUp = (p) => {
-      const dx = p.x - this.swipeStartX;
+    this._onSwipeUp = (pointer) => {
+      if (!this._swipeActive) return;
+      this._swipeActive = false;
+
+      const dx = pointer.x - this.swipeStartX;
       if (Math.abs(dx) > 72) {
         this.swipeBlockedTap = true;
         this.lastPageDir = dx > 0 ? -1 : 1;
@@ -438,6 +454,11 @@ export class CharacterScene extends Phaser.Scene {
   shiftPage(dir) {
     const max = this.pageCount();
     if (max <= 1) return;
+
+    const now = this.time.now;
+    if (now - this._lastPageShiftAt < 360) return;
+    this._lastPageShiftAt = now;
+
     playSound(this, 'clique');
     this.lastPageDir = dir;
     this.page = (this.page + dir + max) % max;

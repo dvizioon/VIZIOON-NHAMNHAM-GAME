@@ -412,6 +412,7 @@ export async function createSplashConnectChip(scene, x, y, { onClick, size = 52,
     depth: 201,
     ...SPLASH_CORNER_BTN_OPTS,
     borderTint: CHIP_BORDER_TINT,
+    onClick: () => onClick?.(),
   });
 
   const label = scene.add.text(btnW / 2 + gap, 0, 'Conectar', {
@@ -422,13 +423,8 @@ export async function createSplashConnectChip(scene, x, y, { onClick, size = 52,
   }).setOrigin(0, 0.5);
 
   root.add([btn, label]);
-  root.setSize(btnW + gap + label.width, btnH);
-  root.setInteractive(
-    new Phaser.Geom.Rectangle(-btnW / 2, -btnH / 2, root.width, btnH),
-    Phaser.Geom.Rectangle.Contains,
-  );
-  root.input.cursor = 'pointer';
-  root.on('pointerup', () => onClick?.());
+  label.setInteractive({ useHandCursor: true });
+  label.on('pointerup', () => onClick?.());
 
   return root;
 }

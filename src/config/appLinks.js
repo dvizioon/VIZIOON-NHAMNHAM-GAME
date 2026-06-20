@@ -5,7 +5,7 @@ export const APP_SUPPORT_EMAIL = 'danielmartinsjob@gmail.com';
 
 export const APP_NAME = 'Nhoc Nhoc! A Lagartinha da Turminha';
 
-export const APP_CREDITS = 'Desenvolvido por Daniel Estevão · DVIZIOON';
+export const APP_CREDITS = 'Desenvolvido por Daniel Estevão + Fernanda Gama · DVIZIOON';
 
 /** URL direta do .apk na release mais recente do GitHub */
 export const APP_APK_DOWNLOAD_URL =
