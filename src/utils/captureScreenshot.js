@@ -46,6 +46,55 @@ export function captureGameDataUrl(scene) {
   });
 }
 
+/** Abre diálogo de impressão com a imagem PNG. */
+export function printFromDataUrl(dataUrl, title = 'Nhoc Nhoc — Sua borboleta') {
+  if (!dataUrl) return false;
+
+  try {
+    const frame = document.createElement('iframe');
+    frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
+    document.body.appendChild(frame);
+
+    const win = frame.contentWindow;
+    const doc = win?.document;
+    if (!doc) {
+      frame.remove();
+      return false;
+    }
+
+    doc.open();
+    doc.write(`<!DOCTYPE html><html><head><title>${title}</title>
+<style>
+@page{margin:10mm}
+body{margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#fff}
+img{max-width:100%;max-height:96vh}
+</style></head><body>
+<img src="${dataUrl}" alt="Borboleta Nhoc Nhoc" />
+</body></html>`);
+    doc.close();
+
+    const img = doc.querySelector('img');
+    let printed = false;
+    const doPrint = () => {
+      if (printed) return;
+      printed = true;
+      win.focus();
+      win.print();
+      setTimeout(() => frame.remove(), 800);
+    };
+
+    if (img?.complete && img.naturalWidth > 0) {
+      doPrint();
+    } else {
+      img?.addEventListener('load', doPrint, { once: true });
+    }
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Dispara download de um data URL PNG. */
 export function downloadFromDataUrl(dataUrl, filename = 'nhamnham-borboleta.png') {
   if (!dataUrl) return false;

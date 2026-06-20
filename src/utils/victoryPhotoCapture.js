@@ -1,5 +1,6 @@
 import { imageToDataUrl } from './captureScreenshot.js';
 import { prepareButterflyPhotoPose } from '../ui/butterflyVisual.js';
+import { VICTORY_PHOTO_CAPTURE } from '../config/victoryPhotoConfig.js';
 
 const OUTPUT_SIZE = 512;
 
@@ -80,14 +81,16 @@ async function centerAndScaleButterfly(dataUrl, boxSize, fillRatio = 0.94) {
     const drawH = cropH * scale;
 
     octx.clearRect(0, 0, boxSize, boxSize);
+    const shiftX = boxSize * VICTORY_PHOTO_CAPTURE.offsetXRatio;
+    const shiftY = boxSize * VICTORY_PHOTO_CAPTURE.offsetYRatio;
     octx.drawImage(
       src,
       cropX,
       cropY,
       cropW,
       cropH,
-      (boxSize - drawW) / 2,
-      (boxSize - drawH) / 2,
+      (boxSize - drawW) / 2 + shiftX,
+      (boxSize - drawH) / 2 + shiftY,
       drawW,
       drawH,
     );
@@ -155,7 +158,11 @@ export async function captureVictoryButterflyPhoto(scene, butterfly) {
 
   if (!raw) return { preview: null, download: null };
 
-  const output = await centerAndScaleButterfly(raw, OUTPUT_SIZE, 0.96);
+  const output = await centerAndScaleButterfly(
+    raw,
+    OUTPUT_SIZE,
+    VICTORY_PHOTO_CAPTURE.fillRatio,
+  );
 
   return { preview: output, download: output };
 }

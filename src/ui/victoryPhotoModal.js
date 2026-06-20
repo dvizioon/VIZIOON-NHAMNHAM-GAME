@@ -7,17 +7,20 @@ import {
   SPLASH_CORNER_BTN_OPTS,
 } from './splashUi.js';
 import { playSound } from '../systems/ProceduralAudio.js';
-import { downloadFromDataUrl, loadGameSnapshotTexture } from '../utils/captureScreenshot.js';
+import { downloadFromDataUrl, loadGameSnapshotTexture, printFromDataUrl } from '../utils/captureScreenshot.js';
 import { captureVictoryButterflyPhoto } from '../utils/victoryPhotoCapture.js';
+import { VICTORY_PHOTO_PREVIEW } from '../config/victoryPhotoConfig.js';
 
 const MODAL_DEPTH = 225;
 const ICON_GREEN = '#4E9A2E';
+const BTN_BROWN = '#6B4226';
 
 let activeModal = null;
 let opening = false;
 const CLOSE_ICON = Icon.from('solar:close-circle-bold', { designSize: 24, color: ICON_GREEN });
 const HEADER_CAMERA_ICON = Icon.from('solar:camera-bold', { designSize: 28, color: ICON_GREEN });
 const DOWNLOAD_ICON = Icon.from('solar:download-minimalistic-bold', { designSize: 22, color: '#ffffff' });
+const PRINT_ICON = Icon.from('solar:printer-minimalistic-bold', { designSize: 22, color: '#ffffff' });
 
 function photoSubtitle(genero) {
   return genero === 'menina'
@@ -30,6 +33,8 @@ function createActionButton(scene, x, y, label, iconDef, {
   darkColor = Theme.folhaEscura,
   width = 260,
   fontSize = 20,
+  textColor = '#ffffff',
+  iconTint = null,
   onClick,
 } = {}) {
   const container = scene.add.container(x, y);
@@ -50,20 +55,25 @@ function createActionButton(scene, x, y, label, iconDef, {
   const icon = scene.add.image(-width / 2 + 30, -1, iconDef.textureKey)
     .setDisplaySize(22, 22)
     .setOrigin(0.5);
+  if (iconTint != null) icon.setTint(iconTint);
 
   const text = scene.add.text(-width / 2 + 54, -2, label, {
     fontFamily: Theme.fontFamily,
     fontSize: `${fontSize}px`,
-    color: '#ffffff',
+    color: textColor,
     fontStyle: 'bold',
   }).setOrigin(0, 0.5);
 
   container.add([bg, icon, text]);
   container.setSize(width, btnH);
   container.setInteractive({ useHandCursor: true });
+  let clickLocked = false;
   container.on('pointerdown', () => draw(true));
   container.on('pointerup', () => {
     draw(false);
+    if (clickLocked) return;
+    clickLocked = true;
+    scene.time.delayedCall(420, () => { clickLocked = false; });
     onClick?.();
   });
   container.on('pointerout', () => draw(false));
@@ -72,13 +82,19 @@ function createActionButton(scene, x, y, label, iconDef, {
 }
 
 function drawCheckerBg(gfx, size, cell = 14) {
-  const half = size / 2;
   gfx.clear();
-  for (let row = 0; row < size; row += cell) {
-    for (let col = 0; col < size; col += cell) {
-      const even = (Math.floor(col / cell) + Math.floor(row / cell)) % 2 === 0;
+  const cols = Math.ceil(size / cell);
+  const rows = Math.ceil(size / cell);
+  const gridW = cols * cell;
+  const gridH = rows * cell;
+  const startX = -gridW / 2;
+  const startY = -gridH / 2;
+
+  for (let row = 0; row < rows; row += 1) {
+    for (let col = 0; col < cols; col += 1) {
+      const even = (col + row) % 2 === 0;
       gfx.fillStyle(even ? 0xeeeeee : 0xffffff, 1);
-      gfx.fillRect(-half + col, -half + row, cell, cell);
+      gfx.fillRect(startX + col * cell, startY + row * cell, cell, cell);
     }
   }
 }
@@ -125,7 +141,7 @@ async function buildVictoryPhotoModal(scene, {
 
   const { preview: previewUrl, download: downloadUrl } = photo;
 
-  await Icon.preload(scene, [CLOSE_ICON, HEADER_CAMERA_ICON, DOWNLOAD_ICON]);
+  await Icon.preload(scene, [CLOSE_ICON, HEADER_CAMERA_ICON, DOWNLOAD_ICON, PRINT_ICON]);
   if (!scene.sys.isActive()) return { close: () => {} };
 
   let snapKey;
@@ -147,14 +163,19 @@ async function buildVictoryPhotoModal(scene, {
   const padBottom = Math.max(28, Math.round(32 * s));
   const btnH = 54;
   const btnGap = Math.round(22 * s);
-  const btnW = Math.min(panelW - Math.round(40 * s), 280);
+  const actionGap = Math.round(10 * s);
+  const actionRowW = panelW - Math.round(32 * s);
+  const actionBtnW = Math.floor((actionRowW - actionGap) / 2);
   const headerIconSize = Math.round(36 * s);
   const titleSize = Math.max(22, Math.round(28 * s));
   const bodySize = Math.max(15, Math.round(17 * s));
-  const framePad = Math.round(8 * s);
+  const frameStrokeW = 4;
+  const framePad = Math.round(2 * s);
 
-  const previewSize = Math.min(wrapW, Math.round(height * 0.44));
-  const frameOuter = previewSize + framePad * 2;
+  const previewSize = Math.min(wrapW, Math.round(height * 0.50));
+  const boardSize = previewSize;
+  const boardInner = Math.max(64, boardSize - frameStrokeW * 2 - framePad * 2);
+  const frameOuter = boardSize;
 
   const subtitleText = photoSubtitle(genero);
   const measureSub = scene.add.text(0, 0, subtitleText, {
@@ -232,25 +253,39 @@ async function buildVictoryPhotoModal(scene, {
   const frameY = y + frameOuter / 2;
   const frame = scene.add.container(0, frameY);
 
-  const boardSize = previewSize + framePad * 2;
+  const cornerR = Math.round(12 * s);
+
   const checker = scene.add.graphics();
-  drawCheckerBg(checker, boardSize);
+  drawCheckerBg(checker, boardInner);
+
+  const clipGfx = scene.add.graphics();
+  clipGfx.fillStyle(0xffffff, 1);
+  clipGfx.fillRoundedRect(-boardInner / 2, -boardInner / 2, boardInner, boardInner, cornerR);
+  const clipMask = clipGfx.createGeometryMask();
+  clipGfx.setVisible(false);
 
   const frameBg = scene.add.graphics();
-  frameBg.lineStyle(4, frameStroke, 1);
+  frameBg.lineStyle(frameStrokeW, frameStroke, 1);
   frameBg.strokeRoundedRect(
     -boardSize / 2,
     -boardSize / 2,
     boardSize,
     boardSize,
-    Math.round(12 * s),
+    cornerR + Math.round(4 * s),
   );
 
-  const snap = scene.add.image(0, 0, snapKey)
-    .setDisplaySize(previewSize, previewSize)
+  const snapOffsetX = Math.round(boardInner * VICTORY_PHOTO_PREVIEW.offsetXRatio);
+  const snapOffsetY = Math.round(boardInner * VICTORY_PHOTO_PREVIEW.offsetYRatio);
+  const snapScale = VICTORY_PHOTO_PREVIEW.scale;
+
+  const snap = scene.add.image(snapOffsetX, snapOffsetY, snapKey)
+    .setDisplaySize(boardInner * snapScale, boardInner * snapScale)
     .setOrigin(0.5);
 
-  frame.add([checker, snap, frameBg]);
+  checker.setMask(clipMask);
+  snap.setMask(clipMask);
+
+  frame.add([checker, snap, frameBg, clipGfx]);
   panel.add(frame);
 
   let closed = false;
@@ -268,17 +303,43 @@ async function buildVictoryPhotoModal(scene, {
   }
 
   const saveBtnY = panelH / 2 - padBottom - btnH / 2;
+  const printBtnX = -(actionBtnW + actionGap) / 2;
+  const downloadBtnX = (actionBtnW + actionGap) / 2;
+  const actionFont = Math.max(15, Math.round(17 * s));
+
+  const printBtn = createActionButton(
+    scene,
+    printBtnX,
+    saveBtnY,
+    'Imprimir',
+    PRINT_ICON,
+    {
+      color: Theme.sol,
+      darkColor: Theme.folhaEscura,
+      width: actionBtnW,
+      fontSize: actionFont,
+      textColor: BTN_BROWN,
+      iconTint: 0x6B4226,
+      onClick: () => {
+        playSound(scene, 'clique');
+        const ok = printFromDataUrl(downloadUrl ?? previewUrl);
+        if (!ok) playSound(scene, 'fail');
+      },
+    },
+  );
+  panel.add(printBtn);
+
   const saveBtn = createActionButton(
     scene,
-    0,
+    downloadBtnX,
     saveBtnY,
     'Baixar',
     DOWNLOAD_ICON,
     {
       color: accentColor,
       darkColor: accentDark,
-      width: btnW,
-      fontSize: Math.max(17, Math.round(19 * s)),
+      width: actionBtnW,
+      fontSize: actionFont,
       onClick: () => {
         playSound(scene, 'clique');
         const ok = downloadFromDataUrl(downloadUrl ?? previewUrl, filename);
