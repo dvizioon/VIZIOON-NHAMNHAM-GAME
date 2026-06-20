@@ -9,7 +9,7 @@
 
 /** Preview no modal (xadrez + borda verde) */
 export const VICTORY_PHOTO_PREVIEW = {
-  offsetXRatio: -0.011,
+  offsetXRatio: -0.010,
   offsetYRatio: 0.035,
   scale: 1.06,
 };
