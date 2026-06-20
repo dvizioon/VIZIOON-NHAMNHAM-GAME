@@ -3,6 +3,7 @@ name: Deploy GitHub Pages
 on:
   push:
     branches: [main, master]
+    tags: ['v*', 'V*']
   workflow_dispatch:
 
 permissions:
@@ -20,6 +21,22 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve app version
+        id: app_version
+        run: |
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            VER="${GITHUB_REF_NAME#v}"
+            VER="${VER#V}"
+          else
+            VER="$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^[vV]//' || true)"
+            if [ -z "$VER" ]; then
+              VER="$(node -p "require('./package.json').version")"
+            fi
+          fi
+          echo "value=$VER" >> "$GITHUB_OUTPUT"
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -35,6 +52,7 @@ jobs:
           VITE_BASE_PATH: /${{ github.event.repository.name }}/
           VITE_DEBUG: 'false'
           VITE_GAME_API_URL: https://apinhocnhoc.clickupbot.com
+          VITE_APP_VERSION: ${{ steps.app_version.outputs.value }}
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

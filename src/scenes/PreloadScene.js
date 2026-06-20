@@ -75,7 +75,6 @@ import {
   registerCocoonAnimations,
   patchCocoonFrames,
 } from '../config/cocoonConfig.js';
-import { loadLocalSettings, saveLocalSettings } from '../utils/localPreferences.js';
 import {
   getInitialSceneKey,
   seedDebugState,
@@ -91,6 +90,8 @@ import {
   DEBUG_CARD_HEAD_FRAME_CROPS,
 } from '../config/gameWorldConfig.js';
 import { DEFAULT_GAME_RULES } from '../services/gameRules.js';
+import { loadLocalSettings, saveLocalSettings } from '../utils/localPreferences.js';
+import { applyLoaderBaseUrl } from '../utils/assetUrl.js';
 
 export class PreloadScene extends Phaser.Scene {
   constructor() {
@@ -98,6 +99,7 @@ export class PreloadScene extends Phaser.Scene {
   }
 
   preload() {
+    applyLoaderBaseUrl(this.load);
     this.loadingUi = buildLoadingScreen(this);
     this.criancasData = normalizeCriancasList(this.registry.get(RegistryKeys.CRIANCAS) ?? []);
 

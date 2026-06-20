@@ -5,13 +5,14 @@ import { GameApi } from '../services/gameApi.js';
 import { mapApiCharactersList } from '../services/characterCatalog.js';
 import { DEFAULT_GAME_RULES, normalizeGameRules } from '../services/gameRules.js';
 import { normalizeCriancasList } from '../config/characterUiConfig.js';
+import { applyLoaderBaseUrl, resolvePublicAssetUrl } from '../utils/assetUrl.js';
 import {
   queueLoadingUiAssets,
 } from '../ui/loadingUi.js';
 
 async function fetchLocalJson(path) {
   try {
-    const res = await fetch(path);
+    const res = await fetch(resolvePublicAssetUrl(path));
     if (!res.ok) return null;
     return res.json();
   } catch {
@@ -25,6 +26,7 @@ export class BootScene extends Phaser.Scene {
   }
 
   preload() {
+    applyLoaderBaseUrl(this.load);
     queueLoadingUiAssets(this);
   }
 

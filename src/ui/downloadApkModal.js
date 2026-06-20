@@ -22,8 +22,6 @@ import {
 import {
   fetchLatestReleaseInfo,
   formatAppVersion,
-  getCurrentAppVersion,
-  isUpdateAvailable,
 } from '../services/releaseUpdate.js';
 
 const MODAL_DEPTH = 225;
@@ -463,16 +461,8 @@ export async function openDownloadApkModal(scene, { onClose } = {}) {
   });
 
   fetchLatestReleaseInfo().then((latest) => {
-    if (!latest || !versionText.active) return;
+    if (!latest) return;
     latestRelease = latest;
-    const current = getCurrentAppVersion();
-    const hasUpdate = isUpdateAvailable(current, latest.version);
-    versionText.setText(
-      hasUpdate
-        ? `Versão ${formatAppVersion()} · Nova: ${formatAppVersion(latest.version)}`
-        : `Versão ${formatAppVersion()} · Você está na mais recente`,
-    );
-    if (hasUpdate) versionText.setColor('#1E6A30');
   }).catch(() => {});
 
   return handle;
