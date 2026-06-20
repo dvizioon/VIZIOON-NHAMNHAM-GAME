@@ -11,6 +11,7 @@ import {
 import { playSound } from '../systems/ProceduralAudio.js';
 import { GameState } from '../utils/GameState.js';
 import { CaterpillarSprite } from '../entities/CaterpillarSprite.js';
+import { gotoScene } from '../utils/sceneRun.js';
 
 /** Tela dedicada de customização da lagartinha */
 export class CustomizeScene extends Phaser.Scene {
@@ -19,10 +20,11 @@ export class CustomizeScene extends Phaser.Scene {
   }
 
   create() {
+    this._navLock = false;
     const { width, height } = this.scale;
     const child = GameState.getChild(this);
     if (!child) {
-      this.scene.start(SceneKeys.CHARACTER);
+      gotoScene(this, SceneKeys.CHARACTER);
       return;
     }
 
@@ -52,7 +54,7 @@ export class CustomizeScene extends Phaser.Scene {
     createBackButton(this, () => {
       playSound(this, 'clique');
       GameState.setCustom(this, this.custom);
-      this.scene.start(SceneKeys.CHARACTER);
+      gotoScene(this, SceneKeys.CHARACTER);
     });
 
     createTitle(this, width / 2, 56, `Customizar ${child.nome} 🐛`, 36);
@@ -122,7 +124,7 @@ export class CustomizeScene extends Phaser.Scene {
       onClick: () => {
         playSound(this, 'clique');
         GameState.setCustom(this, this.custom);
-        this.scene.start(SceneKeys.CHARACTER);
+        gotoScene(this, SceneKeys.CHARACTER);
       },
     });
 

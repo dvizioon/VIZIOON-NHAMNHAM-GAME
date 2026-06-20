@@ -2,7 +2,8 @@ import Phaser from 'phaser';
 import { SceneKeys } from '../config/constants.js';
 import { playSound } from '../systems/ProceduralAudio.js';
 import { GameState } from '../utils/GameState.js';
-import { drawEnvironmentLayers, DEPTH_TRUNK } from '../ui/createUI.js';
+import { drawEnvironmentLayers, stopEnvironmentClouds, DEPTH_TRUNK } from '../ui/createUI.js';
+import { beginSceneRun, isStaleRun, gotoScene } from '../utils/sceneRun.js';
 import {
   drawBoundsHit,
   isDebugHitboxes,
@@ -67,6 +68,7 @@ export class TrunkIntroScene extends Phaser.Scene {
 
   init() {
     this.climbing = false;
+    this._finishing = false;
     this.storyCard = null;
     this.hintText = null;
     this.climberContainer = null;
@@ -85,6 +87,7 @@ export class TrunkIntroScene extends Phaser.Scene {
   }
 
   async create() {
+    const run = beginSceneRun(this);
     const { width, height } = this.scale;
     const child = this.resolveChild(GameState.getChild(this));
     const nome = child?.nome ?? 'Lagartinha';
@@ -97,6 +100,7 @@ export class TrunkIntroScene extends Phaser.Scene {
     this.buildIntroTrunk(width, height);
 
     await preloadTrunkIntroIcons(this);
+    if (isStaleRun(this, run)) return;
     this.storyCard = createTrunkStoryCard(this, width / 2, height * TRUNK_STORY_CARD_Y_RATIO, {
       nome,
       genero,
@@ -159,6 +163,7 @@ export class TrunkIntroScene extends Phaser.Scene {
   }
 
   cleanupIntro() {
+    stopEnvironmentClouds(this);
     cleanupTrunkIntroFallingFruits(this);
     if (this._onClimbBodyFrame && this.bodySprite) {
       this.bodySprite.off('animationupdate', this._onClimbBodyFrame);
@@ -476,13 +481,16 @@ export class TrunkIntroScene extends Phaser.Scene {
   }
 
   finishIntro() {
+    if (this._finishing) return;
+    this._finishing = true;
+
     this.bodySprite?.anims?.stop();
     playSound(this, 'clique');
 
     this.time.delayedCall(500, () => {
       this.cameras.main.fadeOut(450, 0, 0, 0);
       this.time.delayedCall(450, () => {
-        this.scene.start(SceneKeys.GAME);
+        gotoScene(this, SceneKeys.GAME);
       });
     });
   }

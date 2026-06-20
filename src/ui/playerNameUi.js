@@ -287,13 +287,19 @@ export function createAgeSlider(scene, x, y, initial, { min = PLAYER_AGE_MIN, ma
     applyX(pointer.x - x);
   });
 
-  scene.input.on('pointermove', (pointer) => {
+  const onPointerMove = (pointer) => {
     if (!isDragging || !pointer.isDown) return;
     applyX(pointer.x - x);
-  });
-
-  scene.input.on('pointerup', () => {
+  };
+  const onPointerUp = () => {
     isDragging = false;
+  };
+  scene.input.on('pointermove', onPointerMove);
+  scene.input.on('pointerup', onPointerUp);
+
+  scene.events.once('shutdown', () => {
+    scene.input.off('pointermove', onPointerMove);
+    scene.input.off('pointerup', onPointerUp);
   });
 
   root.add([label, trackBg, knob, ageText, dragHint, zone]);

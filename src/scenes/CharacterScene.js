@@ -19,6 +19,7 @@ import { createCharacterFace } from '../ui/characterAvatar.js';
 import { openCharacterDetailModal } from '../ui/characterModal.js';
 import { playCharacterVoice } from '../systems/characterVoice.js';
 import { registerSelectedPerson, ensurePlayerSession } from '../services/playerSession.js';
+import { beginSceneRun, isStaleRun, gotoScene } from '../utils/sceneRun.js';
 
 const NAV_GREEN = '#1E6A30';
 const SEARCH_BORDER_COLOR = 0x1E6A30;
@@ -55,6 +56,10 @@ function normalizeText(value) {
     .trim();
 }
 
+function removeOrphanCharacterSearchInputs() {
+  document.querySelectorAll('input.char-scene-search').forEach((el) => el.remove());
+}
+
 /** Tela Personagens — mobile, 2×2 (4 por página) */
 export class CharacterScene extends Phaser.Scene {
   constructor() {
@@ -76,11 +81,17 @@ export class CharacterScene extends Phaser.Scene {
     this.lastPageDir = 0;
     this.syncSearchDom = null;
     this.modalClose = null;
+    this._openingModal = false;
+    this._searchSuppressed = false;
+    this._onSwipeDown = null;
+    this._onSwipeUp = null;
   }
 
   async create() {
+    const run = beginSceneRun(this);
     const { width, height } = this.scale;
     await ensurePlayerSession(this);
+    if (isStaleRun(this, run)) return;
     this.criancas = filterCriancasAtivas(GameState.getCriancas(this));
     this.filtered = [...this.criancas];
 
@@ -92,6 +103,7 @@ export class CharacterScene extends Phaser.Scene {
 
     drawSkyBackground(this);
     await Icon.preload(this, Object.values(NAV_ICONS));
+    if (isStaleRun(this, run)) return;
 
     this.layout = this.computeLayout(width, height);
     this.buildHeader(width);
@@ -109,12 +121,31 @@ export class CharacterScene extends Phaser.Scene {
     this.positionSearchInput();
 
     this.events.once('shutdown', () => {
-      this.scale.off('resize', this.syncSearchDom);
+      this.destroySearchInput();
       this.modalClose?.(true);
       this.modalClose = null;
-      this.domSearch?.remove();
-      this.domSearch = null;
+      this._openingModal = false;
+
+      if (this.gridContainer) {
+        this.tweens.killTweensOf(this.gridContainer);
+        this.gridContainer.removeAll(true);
+      }
+
+      if (this._onSwipeDown) this.input.off('pointerdown', this._onSwipeDown);
+      if (this._onSwipeUp) this.input.off('pointerup', this._onSwipeUp);
+      this._onSwipeDown = null;
+      this._onSwipeUp = null;
     });
+  }
+
+  destroySearchInput() {
+    if (this.syncSearchDom) {
+      this.scale.off('resize', this.syncSearchDom);
+      this.syncSearchDom = null;
+    }
+    this.domSearch?.remove();
+    this.domSearch = null;
+    this._searchSuppressed = false;
   }
 
   computeLayout(width, height) {
@@ -176,6 +207,8 @@ export class CharacterScene extends Phaser.Scene {
   }
 
   buildSearchBar() {
+    removeOrphanCharacterSearchInputs();
+
     const { width } = this.scale;
     const { searchY, searchW, searchH } = this.layout;
     const barX = width / 2;
@@ -252,6 +285,11 @@ export class CharacterScene extends Phaser.Scene {
   }
 
   positionSearchInput() {
+    if (!this.domSearch || !this.layout || !this.sys?.isActive()) return;
+    this.applySearchInputStyles();
+  }
+
+  applySearchInputStyles() {
     if (!this.domSearch || !this.layout) return;
 
     const canvas = this.game.canvas;
@@ -268,6 +306,7 @@ export class CharacterScene extends Phaser.Scene {
     const w = inputWidth * scaleX;
     const h = (searchH - 4) * scaleY;
     const fontPx = Math.max(15, Math.round(searchH * 0.36 * scaleY));
+    const hidden = this._searchSuppressed || this.modalClose || this._openingModal;
 
     this.domSearch.style.cssText = `
       position:fixed;
@@ -291,6 +330,10 @@ export class CharacterScene extends Phaser.Scene {
       text-overflow:ellipsis;
       white-space:nowrap;
       -webkit-appearance:none;
+      display:${hidden ? 'none' : 'block'};
+      pointer-events:${hidden ? 'none' : 'auto'};
+      visibility:${hidden ? 'hidden' : 'visible'};
+      opacity:${hidden ? '0' : '1'};
     `;
   }
 
@@ -340,7 +383,10 @@ export class CharacterScene extends Phaser.Scene {
     createIconCircleButton(this, width / 2, homeY, NAV_ICONS.home, {
       onClick: () => {
         playSound(this, 'clique');
-        this.scene.start(SceneKeys.SPLASH);
+        this.modalClose?.(true);
+        this.modalClose = null;
+        this.destroySearchInput();
+        gotoScene(this, SceneKeys.SPLASH);
       },
       size: homeSize,
       iconSize: homeIcon,
@@ -355,19 +401,20 @@ export class CharacterScene extends Phaser.Scene {
   }
 
   setupGridSwipe() {
-    this.input.on('pointerdown', (p) => {
+    this._onSwipeDown = (p) => {
       this.swipeStartX = p.x;
       this.swipeBlockedTap = false;
-    });
-
-    this.input.on('pointerup', (p) => {
+    };
+    this._onSwipeUp = (p) => {
       const dx = p.x - this.swipeStartX;
       if (Math.abs(dx) > 72) {
         this.swipeBlockedTap = true;
         this.lastPageDir = dx > 0 ? -1 : 1;
         this.shiftPage(this.lastPageDir);
       }
-    });
+    };
+    this.input.on('pointerdown', this._onSwipeDown);
+    this.input.on('pointerup', this._onSwipeUp);
   }
 
   applyFilter(resetPage) {
@@ -394,11 +441,17 @@ export class CharacterScene extends Phaser.Scene {
     playSound(this, 'clique');
     this.lastPageDir = dir;
     this.page = (this.page + dir + max) % max;
+    if (this.gridContainer) {
+      this.tweens.killTweensOf(this.gridContainer);
+    }
     this.renderGrid(true);
   }
 
   renderGrid(animate = false) {
-    this.gridContainer.removeAll(true);
+    if (this.gridContainer) {
+      this.tweens.killTweensOf(this.gridContainer);
+      this.gridContainer.removeAll(true);
+    }
 
     const { width } = this.scale;
     const { gridTop, gridW, gridH } = this.layout;
@@ -506,37 +559,43 @@ export class CharacterScene extends Phaser.Scene {
 
   restoreSearchInput() {
     if (!this.domSearch) return;
-    this.domSearch.style.pointerEvents = '';
-    this.domSearch.style.visibility = '';
-    this.domSearch.style.opacity = '';
+    this._searchSuppressed = false;
+    this.applySearchInputStyles();
   }
 
   hideSearchInput() {
     if (!this.domSearch) return;
     this.domSearch.blur();
-    this.domSearch.style.pointerEvents = 'none';
-    this.domSearch.style.visibility = 'hidden';
-    this.domSearch.style.opacity = '0';
+    this._searchSuppressed = true;
+    this.applySearchInputStyles();
   }
 
   async openCharacterModal(crianca, frameHint = 0) {
-    if (this.modalClose) return;
+    if (this.modalClose || this._openingModal) return;
 
+    this._openingModal = true;
     playSound(this, 'clique');
     this.hideSearchInput();
 
-    const { close } = await openCharacterDetailModal(this, crianca, {
-      frameHint,
-      onPlay: () => {
-        this.modalClose = null;
-        this.startGameWith(crianca);
-      },
-      onClose: () => {
-        this.modalClose = null;
-        this.restoreSearchInput();
-      },
-    });
-    this.modalClose = close;
+    try {
+      const { close } = await openCharacterDetailModal(this, crianca, {
+        frameHint,
+        onPlay: () => {
+          this.modalClose = null;
+          this.startGameWith(crianca);
+        },
+        onClose: () => {
+          this.modalClose = null;
+          this.restoreSearchInput();
+        },
+      });
+      this.modalClose = close;
+    } finally {
+      this._openingModal = false;
+      if (this.modalClose) {
+        this.hideSearchInput();
+      }
+    }
   }
 
   startGameWith(crianca) {
@@ -545,10 +604,12 @@ export class CharacterScene extends Phaser.Scene {
     GameState.setCustom(this, custom);
     GameState.initRun(this);
     registerSelectedPerson(this, crianca, custom);
-    this.hideSearchInput();
+    this.modalClose?.(true);
+    this.modalClose = null;
+    this.destroySearchInput();
     this.cameras.main.fadeOut(250, 0, 0, 0);
     this.time.delayedCall(250, () => {
-      this.scene.start(SceneKeys.EGG);
+      gotoScene(this, SceneKeys.EGG);
     });
   }
 

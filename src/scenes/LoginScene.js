@@ -30,6 +30,7 @@ import {
   loginPlayerSession,
 } from '../services/playerSession.js';
 import { isValidPlayerUsername } from '../utils/username.js';
+import { beginSceneRun, isStaleRun, gotoScene } from '../utils/sceneRun.js';
 
 const LOGIN_FROG_DEPTH = 12;
 
@@ -46,10 +47,12 @@ export class LoginScene extends Phaser.Scene {
   }
 
   async create() {
+    const run = beginSceneRun(this);
     const { width } = this.scale;
     const s = uiScale(this);
     drawSkyBackground(this);
     await preloadLoginUiIcons(this);
+    if (isStaleRun(this, run)) return;
     this.spawnPassingFrog();
 
     const sidePad = Math.max(8, width * 0.02);
@@ -89,7 +92,7 @@ export class LoginScene extends Phaser.Scene {
       createLoginAvatar(this, width / 2, layout.avatarY, layout.avatarSize).setDepth(16);
     }
 
-    const goCharacter = () => this.scene.start(SceneKeys.CHARACTER);
+    const goCharacter = () => gotoScene(this, SceneKeys.CHARACTER);
 
     const connect = async () => {
       const username = usernameField.getValue();
@@ -119,8 +122,8 @@ export class LoginScene extends Phaser.Scene {
     });
 
     createLoginNavButtons(this, width, layout.btnY, layout.btnMetrics, {
-      onHome: () => this.scene.start(SceneKeys.SPLASH),
-      onRegister: () => this.scene.start(SceneKeys.REGISTER),
+      onHome: () => gotoScene(this, SceneKeys.SPLASH),
+      onRegister: () => gotoScene(this, SceneKeys.REGISTER),
     });
 
     this.input.keyboard.on('keydown-ENTER', () => connect());

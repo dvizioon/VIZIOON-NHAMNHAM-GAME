@@ -92,6 +92,9 @@ export async function openCharacterDetailModal(scene, crianca, {
 
 } = {}) {
 
+  scene._activeCharModalClose?.(true);
+  scene._activeCharModalClose = null;
+
   const { width, height } = scene.scale;
 
   const s = uiScale(scene);
@@ -101,6 +104,8 @@ export async function openCharacterDetailModal(scene, crianca, {
 
 
   await Icon.preload(scene, [CLOSE_ICON, CUSTOMIZE_ICON]);
+
+  if (!scene.sys.isActive()) return { close: () => {} };
 
 
 
@@ -428,6 +433,9 @@ export async function openCharacterDetailModal(scene, crianca, {
     if (closed) return;
 
     closed = true;
+    if (scene._activeCharModalClose === close) {
+      scene._activeCharModalClose = null;
+    }
 
     stopCharacterVoice();
 
@@ -472,6 +480,8 @@ export async function openCharacterDetailModal(scene, crianca, {
   });
 
 
+
+  scene._activeCharModalClose = close;
 
   return { close };
 

@@ -20,35 +20,51 @@ function attachLoopGuard(music) {
   });
 }
 
-/** Inicia BGM em loop — SoundManager global (docs/skills/audio-and-sound) */
+function canPlayAudio(scene) {
+  return Boolean(scene?.sys?.isActive?.() && scene.cache?.audio?.exists(BGM_KEY) && !scene.sound?.locked);
+}
+
+/** Inicia BGM — só depois do desbloqueio (primeiro toque). */
 export function startBgm(scene) {
-  if (!scene.cache.audio.exists(BGM_KEY)) return;
+  if (!canPlayAudio(scene)) return;
 
-  const play = () => {
-    let music = scene.registry.get(RegistryKeys.BGM);
-    const volume = getMusicVolume(scene);
+  let music = scene.registry.get(RegistryKeys.BGM);
+  const volume = getMusicVolume(scene);
 
-    if (music?.isPlaying) {
-      music.setVolume(volume);
-      return;
-    }
-
-    if (music) {
-      music.stop();
-      music.destroy();
-    }
-
-    music = scene.sound.add(BGM_KEY, { loop: true, volume });
-    attachLoopGuard(music);
-    music.play();
-    scene.registry.set(RegistryKeys.BGM, music);
-  };
-
-  if (scene.sound.locked) {
-    scene.sound.once('unlocked', play);
-  } else {
-    play();
+  if (music?.isPlaying) {
+    music.setVolume(volume);
+    return;
   }
+
+  if (music) {
+    music.stop();
+    music.destroy();
+  }
+
+  music = scene.sound.add(BGM_KEY, { loop: true, volume });
+  attachLoopGuard(music);
+  music.play();
+  scene.registry.set(RegistryKeys.BGM, music);
+  bgmWasPlaying = true;
+}
+
+/** Chamado uma vez após o primeiro gesto do usuário (main.js). */
+export function beginBgmAfterUnlock(scene) {
+  if (!scene?.registry) return;
+  startBgm(scene);
+}
+
+/** Garante que a faixa continua — nunca tenta tocar com áudio bloqueado. */
+export function ensureBgmPlaying(scene) {
+  if (!scene?.sys?.isActive?.()) return;
+  if (scene.sound?.locked) return;
+
+  const music = scene.registry.get(RegistryKeys.BGM);
+  if (!music?.isPlaying) {
+    startBgm(scene);
+    return;
+  }
+  music.setVolume(getMusicVolume(scene));
 }
 
 export function stopBgm(scene) {
@@ -57,16 +73,7 @@ export function stopBgm(scene) {
   music.stop();
   music.destroy();
   scene.registry.remove(RegistryKeys.BGM);
-}
-
-/** Garante que a faixa continua — útil após troca de cena */
-export function ensureBgmPlaying(scene) {
-  const music = scene.registry.get(RegistryKeys.BGM);
-  if (!music?.isPlaying) {
-    startBgm(scene);
-    return;
-  }
-  music.setVolume(getMusicVolume(scene));
+  bgmWasPlaying = false;
 }
 
 export function applyMusicVolume(scene) {
@@ -87,9 +94,11 @@ export function pauseBgm(scene) {
   if (bgmWasPlaying) music.pause();
 }
 
-/** Retoma ao voltar pro app, se estava tocando */
+/** Retoma ao voltar pro app, se já foi desbloqueado e estava tocando */
 export function resumeBgm(scene) {
   if (!scene?.registry || !bgmWasPlaying) return;
+  if (scene.sound?.locked) return;
+
   const music = scene.registry.get(RegistryKeys.BGM);
   if (!music) return;
   music.setVolume(getMusicVolume(scene));

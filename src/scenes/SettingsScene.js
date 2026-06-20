@@ -15,6 +15,7 @@ import { syncPlayerConfig } from '../services/playerSession.js';
 import { applyMusicVolume } from '../systems/MusicManager.js';
 import { layoutY, uiScale, isPortrait } from '../utils/responsive.js';
 import { getIconButtonSize } from '../ui/splashUi.js';
+import { gotoScene } from '../utils/sceneRun.js';
 
 /** Configurações — logo SVG + painel + home; salva ao alterar */
 export class SettingsScene extends Phaser.Scene {
@@ -24,6 +25,7 @@ export class SettingsScene extends Phaser.Scene {
   }
 
   create() {
+    this._navLock = false;
     const { width } = this.scale;
     const portrait = isPortrait(this);
     const scale = uiScale(this);
@@ -99,7 +101,7 @@ export class SettingsScene extends Phaser.Scene {
     GameState.setSettings(this, this.settings);
     applyMusicVolume(this);
     syncPlayerConfig(this, this.settings);
-    this.scene.start(GameState.getReturnScene(this));
+    gotoScene(this, GameState.getReturnScene(this));
   }
 
   shutdown() {

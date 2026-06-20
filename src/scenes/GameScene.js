@@ -3,7 +3,8 @@ import { SceneKeys } from '../config/constants.js';
 import { Theme } from '../config/theme.js';
 import { playSound } from '../systems/ProceduralAudio.js';
 import { GameState, defaultCustom } from '../utils/GameState.js';
-import { drawEnvironmentLayers, getGroundY, DEPTH_TRUNK } from '../ui/createUI.js';
+import { drawEnvironmentLayers, stopEnvironmentClouds, getGroundY, DEPTH_TRUNK } from '../ui/createUI.js';
+import { gotoScene } from '../utils/sceneRun.js';
 import { FOOD_FRUTAS } from '../config/foodConfig.js';
 import {
   GAME_AVISO_ICONS,
@@ -124,10 +125,20 @@ export class GameScene extends Phaser.Scene {
     this._fruitFrameBag = [];
     this._lastFruitSpawnAt = 0;
     this.ready = false;
+    this._gameOverModal = null;
+    this._sapoStartTimer = null;
+    this._tutorialDismissTimer = null;
+    this._onDebugKeyP = null;
+    this._inputHandlers = null;
+    this._introRunning = false;
+    this._countdownRunning = false;
+    this._navLock = false;
   }
 
   create() {
-    ensureBgmPlaying(this);
+    this._navLock = false;
+    this._gameOverModal?.close?.();
+    this._gameOverModal = null;
 
     this.config = GameState.getConfig(this);
     this.child = GameState.getChild(this);
@@ -167,7 +178,8 @@ export class GameScene extends Phaser.Scene {
         strokeThickness: 4,
         align: 'center',
       }).setOrigin(0.5, 0).setDepth(260).setScrollFactor(0).setVisible(false);
-      this.input.keyboard.on('keydown-P', () => this.toggleDebugFrogFreeze());
+      this._onDebugKeyP = () => this.toggleDebugFrogFreeze();
+      this.input.keyboard.on('keydown-P', this._onDebugKeyP);
       if (isDebugFreezeFrog(this)) {
         this.time.delayedCall(800, () => this.applyDebugFrogFreeze(true));
       }
@@ -193,36 +205,7 @@ export class GameScene extends Phaser.Scene {
     this.sapoSideRotation = { bag: [] };
 
     this.setupFallingFruits(width, height);
-
-    this.input.on('pointerdown', (p) => {
-      if (!this.jogoAtivo) return;
-      this.climberLastPointerX = p.x;
-      this.climberIsDragging = false;
-      this.moverPara(p.x);
-    });
-    this.input.on('pointermove', (p) => {
-      if (!this.jogoAtivo || !p.isDown) return;
-      if (Math.abs(p.x - this.climberLastPointerX) > 2) {
-        this.climberIsDragging = true;
-      }
-      this.climberLastPointerX = p.x;
-      this.moverPara(p.x);
-    });
-    this.input.on('pointerup', () => {
-      this.climberIsDragging = false;
-    });
-    this.input.keyboard.on('keydown-LEFT', () => {
-      if (!this.lagarta || !this.jogoAtivo) return;
-      this.climberIsDragging = true;
-      this.lagarta.alvoX -= 48;
-    });
-    this.input.keyboard.on('keydown-RIGHT', () => {
-      if (!this.lagarta || !this.jogoAtivo) return;
-      this.climberIsDragging = true;
-      this.lagarta.alvoX += 48;
-    });
-    this.input.keyboard.on('keyup-LEFT', () => { this.climberIsDragging = false; });
-    this.input.keyboard.on('keyup-RIGHT', () => { this.climberIsDragging = false; });
+    this.bindGameplayInput();
 
     this.jogoAtivo = false;
     this.introClimbing = false;
@@ -230,7 +213,8 @@ export class GameScene extends Phaser.Scene {
     this.climberLastPointerX = 0;
 
     const delaySapo = this.config.delayInicioSapo ?? 14000;
-    this.time.delayedCall(delaySapo, () => {
+    this._sapoStartTimer = this.time.delayedCall(delaySapo, () => {
+      this._sapoStartTimer = null;
       this.ativarSapo();
       this.timerSapo = this.time.addEvent({
         delay: this.config.intervaloSapo || 9000,
@@ -239,7 +223,10 @@ export class GameScene extends Phaser.Scene {
       });
     });
 
-    this.time.delayedCall(10000, () => this.dismissTutorial());
+    this._tutorialDismissTimer = this.time.delayedCall(10000, () => {
+      this._tutorialDismissTimer = null;
+      this.dismissTutorial();
+    });
 
     if (isDebugHitboxes(this)) {
       this.debugGfx = this.add.graphics().setDepth(250).setScrollFactor(0);
@@ -255,6 +242,77 @@ export class GameScene extends Phaser.Scene {
     objects.forEach((obj) => {
       if (obj?.setScrollFactor) obj.setScrollFactor(0);
     });
+  }
+
+  bindGameplayInput() {
+    this.unbindGameplayInput();
+
+    const modo = GameState.getSettings(this).modo ?? 'toque';
+    const useTouch = modo !== 'setas';
+    const useArrows = modo !== 'toque';
+    const handlers = {};
+
+    if (useTouch) {
+      handlers.pointerdown = (p) => {
+        if (!this.jogoAtivo) return;
+        this.climberLastPointerX = p.x;
+        this.climberIsDragging = false;
+        this.moverPara(p.x);
+      };
+      handlers.pointermove = (p) => {
+        if (!this.jogoAtivo || !p.isDown) return;
+        if (Math.abs(p.x - this.climberLastPointerX) > 2) {
+          this.climberIsDragging = true;
+        }
+        this.climberLastPointerX = p.x;
+        this.moverPara(p.x);
+      };
+      handlers.pointerup = () => {
+        this.climberIsDragging = false;
+      };
+      this.input.on('pointerdown', handlers.pointerdown);
+      this.input.on('pointermove', handlers.pointermove);
+      this.input.on('pointerup', handlers.pointerup);
+    }
+
+    if (useArrows && this.input.keyboard) {
+      handlers.keydownLeft = () => {
+        if (!this.lagarta || !this.jogoAtivo) return;
+        this.climberIsDragging = true;
+        this.lagarta.alvoX -= 48;
+      };
+      handlers.keydownRight = () => {
+        if (!this.lagarta || !this.jogoAtivo) return;
+        this.climberIsDragging = true;
+        this.lagarta.alvoX += 48;
+      };
+      handlers.keyupLeft = () => { this.climberIsDragging = false; };
+      handlers.keyupRight = () => { this.climberIsDragging = false; };
+      this.input.keyboard.on('keydown-LEFT', handlers.keydownLeft);
+      this.input.keyboard.on('keydown-RIGHT', handlers.keydownRight);
+      this.input.keyboard.on('keyup-LEFT', handlers.keyupLeft);
+      this.input.keyboard.on('keyup-RIGHT', handlers.keyupRight);
+    }
+
+    this._inputHandlers = handlers;
+  }
+
+  unbindGameplayInput() {
+    const h = this._inputHandlers;
+    if (!h) return;
+
+    if (h.pointerdown) this.input.off('pointerdown', h.pointerdown);
+    if (h.pointermove) this.input.off('pointermove', h.pointermove);
+    if (h.pointerup) this.input.off('pointerup', h.pointerup);
+
+    if (this.input.keyboard) {
+      if (h.keydownLeft) this.input.keyboard.off('keydown-LEFT', h.keydownLeft);
+      if (h.keydownRight) this.input.keyboard.off('keydown-RIGHT', h.keydownRight);
+      if (h.keyupLeft) this.input.keyboard.off('keyup-LEFT', h.keyupLeft);
+      if (h.keyupRight) this.input.keyboard.off('keyup-RIGHT', h.keyupRight);
+    }
+
+    this._inputHandlers = null;
   }
 
   buildTrunkBackground(width, height) {
@@ -277,8 +335,12 @@ export class GameScene extends Phaser.Scene {
   }
 
   playIntroReveal() {
+    if (this._introRunning) return;
+    this._introRunning = true;
+
     const api = this.caterpillarApi;
     if (!api?.container) {
+      this._introRunning = false;
       this.playGameCountdown();
       return;
     }
@@ -315,6 +377,7 @@ export class GameScene extends Phaser.Scene {
           this.lagarta.x = centerX;
           this.lagarta.alvoX = centerX;
           api.setPosition(centerX, this.anchorY);
+          this._introRunning = false;
           this.playGameCountdown();
         },
       });
@@ -322,6 +385,9 @@ export class GameScene extends Phaser.Scene {
   }
 
   playGameCountdown() {
+    if (this._countdownRunning) return;
+    this._countdownRunning = true;
+
     const steps = ['3', '2', '1'];
     const cx = this.scale.width / 2;
     const cy = Math.round(this.anchorY - this.scale.height * 0.22);
@@ -331,6 +397,7 @@ export class GameScene extends Phaser.Scene {
 
     const showStep = () => {
       if (index >= steps.length) {
+        this._countdownRunning = false;
         this.startGameplay();
         return;
       }
@@ -1037,7 +1104,7 @@ export class GameScene extends Phaser.Scene {
           durationMs: GameState.getRunDurationMs(this),
         }).catch(() => {});
       }
-      this.time.delayedCall(900, () => this.scene.start(SceneKeys.COCOON));
+      this.time.delayedCall(900, () => gotoScene(this, SceneKeys.COCOON));
     }
   }
 
@@ -1069,12 +1136,16 @@ export class GameScene extends Phaser.Scene {
     showGameOverModal(this, {
       childName: this.child.nome,
       onRetry: () => {
+        this._gameOverModal = null;
         GameState.initRun(this);
-        this.scene.start(SceneKeys.GAME);
+        gotoScene(this, SceneKeys.GAME);
       },
       onHome: () => {
-        this.scene.start(SceneKeys.SPLASH);
+        this._gameOverModal = null;
+        gotoScene(this, SceneKeys.SPLASH);
       },
+    }).then((modal) => {
+      this._gameOverModal = modal;
     });
   }
 
@@ -1485,7 +1556,25 @@ export class GameScene extends Phaser.Scene {
 
   shutdown() {
     this.ready = false;
-    ensureBgmPlaying(this);
+    this._introRunning = false;
+    this._countdownRunning = false;
+    this.unbindGameplayInput();
+
+    if (this._onDebugKeyP && this.input.keyboard) {
+      this.input.keyboard.off('keydown-P', this._onDebugKeyP);
+      this._onDebugKeyP = null;
+    }
+
+    this._gameOverModal?.close?.();
+    this._gameOverModal = null;
+
+    this._sapoStartTimer?.remove();
+    this._sapoStartTimer = null;
+    this._tutorialDismissTimer?.remove();
+    this._tutorialDismissTimer = null;
+
+    stopEnvironmentClouds(this);
+
     this.timerSapo?.remove();
     this.sapoSomFallback?.remove();
     this.sapoSomFallback = null;

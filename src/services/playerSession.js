@@ -18,6 +18,7 @@ import {
   saveLocalSettings,
 } from '../utils/localPreferences.js';
 import { loadOrCreateOfflineGuestCode, clearOfflineGuestCode } from '../utils/guestCode.js';
+import { gotoScene } from '../utils/sceneRun.js';
 import { sanitizePlayerUsername } from '../utils/username.js';
 import { applyMusicVolume } from '../systems/MusicManager.js';
 
@@ -254,13 +255,15 @@ export async function restoreAnyPlayerSession(scene) {
 
 /** JOGAR — só personagens se conta ou visitante ativo; senão login */
 export async function startPlayFromSplash(scene) {
+  if (scene._navLock) return;
   await ensurePlayerSession(scene);
+  if (!scene.sys?.isActive?.() || scene._navLock) return;
   if (GameState.isOnlineConnected(scene) || GameState.hasActiveGuestSession(scene)) {
-    scene.scene.start(SceneKeys.CHARACTER);
+    gotoScene(scene, SceneKeys.CHARACTER);
     return;
   }
 
-  scene.scene.start(SceneKeys.LOGIN);
+  gotoScene(scene, SceneKeys.LOGIN);
 }
 
 /** Encerra sessão salva */

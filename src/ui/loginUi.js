@@ -412,7 +412,6 @@ export async function createSplashConnectChip(scene, x, y, { onClick, size = 52,
     depth: 201,
     ...SPLASH_CORNER_BTN_OPTS,
     borderTint: CHIP_BORDER_TINT,
-    onClick: () => onClick?.(),
   });
 
   const label = scene.add.text(btnW / 2 + gap, 0, 'Conectar', {

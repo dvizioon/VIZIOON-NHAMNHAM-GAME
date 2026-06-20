@@ -42,6 +42,7 @@ export function createGameConfig() {
     audio: {
       disableWebAudio: false,
       noAudio: false,
+      pauseOnBlur: true,
     },
     loader: {
       maxParallelDownloads: 16,

@@ -10,6 +10,9 @@ import { createIconCircleButton } from './splashUi.js';
 import { playSound } from '../systems/ProceduralAudio.js';
 
 const MODAL_DEPTH = 230;
+
+let activeModal = null;
+
 const CLOSE_ICON = Icon.from('solar:close-circle-bold', { designSize: 24, color: '#4E9A2E' });
 
 function formatRunDuration(ms) {
@@ -88,9 +91,13 @@ export async function openRunRecapModal(scene, recap, {
   onClose,
   title = 'Sua melhor partida',
 } = {}) {
+  activeModal?.close?.();
+  activeModal = null;
+
   const { width, height } = scene.scale;
   const s = uiScale(scene);
   await Icon.preload(scene, [CLOSE_ICON]);
+  if (!scene.sys.isActive()) return { close: () => {} };
 
   const panelW = Math.min(responsiveWidth(scene, 0.94, 560), width * 0.96);
   const padX = Math.round(16 * s);
@@ -212,11 +219,18 @@ export async function openRunRecapModal(scene, recap, {
   function close() {
     if (closed) return;
     closed = true;
+    if (activeModal?.close === close) activeModal = null;
     playSound(scene, 'clique');
     closeBtn?.destroy();
     root.destroy();
     onClose?.();
   }
+
+  activeModal = { close };
+  scene.events.once('shutdown', () => {
+    if (activeModal?.close === close) activeModal = null;
+    close();
+  });
 
   return { close };
 }

@@ -48,6 +48,7 @@ import {
   EGG_HATCH_INSIDE_PAUSE_MS,
   EGG_HATCH_RISE_MS,
 } from '../config/eggConfig.js';
+import { beginSceneRun, isStaleRun, gotoScene } from '../utils/sceneRun.js';
 
 /** Tela do ovo — folhas à direita, ovo balançando; 3 toques quebrando + 1 para nascer */
 export class EggScene extends Phaser.Scene {
@@ -65,12 +66,14 @@ export class EggScene extends Phaser.Scene {
   }
 
   async create() {
+    const run = beginSceneRun(this);
     const { width, height } = this.scale;
     const child = GameState.getChild(this);
 
     drawEnvironmentLayers(this, { clouds: true });
 
     await preloadEggIcons(this);
+    if (isStaleRun(this, run)) return;
     createEggStoryCard(this, width / 2, height * EGG_STORY_CARD_Y_RATIO, {
       nome: child?.nome ?? 'Lagartinha',
       genero: child?.genero ?? 'menino',
@@ -303,7 +306,7 @@ export class EggScene extends Phaser.Scene {
       this.cameras.main.fadeOut(450, 0, 0, 0);
       this.time.delayedCall(450, () => {
         GameState.setPoints(this, 0);
-        this.scene.start(SceneKeys.TRUNK_INTRO);
+        gotoScene(this, SceneKeys.TRUNK_INTRO);
       });
     });
   }

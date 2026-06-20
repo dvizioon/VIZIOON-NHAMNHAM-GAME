@@ -28,6 +28,7 @@ import {
 } from '../ui/playerNameUi.js';
 import { bootstrapPlayerSession } from '../services/playerSession.js';
 import { isValidPlayerUsername } from '../utils/username.js';
+import { beginSceneRun, isStaleRun, gotoScene } from '../utils/sceneRun.js';
 
 const REGISTER_FROG_DEPTH = 12;
 
@@ -44,10 +45,12 @@ export class RegisterScene extends Phaser.Scene {
   }
 
   async create() {
+    const run = beginSceneRun(this);
     const { width, height } = this.scale;
     const s = uiScale(this);
     drawSkyBackground(this);
     await preloadPlayerNameIcons(this);
+    if (isStaleRun(this, run)) return;
     this.spawnPassingFrog();
 
     const logoKey = hasTexture(this, UI_LOGO_CADASTRAR_KEY)
@@ -113,7 +116,8 @@ export class RegisterScene extends Phaser.Scene {
         name: nome,
         age: ageSlider.getValue(),
       });
-      this.scene.start(SceneKeys.CHARACTER);
+      if (isStaleRun(this, run)) return;
+      gotoScene(this, SceneKeys.CHARACTER);
     };
 
     nameField = createPlayerNameField(this, width / 2, layout.fieldY, layout.contentW, {
@@ -123,7 +127,7 @@ export class RegisterScene extends Phaser.Scene {
     });
 
     nav = createPlayerNavButtons(this, width, layout.btnY, layout.btnMetrics, {
-      onHome: () => this.scene.start(SceneKeys.LOGIN),
+      onHome: () => gotoScene(this, SceneKeys.LOGIN),
       onSubmit: submit,
       canSubmit: () => isValidPlayerUsername(nameField.getValue()),
     });

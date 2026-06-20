@@ -12,6 +12,9 @@ import { PANEL_CORNER_RADIUS, PANEL_SHADOW_OFFSET } from './settingsUi.js';
 import { showWarningAlert } from './thematicAlert.js';
 
 const MODAL_DEPTH = 220;
+
+let activeModal = null;
+
 const CLOSE_ICON = Icon.from('solar:close-circle-bold', { designSize: 24, color: '#4E9A2E' });
 const TROPHY_ICON = Icon.from('solar:cup-star-bold', { designSize: 28, color: '#FFD54F' });
 const EYE_ICON = Icon.from('solar:eye-bold', { designSize: 22, color: '#1E6A30' });
@@ -282,9 +285,13 @@ function createRankingRow(scene, {
 
 /** Modal de ranking — menor tempo no topo; olho só na sua linha */
 export async function openRankingModal(scene, { onClose } = {}) {
+  activeModal?.close?.();
+  activeModal = null;
+
   const { width, height } = scene.scale;
   const s = uiScale(scene);
   await Icon.preload(scene, [CLOSE_ICON, TROPHY_ICON, EYE_ICON, ...Object.values(MEDAL_ICONS)]);
+  if (!scene.sys.isActive()) return { close: () => {} };
 
   const playerLabel = GameState.getRankingDisplayName(scene);
   const canAppear = GameState.canAppearInRanking(scene);
@@ -425,12 +432,19 @@ export async function openRankingModal(scene, { onClose } = {}) {
   function close() {
     if (closed) return;
     closed = true;
+    if (activeModal?.close === close) activeModal = null;
     playSound(scene, 'clique');
     scroll.destroy();
     closeBtn?.destroy();
     root.destroy();
     onClose?.();
   }
+
+  activeModal = { close };
+  scene.events.once('shutdown', () => {
+    if (activeModal?.close === close) activeModal = null;
+    close();
+  });
 
   if (GameApi.isEnabled()) {
     try {

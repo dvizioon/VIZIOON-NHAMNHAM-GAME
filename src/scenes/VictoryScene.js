@@ -20,6 +20,7 @@ import {
   createVictoryDragHint,
   spawnVictorySparkles,
 } from '../ui/victoryUi.js';
+import { beginSceneRun, isStaleRun, gotoScene } from '../utils/sceneRun.js';
 
 const VICTORY_ICONS_BASE = {
   home: Icon.from('mynaui:home', { designSize: 24, color: '#ffffff' }),
@@ -52,6 +53,7 @@ export class VictoryScene extends Phaser.Scene {
   }
 
   async create() {
+    const run = beginSceneRun(this);
     const { width, height } = this.scale;
     const child = GameState.getChild(this);
     const nome = child?.nome ?? 'Lagartinha';
@@ -63,6 +65,7 @@ export class VictoryScene extends Phaser.Scene {
     spawnVictorySparkles(this);
     const isGirl = genero === 'menina';
     const victoryIcons = await preloadVictoryIcons(this, genero);
+    if (isStaleRun(this, run)) return;
 
     const titleY = Math.round(58 * s);
     createVictoryTitleCard(this, nome, titleY, genero);
@@ -85,6 +88,7 @@ export class VictoryScene extends Phaser.Scene {
       headHeightRatio: 1.72,
       onFirstTouch: () => dragHint.dismiss(),
     });
+    if (isStaleRun(this, run)) return;
 
     this.butterfly.setScale(0.15);
     this.butterfly.setAlpha(0);
@@ -115,7 +119,7 @@ export class VictoryScene extends Phaser.Scene {
       onClick: () => {
         playSound(this, 'clique');
         GameState.resetForNewRun(this);
-        this.scene.start(SceneKeys.SPLASH);
+        gotoScene(this, SceneKeys.SPLASH);
       },
     }).setScrollFactor(0);
 

@@ -10,6 +10,7 @@ import { SceneKeys } from '../config/constants.js';
 import { hasTexture } from '../systems/AssetLoader.js';
 import { GUEST_PLAYER_NAME, UI_USER_JOGADOR_KEY } from './playerNameUi.js';
 import { formatGuestChipCode } from '../utils/guestCode.js';
+import { gotoScene } from '../utils/sceneRun.js';
 
 const MODAL_DEPTH = 220;
 const CHIP_LABEL_COLOR = '#1E6A30';
@@ -21,6 +22,8 @@ const LOGOUT_ICON = Icon.from('solar:logout-2-bold', { designSize: 22, color: '#
 const CONNECT_ICON = Icon.from('solar:add-circle-broken', { designSize: 22, color: '#ffffff' });
 const BTN_RED = 0xE84545;
 const BTN_RED_DARK = 0xB71C1C;
+
+let activeModal = null;
 
 /** Chip no canto superior esquerdo — conta conectada */
 export async function createSplashUserChip(scene, x, y, { onClick, size = 52, iconSize, absoluteSize } = {}) {
@@ -76,7 +79,6 @@ async function createSplashSessionChip(scene, x, y, {
     depth: 201,
     ...SPLASH_CORNER_BTN_OPTS,
     borderTint: CHIP_BORDER_TINT,
-    onClick: () => onClick?.(),
   });
 
   const label = scene.add.text(btnW / 2 + gap, 0, name, {
@@ -204,9 +206,13 @@ export async function openPlayerProfileModal(scene, { onClose, onLogout } = {}) 
   const session = GameState.getPlayerSession(scene);
   if (!session || session.isGuest) return { close: () => {} };
 
+  activeModal?.close?.(false);
+  activeModal = null;
+
   const { width, height } = scene.scale;
   const s = uiScale(scene);
   await Icon.preload(scene, [CLOSE_ICON, LOGOUT_ICON]);
+  if (!scene.sys.isActive()) return { close: () => {} };
 
   const panelW = Math.min(Math.round(width * 0.88), 360);
   const topPad = Math.max(40, Math.round(46 * s));
@@ -228,6 +234,7 @@ export async function openPlayerProfileModal(scene, { onClose, onLogout } = {}) 
   function close(playClick = true) {
     if (closed) return;
     closed = true;
+    if (activeModal?.close === close) activeModal = null;
     if (playClick) playSound(scene, 'clique');
     closeBtn?.destroy();
     root.destroy();
@@ -303,16 +310,27 @@ export async function openPlayerProfileModal(scene, { onClose, onLogout } = {}) 
 
   root.add([overlay, panel]);
 
-  return { close: () => close(false) };
+  const handle = { close: (playClick = false) => close(playClick) };
+  activeModal = handle;
+  scene.events.once('shutdown', () => {
+    if (activeModal === handle) activeModal = null;
+    close(false);
+  });
+
+  return handle;
 }
 
 /** Modal — visitante (sair ou conectar conta) */
 export async function openGuestProfileModal(scene, { onClose, onLogout, onConnect } = {}) {
   if (!GameState.hasActiveGuestSession(scene)) return { close: () => {} };
 
+  activeModal?.close?.(false);
+  activeModal = null;
+
   const { width, height } = scene.scale;
   const s = uiScale(scene);
   await Icon.preload(scene, [CLOSE_ICON, LOGOUT_ICON, CONNECT_ICON]);
+  if (!scene.sys.isActive()) return { close: () => {} };
 
   const panelW = Math.min(Math.round(width * 0.88), 360);
   const topPad = Math.max(40, Math.round(46 * s));
@@ -333,6 +351,7 @@ export async function openGuestProfileModal(scene, { onClose, onLogout, onConnec
   function close(playClick = true) {
     if (closed) return;
     closed = true;
+    if (activeModal?.close === close) activeModal = null;
     if (playClick) playSound(scene, 'clique');
     closeBtn?.destroy();
     root.destroy();
@@ -380,7 +399,7 @@ export async function openGuestProfileModal(scene, { onClose, onLogout, onConnec
     onClick: () => {
       close(false);
       onConnect?.();
-      scene.scene.start(SceneKeys.LOGIN);
+      gotoScene(scene, SceneKeys.LOGIN);
     },
   });
   panel.add(connectBtn);
@@ -416,5 +435,12 @@ export async function openGuestProfileModal(scene, { onClose, onLogout, onConnec
 
   root.add([overlay, panel]);
 
-  return { close: () => close(false) };
+  const handle = { close: (playClick = false) => close(playClick) };
+  activeModal = handle;
+  scene.events.once('shutdown', () => {
+    if (activeModal === handle) activeModal = null;
+    close(false);
+  });
+
+  return handle;
 }

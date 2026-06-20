@@ -12,7 +12,6 @@ import {
 import { playSound } from '../systems/ProceduralAudio.js';
 import { GameState } from '../utils/GameState.js';
 import { CaterpillarSprite } from '../entities/CaterpillarSprite.js';
-import { ensureBgmPlaying } from '../systems/MusicManager.js';
 import { responsiveWidth, layoutY, isPortrait, mobileBtnSize, uiScale } from '../utils/responsive.js';
 import { hasTexture } from '../systems/AssetLoader.js';
 import {
@@ -39,12 +38,12 @@ import { createSplashConnectChip } from '../ui/loginUi.js';
 import { createSplashDownloadChip, openDownloadApkModal } from '../ui/downloadApkModal.js';
 import { openRankingModal } from '../ui/rankingUi.js';
 import { isWebBrowser } from '../utils/platform.js';
-import { maybePromptAppUpdate } from '../services/appUpdate.js';
 import {
   SPLASH_CATERPILLAR_GROUND_OFFSET_RATIO,
   getSplashCaterpillarOpts,
 } from '../config/caterpillarConfig.js';
 import { DEPTH_CATERPILLAR } from '../ui/createUI.js';
+import { beginSceneRun, isStaleRun, gotoScene, restartSceneOnce } from '../utils/sceneRun.js';
 
 const FOOD_KEY = FOOD_FRUTAS.key;
 const SPLASH_BTN_SIZE = 142;
@@ -93,13 +92,15 @@ export class SplashScene extends Phaser.Scene {
     this.downloadChip = null;
     this.profileModalClose = null;
     this.downloadModalClose = null;
+    this.rankingModalClose = null;
   }
 
   async create() {
+    const run = beginSceneRun(this);
     const { width, height } = this.scale;
     drawSkyBackground(this);
-    ensureBgmPlaying(this);
     await ensurePlayerSession(this);
+    if (isStaleRun(this, run)) return;
 
     const groundLine = getGroundY(this);
     const caterpillarY = groundLine + height * SPLASH_CATERPILLAR_GROUND_OFFSET_RATIO;
@@ -143,11 +144,9 @@ export class SplashScene extends Phaser.Scene {
     this.placeLogo(this.scale.width, DEPTH_UI);
     this.placeSplashButtons(width);
     await this.placeUserChip(width);
+    if (isStaleRun(this, run)) return;
     await this.placeDownloadButton(width);
-
-    this.time.delayedCall(1800, () => {
-      maybePromptAppUpdate(this).catch(() => {});
-    });
+    if (isStaleRun(this, run)) return;
 
     const caterpillar = this.caterpillar;
 
@@ -414,7 +413,7 @@ export class SplashScene extends Phaser.Scene {
         onClick: () => {
           playSound(this, 'clique');
           GameState.setReturnScene(this, SceneKeys.SPLASH);
-          this.scene.start(SceneKeys.SETTINGS);
+          gotoScene(this, SceneKeys.SETTINGS);
         },
       });
     } else {
@@ -428,7 +427,7 @@ export class SplashScene extends Phaser.Scene {
         onClick: () => {
           playSound(this, 'clique');
           GameState.setReturnScene(this, SceneKeys.SPLASH);
-          this.scene.start(SceneKeys.SETTINGS);
+          gotoScene(this, SceneKeys.SETTINGS);
         },
       });
     }
@@ -457,8 +456,17 @@ export class SplashScene extends Phaser.Scene {
         absoluteSize: portrait,
         depth: DEPTH_UI,
         onClick: async () => {
+          if (this.rankingModalClose) return;
+          this.rankingModalClose = true;
           playSound(this, 'clique');
-          await openRankingModal(this);
+          let rankingClosed = false;
+          const { close } = await openRankingModal(this, {
+            onClose: () => {
+              rankingClosed = true;
+              this.rankingModalClose = null;
+            },
+          });
+          if (!rankingClosed) this.rankingModalClose = close;
         },
       });
     }
@@ -494,7 +502,7 @@ export class SplashScene extends Phaser.Scene {
         ...chipOpts,
         onClick: () => {
           playSound(this, 'clique');
-          this.scene.start(SceneKeys.LOGIN);
+          gotoScene(this, SceneKeys.LOGIN);
         },
       });
     }
@@ -532,6 +540,7 @@ export class SplashScene extends Phaser.Scene {
 
   openDownloadModal() {
     if (this.downloadModalClose) return;
+    this.downloadModalClose = true;
     playSound(this, 'clique');
     openDownloadApkModal(this, {
       onClose: () => {
@@ -539,11 +548,14 @@ export class SplashScene extends Phaser.Scene {
       },
     }).then(({ close }) => {
       this.downloadModalClose = close;
+    }).catch(() => {
+      this.downloadModalClose = null;
     });
   }
 
   openUserProfile() {
     if (this.profileModalClose) return;
+    this.profileModalClose = true;
     playSound(this, 'clique');
     openPlayerProfileModal(this, {
       onClose: () => {
@@ -551,15 +563,18 @@ export class SplashScene extends Phaser.Scene {
       },
       onLogout: () => {
         this.profileModalClose = null;
-        this.scene.restart();
+        restartSceneOnce(this);
       },
     }).then(({ close }) => {
       this.profileModalClose = close;
+    }).catch(() => {
+      this.profileModalClose = null;
     });
   }
 
   openGuestProfile() {
     if (this.profileModalClose) return;
+    this.profileModalClose = true;
     playSound(this, 'clique');
     openGuestProfileModal(this, {
       onClose: () => {
@@ -567,13 +582,15 @@ export class SplashScene extends Phaser.Scene {
       },
       onLogout: () => {
         this.profileModalClose = null;
-        this.scene.restart();
+        restartSceneOnce(this);
       },
       onConnect: () => {
         this.profileModalClose = null;
       },
     }).then(({ close }) => {
       this.profileModalClose = close;
+    }).catch(() => {
+      this.profileModalClose = null;
     });
   }
 }

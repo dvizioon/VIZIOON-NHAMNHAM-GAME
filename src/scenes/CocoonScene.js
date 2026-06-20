@@ -33,6 +33,7 @@ import {
   startCocoonTapHintAnim,
   preloadCocoonIcons,
 } from '../ui/cocoonUi.js';
+import { beginSceneRun, isStaleRun, gotoScene } from '../utils/sceneRun.js';
 
 /** Tela do casulo — galho + casulo pendurado; cada toque balança; 2º toque abre p/ borboleta */
 export class CocoonScene extends Phaser.Scene {
@@ -55,6 +56,7 @@ export class CocoonScene extends Phaser.Scene {
   }
 
   async create() {
+    const run = beginSceneRun(this);
     const { width, height } = this.scale;
     const child = GameState.getChild(this);
     this.maxCliques = 2;
@@ -64,6 +66,7 @@ export class CocoonScene extends Phaser.Scene {
     this.buildCocoonStage(width, height);
 
     await preloadCocoonIcons(this);
+    if (isStaleRun(this, run)) return;
     this.storyCard = createCocoonStoryCard(this, width / 2, height * COCOON_STORY_CARD_Y_RATIO, {
       nome,
       genero,
@@ -228,7 +231,7 @@ export class CocoonScene extends Phaser.Scene {
     this.time.delayedCall(400, () => {
       this.cameras.main.fadeOut(500, 0, 0, 0);
       this.time.delayedCall(500, () => {
-        this.scene.start(SceneKeys.VICTORY);
+        gotoScene(this, SceneKeys.VICTORY);
       });
     });
   }

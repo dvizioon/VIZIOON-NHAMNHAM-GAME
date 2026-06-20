@@ -12,6 +12,8 @@ import { captureVictoryButterflyPhoto } from '../utils/victoryPhotoCapture.js';
 
 const MODAL_DEPTH = 225;
 const ICON_GREEN = '#4E9A2E';
+
+let activeModal = null;
 const CLOSE_ICON = Icon.from('solar:close-circle-bold', { designSize: 24, color: ICON_GREEN });
 const HEADER_CAMERA_ICON = Icon.from('solar:camera-bold', { designSize: 28, color: ICON_GREEN });
 const DOWNLOAD_ICON = Icon.from('solar:download-minimalistic-bold', { designSize: 22, color: '#ffffff' });
@@ -89,6 +91,9 @@ export async function openVictoryPhotoModal(scene, {
   filename = 'nhamnham-borboleta.png',
   onClose,
 } = {}) {
+  activeModal?.close?.(false);
+  activeModal = null;
+
   const isGirl = genero === 'menina';
   const accentColor = isGirl ? Theme.rosa : Theme.botaoVerde;
   const accentDark = isGirl ? 0xD85A96 : Theme.folhaEscura;
@@ -97,6 +102,7 @@ export async function openVictoryPhotoModal(scene, {
   const { width, height } = scene.scale;
 
   const photo = await captureVictoryButterflyPhoto(scene, butterfly);
+  if (!scene.sys.isActive()) return { close: () => {} };
 
   if (!photo?.preview) {
     onClose?.();
@@ -106,12 +112,17 @@ export async function openVictoryPhotoModal(scene, {
   const { preview: previewUrl, download: downloadUrl } = photo;
 
   await Icon.preload(scene, [CLOSE_ICON, HEADER_CAMERA_ICON, DOWNLOAD_ICON]);
+  if (!scene.sys.isActive()) return { close: () => {} };
 
   let snapKey;
   try {
     snapKey = await loadGameSnapshotTexture(scene, previewUrl);
   } catch {
     onClose?.();
+    return { close: () => {} };
+  }
+  if (!scene.sys.isActive()) {
+    if (snapKey && scene.textures.exists(snapKey)) scene.textures.remove(snapKey);
     return { close: () => {} };
   }
 
@@ -231,6 +242,7 @@ export async function openVictoryPhotoModal(scene, {
   function close(playClick = true) {
     if (closed) return;
     closed = true;
+    if (activeModal?.close === close) activeModal = null;
     if (playClick) playSound(scene, 'clique');
     if (snapKey && scene.textures.exists(snapKey)) {
       scene.textures.remove(snapKey);
@@ -290,5 +302,12 @@ export async function openVictoryPhotoModal(scene, {
     ease: 'Back.easeOut',
   });
 
-  return { close: () => close(false) };
+  const handle = { close: (playClick = false) => close(playClick) };
+  activeModal = handle;
+  scene.events.once('shutdown', () => {
+    if (activeModal === handle) activeModal = null;
+    close(false);
+  });
+
+  return handle;
 }

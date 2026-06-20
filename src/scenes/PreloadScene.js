@@ -4,7 +4,6 @@ import { REQUIRED_SOUNDS, OPTIONAL_SOUNDS } from '../config/assets.js';
 import { queueOptionalAssets } from '../systems/AssetLoader.js';
 import { queueSpriteAssets, registerSpriteAnimations, patchAllCharacterBodyFrames } from '../systems/SpriteLoader.js';
 import { capImageTexture, capSpritesheet } from '../systems/TextureScaler.js';
-import { startBgm } from '../systems/MusicManager.js';
 import { preloadSplashIcons } from '../ui/splashUi.js';
 import { preloadSettingsIcons } from '../ui/settingsUi.js';
 import { preloadGameIcons } from '../ui/gameUi.js';
@@ -300,7 +299,6 @@ export class PreloadScene extends Phaser.Scene {
       preloadEggIcons(this),
       preloadCocoonIcons(this),
     ]);
-    startBgm(this);
     this.scene.start(getInitialSceneKey());
   }
 }

@@ -307,6 +307,22 @@ export function spawnEnvironmentClouds(scene) {
   );
 }
 
+/** Para timers/nuvens ao sair da cena — evita spawn após shutdown */
+export function stopEnvironmentClouds(scene) {
+  scene._cloudWaveTimer?.remove(false);
+  scene._cloudWaveTimer = null;
+
+  const active = scene._cloudTracker?.active;
+  if (active?.length) {
+    for (const entry of [...active]) {
+      untrackCloud(scene, entry);
+      entry.cloud?.destroy?.();
+    }
+    active.length = 0;
+  }
+  scene._cloudTracker = null;
+}
+
 /** terreno.png — chão mobile ancorado embaixo */
 export function drawGroundForeground(scene, depth = DEPTH_GROUND) {
   const { width, height } = scene.scale;

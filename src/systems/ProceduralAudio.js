@@ -123,7 +123,7 @@ export function playSound(scene, key, { volumeMul = 0.9, onComplete } = {}) {
 
   const vol = getEffectVolume(scene, volumeMul);
 
-  if (scene.cache.audio.exists(key)) {
+  if (scene.cache.audio.exists(key) && !scene.sound?.locked) {
     const snd = scene.sound.add(key);
     if (onComplete) {
       snd.once('complete', () => {

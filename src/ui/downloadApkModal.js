@@ -179,7 +179,6 @@ export async function createSplashDownloadChip(scene, x, y, {
     depth: 201,
     ...SPLASH_CORNER_BTN_OPTS,
     borderTint: CHIP_BORDER_TINT,
-    onClick: () => onClick?.(),
   });
 
   const label = scene.add.text(btnW / 2 + Math.round(8 * s), 0, 'App', {
@@ -206,10 +205,12 @@ export async function openDownloadApkModal(scene, { onClose } = {}) {
   if (!scene?.add) return { close: () => {} };
 
   activeModal?.close?.();
+  activeModal = null;
 
   const { width, height } = scene.scale;
   const s = uiScale(scene);
   await Icon.preload(scene, [ANDROID_SYM, IOS_SYM, GITHUB_ICON, CLOSE_ICON]);
+  if (!scene.sys.isActive()) return { close: () => {} };
 
   const panelW = Math.min(Math.round(width * 0.92), 400);
   const padX = Math.round(28 * s);
