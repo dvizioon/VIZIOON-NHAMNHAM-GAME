@@ -22,7 +22,13 @@ const EYE_ICON = Icon.from('solar:eye-bold', { designSize: 22, color: '#1E6A30' 
 const MEDAL_ICONS = {
   1: Icon.from('solar:medal-ribbons-star-bold', { designSize: 30, color: '#F9A825' }),
   2: Icon.from('solar:medal-ribbon-bold', { designSize: 28, color: '#90A4AE' }),
-  3: Icon.from('solar:medal-ribbon-bold', { designSize: 28, color: '#EF6C00' }),
+  3: Icon.from('solar:medal-ribbon-bold', { designSize: 28, color: '#B87333' }),
+};
+
+const PODIUM_ROW_STYLE = {
+  1: { fill: 0xFFF4CC, stroke: 0xF9A825, border: 3 },
+  2: { fill: 0xECEFF1, stroke: 0x90A4AE, border: 3 },
+  3: { fill: 0xFFE8CC, stroke: 0xB87333, border: 3 },
 };
 
 function formatRankTime(ms) {
@@ -107,7 +113,12 @@ function createRowEyeButton(scene, x, y, s, onClick) {
   const btn = scene.add.container(x, y, [bg, icon]);
   btn.setSize(size, size);
   btn.setInteractive({ useHandCursor: true });
-  btn.on('pointerup', () => {
+  let clickLocked = false;
+  btn.on('pointerup', (pointer) => {
+    pointer.event?.stopPropagation?.();
+    if (clickLocked) return;
+    clickLocked = true;
+    scene.time.delayedCall(420, () => { clickLocked = false; });
     playSound(scene, 'clique');
     onClick?.();
   });
@@ -142,9 +153,10 @@ function createScrollableList(scene, panel, { x, y, width, height }) {
   let dragStartY = 0;
   let dragStartOffset = 0;
 
-  const hitZone = scene.add.zone(x + width / 2, y + height / 2, width, height)
-    .setInteractive({ useHandCursor: true });
-  panel.add(hitZone);
+  scrollRoot.setInteractive(
+    new Phaser.Geom.Rectangle(0, 0, width, height),
+    Phaser.Geom.Rectangle.Contains,
+  );
 
   const setOffset = (next) => {
     offset = Phaser.Math.Clamp(next, 0, maxOffset);
@@ -153,12 +165,13 @@ function createScrollableList(scene, panel, { x, y, width, height }) {
 
   const wheelHandler = (pointer, _dx, dy) => {
     if (maxOffset <= 0) return;
-    const bounds = hitZone.getBounds();
+    const bounds = scrollRoot.getBounds();
     if (!bounds.contains(pointer.x, pointer.y)) return;
     setOffset(offset + dy * 0.5);
   };
 
-  hitZone.on('pointerdown', (p) => {
+  scrollRoot.on('pointerdown', (p) => {
+    if (p.downElement?.tagName === 'INPUT') return;
     dragging = true;
     dragStartY = p.y;
     dragStartOffset = offset;
@@ -184,7 +197,7 @@ function createScrollableList(scene, panel, { x, y, width, height }) {
       scene.input.off('pointerup', pointerUp);
       scene.input.off('pointermove', pointerMove);
       scene.input.off('wheel', wheelHandler);
-      hitZone.destroy();
+      scrollRoot.removeInteractive();
       maskGfx.destroy();
       listBg.destroy();
       scrollRoot.destroy();
@@ -201,10 +214,18 @@ function createRankingRow(scene, {
   const innerH = rowH;
 
   const bg = scene.add.graphics();
-  bg.fillStyle(isYou ? 0xE2F4D3 : 0xFFFDF6, 1);
-  bg.fillRoundedRect(0, 0, innerW, innerH, 12);
-  bg.lineStyle(isYou ? 3 : 2, isYou ? Theme.folhaEscura : 0xD8C9A8, isYou ? 1 : 0.85);
-  bg.strokeRoundedRect(0, 0, innerW, innerH, 12);
+  const podium = !isYou && PODIUM_ROW_STYLE[rank];
+  if (podium) {
+    bg.fillStyle(podium.fill, 1);
+    bg.fillRoundedRect(0, 0, innerW, innerH, 12);
+    bg.lineStyle(podium.border, podium.stroke, 1);
+    bg.strokeRoundedRect(0, 0, innerW, innerH, 12);
+  } else {
+    bg.fillStyle(isYou ? 0xE2F4D3 : 0xFFFDF6, 1);
+    bg.fillRoundedRect(0, 0, innerW, innerH, 12);
+    bg.lineStyle(isYou ? 3 : 2, isYou ? Theme.folhaEscura : 0xD8C9A8, isYou ? 1 : 0.85);
+    bg.strokeRoundedRect(0, 0, innerW, innerH, 12);
+  }
   row.add(bg);
 
   const rankX = pad + Math.round(16 * s);
@@ -264,20 +285,29 @@ function createRankingRow(scene, {
 
   row.add([rankBadge, avatar, nameText, personText, timeLabel, timeHint]);
 
-  if (isYou && entry.scoreId && sessionToken) {
+  if (isYou) {
     const eyeBtn = createRowEyeButton(scene, eyeX, innerH / 2, s, async () => {
       try {
-        const data = await GameApi.fetchScoreFruits(sessionToken, entry.scoreId);
+        if (entry.scoreId && sessionToken) {
+          const data = await GameApi.fetchScoreFruits(sessionToken, entry.scoreId);
+          await openRunRecapModal(scene, {
+            points: data?.points ?? entry.bestScore,
+            durationMs: data?.durationMs ?? entry.bestDurationMs,
+            fruitCounts: data?.fruitCounts ?? {},
+          }, { title: 'Frutas que você comeu' });
+          return;
+        }
         await openRunRecapModal(scene, {
-          points: data?.points ?? entry.bestScore,
-          durationMs: data?.durationMs ?? entry.bestDurationMs,
-          fruitCounts: data?.fruitCounts ?? {},
+          points: entry.bestScore ?? 0,
+          durationMs: entry.bestDurationMs ?? 0,
+          fruitCounts: {},
         }, { title: 'Frutas que você comeu' });
       } catch {
         showWarningAlert(scene, 'Não foi possível carregar as frutas desta partida.\nJogue de novo até o casulo!');
       }
     });
     row.add(eyeBtn);
+    row.bringToTop(eyeBtn);
   }
 
   return row;
@@ -307,7 +337,6 @@ export async function openRankingModal(scene, { onClose } = {}) {
 
   const overlay = scene.add.rectangle(cx, height / 2, width, height, 0x061018, 0.72);
   overlay.setInteractive();
-  overlay.on('pointerup', () => close());
 
   const panel = scene.add.container(cx, cy);
   const themed = createThemedPanel(scene, panelW, panelH, s);
@@ -321,9 +350,11 @@ export async function openRankingModal(scene, { onClose } = {}) {
   const bodySize = Math.max(14, Math.round(15 * s));
   const smallSize = Math.max(12, Math.round(13 * s));
   const padX = Math.round(18 * s);
+  const closeBtnSize = Math.round(44 * s);
+  const closeInset = Math.round(14 * s);
   let y = -panelH / 2 + Math.round(18 * s);
 
-  const titleText = 'Ranking NhocNhoc';
+  const titleText = 'Ranking';
   const title = scene.add.text(0, 0, titleText, {
     fontFamily: Theme.fontFamily,
     fontSize: `${titleSize}px`,
@@ -333,12 +364,11 @@ export async function openRankingModal(scene, { onClose } = {}) {
 
   const trophySize = Math.round(30 * s);
   const titleGap = Math.round(10 * s);
-  const rowW = trophySize + titleGap + title.width;
-  const titleRow = scene.add.container(0, y);
-  const trophy = scene.add.image(-rowW / 2 + trophySize / 2, title.height / 2, TROPHY_ICON.textureKey)
+  const titleRow = scene.add.container(-panelW / 2 + padX, y);
+  const trophy = scene.add.image(trophySize / 2, title.height / 2, TROPHY_ICON.textureKey)
     .setDisplaySize(trophySize, trophySize)
     .setOrigin(0.5);
-  title.setPosition(-rowW / 2 + trophySize + titleGap, 0);
+  title.setPosition(trophySize + titleGap, 0);
   titleRow.add([trophy, title]);
   panel.add(titleRow);
   y += title.height + 4;
@@ -409,8 +439,6 @@ export async function openRankingModal(scene, { onClose } = {}) {
   }).setOrigin(0.5);
   scroll.content.add(statusText);
 
-  const closeBtnSize = Math.round(44 * s);
-  const closeInset = Math.round(20 * s);
   const closeBtn = createIconCircleButton(
     scene,
     panelW / 2 - closeInset - closeBtnSize * 0.5,
@@ -421,7 +449,10 @@ export async function openRankingModal(scene, { onClose } = {}) {
       iconSize: 22,
       absoluteSize: true,
       depth: MODAL_DEPTH + 2,
-      onClick: () => close(),
+      onClick: () => {
+        playSound(scene, 'clique');
+        close(false);
+      },
     },
   );
   panel.add(closeBtn);
@@ -429,21 +460,34 @@ export async function openRankingModal(scene, { onClose } = {}) {
   root.add([overlay, panel]);
 
   let closed = false;
-  function close() {
+  let overlayDown = false;
+
+  overlay.on('pointerdown', () => { overlayDown = true; });
+  overlay.on('pointerup', () => {
+    if (overlayDown) close(true);
+    overlayDown = false;
+  });
+
+  function close(fromOverlay = false) {
     if (closed) return;
     closed = true;
     if (activeModal?.close === close) activeModal = null;
-    playSound(scene, 'clique');
+    if (fromOverlay) playSound(scene, 'clique');
+    overlay.disableInteractive();
+    scene.input.enabled = false;
     scroll.destroy();
     closeBtn?.destroy();
     root.destroy();
     onClose?.();
+    scene.time.delayedCall(420, () => {
+      if (scene.sys?.isActive?.()) scene.input.enabled = true;
+    });
   }
 
   activeModal = { close };
   scene.events.once('shutdown', () => {
     if (activeModal?.close === close) activeModal = null;
-    close();
+    close(false);
   });
 
   if (GameApi.isEnabled()) {
@@ -495,8 +539,11 @@ export async function openRankingModal(scene, { onClose } = {}) {
     let rowY = 0;
 
     entries.forEach((entry, index) => {
-      const isYou = Boolean(currentUserId && entry.userId === currentUserId);
       const rank = index + 1;
+      const isYou = Boolean(
+        (currentUserId && entry.userId === currentUserId)
+        || (playerLabel && entry.displayName?.toLowerCase() === playerLabel.toLowerCase()),
+      );
       const row = createRankingRow(scene, {
         width: listW,
         rowH,
