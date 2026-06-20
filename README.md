@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./public/assets/textures/ui/logo.svg" alt="Nhoc Nhoc" width="120" />
+  <img src="./public/assets/textures/ui/Cabeça_Largata.svg" alt="Cabeça da lagarta Nhoc Nhoc" width="180" />
 </p>
 
 <h1 align="center">Nhoc Nhoc! A Lagartinha da Turminha</h1>
