@@ -24,16 +24,16 @@ function canPlayAudio(scene) {
   return Boolean(scene?.sys?.isActive?.() && scene.cache?.audio?.exists(BGM_KEY) && !scene.sound?.locked);
 }
 
-/** Inicia BGM — só depois do desbloqueio (primeiro toque). */
+/** Inicia BGM — só depois do desbloqueio (primeiro toque). Retorna true se está tocando. */
 export function startBgm(scene) {
-  if (!canPlayAudio(scene)) return;
+  if (!canPlayAudio(scene)) return false;
 
   let music = scene.registry.get(RegistryKeys.BGM);
   const volume = getMusicVolume(scene);
 
   if (music?.isPlaying) {
     music.setVolume(volume);
-    return;
+    return true;
   }
 
   if (music) {
@@ -46,12 +46,13 @@ export function startBgm(scene) {
   music.play();
   scene.registry.set(RegistryKeys.BGM, music);
   bgmWasPlaying = true;
+  return music.isPlaying;
 }
 
-/** Chamado uma vez após o primeiro gesto do usuário (main.js). */
+/** Chamado uma vez após o primeiro gesto do usuário (main.js). Retorna true se já tocou. */
 export function beginBgmAfterUnlock(scene) {
-  if (!scene?.registry) return;
-  startBgm(scene);
+  if (!scene?.registry) return false;
+  return startBgm(scene);
 }
 
 /** Garante que a faixa continua — nunca tenta tocar com áudio bloqueado. */

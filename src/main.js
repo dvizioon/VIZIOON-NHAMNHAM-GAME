@@ -65,20 +65,38 @@ function destroyExistingGame() {
   cleanupOrphanDomInputs();
 }
 
+/**
+ * Tenta iniciar o BGM e repete por alguns segundos — o áudio pode ainda estar
+ * carregando no primeiro toque (mais comum em produção / GitHub Pages).
+ */
+function startBgmWithRetry(game, attempt = 0) {
+  const MAX_ATTEMPTS = 40; // ~10s (40 × 250ms)
+  if (game.sound?.locked) {
+    if (attempt < MAX_ATTEMPTS) setTimeout(() => startBgmWithRetry(game, attempt + 1), 250);
+    return;
+  }
+  const playing = beginBgmAfterUnlock(getActiveScene(game));
+  if (playing || attempt >= MAX_ATTEMPTS) return;
+  setTimeout(() => startBgmWithRetry(game, attempt + 1), 250);
+}
+
 function unlockGameAudio(game) {
   if (window[AUDIO_UNLOCKED_KEY]) return;
   window[AUDIO_UNLOCKED_KEY] = true;
 
+  const sound = game.sound;
+
+  // O desbloqueio do WebAudio é ASSÍNCRONO: logo após unlock(), sound.locked
+  // ainda pode ser true. Por isso esperamos o evento real do Phaser.
   try {
-    if (game.sound?.locked) {
-      game.sound.unlock();
+    if (sound?.locked) {
+      sound.once(Phaser.Sound.Events.UNLOCKED, () => startBgmWithRetry(game));
+      sound.unlock();
+    } else {
+      startBgmWithRetry(game);
     }
   } catch {
-    /* ignore */
-  }
-
-  if (!game.sound?.locked) {
-    beginBgmAfterUnlock(getActiveScene(game));
+    startBgmWithRetry(game);
   }
 }
 
