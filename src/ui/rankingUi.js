@@ -206,7 +206,7 @@ function createScrollableList(scene, panel, { x, y, width, height }) {
 }
 
 function createRankingRow(scene, {
-  width, rowH, rank, entry, isYou, s, bodySize, smallSize, sessionToken,
+  width, rowH, rank, entry, isYou, s, bodySize, smallSize, sessionToken, openRecap,
 }) {
   const row = scene.add.container(0, 0);
   const pad = Math.round(10 * s);
@@ -290,18 +290,18 @@ function createRankingRow(scene, {
       try {
         if (entry.scoreId && sessionToken) {
           const data = await GameApi.fetchScoreFruits(sessionToken, entry.scoreId);
-          await openRunRecapModal(scene, {
+          await openRecap?.({
             points: data?.points ?? entry.bestScore,
             durationMs: data?.durationMs ?? entry.bestDurationMs,
             fruitCounts: data?.fruitCounts ?? {},
-          }, { title: 'Frutas que você comeu' });
+          });
           return;
         }
-        await openRunRecapModal(scene, {
+        await openRecap?.({
           points: entry.bestScore ?? 0,
           durationMs: entry.bestDurationMs ?? 0,
           fruitCounts: {},
-        }, { title: 'Frutas que você comeu' });
+        });
       } catch {
         showWarningAlert(scene, 'Não foi possível carregar as frutas desta partida.\nJogue de novo até o casulo!');
       }
@@ -468,19 +468,39 @@ export async function openRankingModal(scene, { onClose } = {}) {
     overlayDown = false;
   });
 
+  async function openRecapFromRanking(recap) {
+    overlay.disableInteractive();
+    try {
+      await openRunRecapModal(scene, recap, {
+        title: 'Frutas que você comeu',
+        onClose: () => {
+          if (!closed) overlay.setInteractive();
+        },
+      });
+    } catch {
+      if (!closed) overlay.setInteractive();
+    }
+  }
+
   function close(fromOverlay = false) {
     if (closed) return;
     closed = true;
     if (activeModal?.close === close) activeModal = null;
     if (fromOverlay) playSound(scene, 'clique');
     overlay.disableInteractive();
+    panel.disableInteractive();
     scene.input.enabled = false;
-    scroll.destroy();
-    closeBtn?.destroy();
-    root.destroy();
-    onClose?.();
-    scene.time.delayedCall(420, () => {
-      if (scene.sys?.isActive?.()) scene.input.enabled = true;
+    if (typeof scene.blockSplashUiClicks === 'function') {
+      scene.blockSplashUiClicks(500);
+    }
+    scene.time.delayedCall(50, () => {
+      scroll.destroy();
+      closeBtn?.destroy();
+      root.destroy();
+      onClose?.();
+      scene.time.delayedCall(450, () => {
+        if (scene.sys?.isActive?.()) scene.input.enabled = true;
+      });
     });
   }
 
@@ -554,6 +574,7 @@ export async function openRankingModal(scene, { onClose } = {}) {
         bodySize,
         smallSize,
         sessionToken,
+        openRecap: openRecapFromRanking,
       });
       row.setPosition(0, rowY);
       scroll.content.add(row);

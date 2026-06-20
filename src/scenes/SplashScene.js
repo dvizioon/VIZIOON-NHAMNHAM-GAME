@@ -94,6 +94,15 @@ export class SplashScene extends Phaser.Scene {
     this._profileOpening = false;
     this.downloadModalClose = null;
     this.rankingModalClose = null;
+    this._splashUiLockUntil = 0;
+  }
+
+  blockSplashUiClicks(ms = 500) {
+    this._splashUiLockUntil = this.time.now + ms;
+  }
+
+  isSplashUiLocked() {
+    return this.time.now < (this._splashUiLockUntil ?? 0);
   }
 
   async create() {
@@ -540,7 +549,7 @@ export class SplashScene extends Phaser.Scene {
   }
 
   openDownloadModal() {
-    if (this.downloadModalClose) return;
+    if (this.downloadModalClose || this.isSplashUiLocked()) return;
     this.downloadModalClose = true;
     playSound(this, 'clique');
     openDownloadApkModal(this, {

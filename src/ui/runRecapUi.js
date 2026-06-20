@@ -115,7 +115,6 @@ export async function openRunRecapModal(scene, recap, {
   const root = scene.add.container(0, 0).setDepth(MODAL_DEPTH);
   const overlay = scene.add.rectangle(cx, height / 2, width, height, 0x061018, 0.72);
   overlay.setInteractive();
-  overlay.on('pointerup', () => close());
 
   const panel = scene.add.container(cx, cy);
 
@@ -209,27 +208,46 @@ export async function openRunRecapModal(scene, recap, {
       iconSize: 22,
       absoluteSize: true,
       depth: MODAL_DEPTH + 2,
-      onClick: () => close(),
+      onClick: () => {
+        playSound(scene, 'clique');
+        close(false);
+      },
     },
   );
 
   root.add([overlay, panel]);
 
   let closed = false;
-  function close() {
+  let overlayDown = false;
+
+  overlay.on('pointerdown', () => { overlayDown = true; });
+  overlay.on('pointerup', () => {
+    if (overlayDown) close(true);
+    overlayDown = false;
+  });
+
+  function close(fromOverlay = false) {
     if (closed) return;
     closed = true;
     if (activeModal?.close === close) activeModal = null;
-    playSound(scene, 'clique');
-    closeBtn?.destroy();
-    root.destroy();
-    onClose?.();
+    if (fromOverlay) playSound(scene, 'clique');
+    overlay.disableInteractive();
+    panel.disableInteractive();
+    scene.input.enabled = false;
+    scene.time.delayedCall(50, () => {
+      closeBtn?.destroy();
+      root.destroy();
+      onClose?.();
+      scene.time.delayedCall(450, () => {
+        if (scene.sys?.isActive?.()) scene.input.enabled = true;
+      });
+    });
   }
 
   activeModal = { close };
   scene.events.once('shutdown', () => {
     if (activeModal?.close === close) activeModal = null;
-    close();
+    close(false);
   });
 
   return { close };
