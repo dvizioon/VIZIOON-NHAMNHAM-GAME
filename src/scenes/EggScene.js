@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { SceneKeys } from '../config/constants.js';
+import { SceneKeys, RegistryKeys } from '../config/constants.js';
 import { drawEnvironmentLayers } from '../ui/createUI.js';
 import { UI_DECO_3FOLHAS_KEY } from '../ui/settingsUi.js';
 import { createEggStoryCard, preloadEggIcons } from '../ui/eggUi.js';
@@ -50,7 +50,7 @@ import {
 } from '../config/eggConfig.js';
 import { beginSceneRun, isStaleRun, gotoScene } from '../utils/sceneRun.js';
 
-/** Tela do ovo — folhas à direita, ovo balançando; 3 toques quebrando + 1 para nascer */
+/** Tela do ovo — folhas à direita, ovo balançando; 3 toques para nascer */
 export class EggScene extends Phaser.Scene {
   constructor() {
     super(SceneKeys.EGG);
@@ -63,6 +63,9 @@ export class EggScene extends Phaser.Scene {
     this.hitArea = null;
     this.hatchContainer = null;
     this.eggDisplayH = 0;
+    this.eggTapBusy = false;
+    this._lastEggTapAt = 0;
+    this.clicksToHatch = EGG_CLICKS_TO_HATCH;
   }
 
   async create() {
@@ -74,6 +77,10 @@ export class EggScene extends Phaser.Scene {
 
     await preloadEggIcons(this);
     if (isStaleRun(this, run)) return;
+
+    const rules = this.registry.get(RegistryKeys.GAME_CONFIG);
+    this.clicksToHatch = Math.max(2, Number(rules?.cliquesOvo ?? EGG_CLICKS_TO_HATCH));
+
     createEggStoryCard(this, width / 2, height * EGG_STORY_CARD_Y_RATIO, {
       nome: child?.nome ?? 'Lagartinha',
       genero: child?.genero ?? 'menino',
@@ -96,7 +103,7 @@ export class EggScene extends Phaser.Scene {
     const eggY = leafY + leafH * EGG_ON_LEAF_Y_MUL;
     this.eggDisplayH = Math.round(height * EGG_DISPLAY_HEIGHT_RATIO);
 
-    this.hatchContainer = this.add.container(eggX, eggY).setDepth(10);
+    this.hatchContainer = this.add.container(eggX, eggY).setDepth(28);
 
     if (this.textures.exists(EGG_WOBBLE_KEY)) {
       this.eggSprite = this.add.sprite(0, 0, EGG_WOBBLE_KEY, 0).setOrigin(0.5, 0.72);
@@ -111,11 +118,14 @@ export class EggScene extends Phaser.Scene {
     const hitW = this.eggDisplayH * 0.85;
     const hitH = this.eggDisplayH * 1.05;
     const hitCy = eggY - this.eggDisplayH * 0.2;
+    this.hitArea?.destroy();
     this.hitArea = this.add
       .zone(eggX, hitCy, hitW, hitH)
       .setInteractive({ useHandCursor: true })
-      .setDepth(15);
+      .setDepth(32);
     this.hitArea.on('pointerup', () => this.onEggTap(child));
+
+    this.events.once('shutdown', () => this.shutdownEgg());
 
     this.cameras.main.fadeIn(350, 0, 0, 0);
   }
@@ -177,11 +187,16 @@ export class EggScene extends Phaser.Scene {
   }
 
   onEggTap(child) {
-    if (this.hatched || !this.eggSprite) return;
+    if (this.hatched || !this.eggSprite || this.eggTapBusy) return;
+
+    const now = this.time.now;
+    if (now - this._lastEggTapAt < 320) return;
+    this._lastEggTapAt = now;
+    this.eggTapBusy = true;
 
     this.cliques++;
     const crackFrame = this.cliques - 1;
-    const isLast = this.cliques >= EGG_CLICKS_TO_HATCH;
+    const isLast = this.cliques >= this.clicksToHatch;
     playSound(this, isLast ? 'nascer' : 'egg_crack');
 
     this.eggSprite.anims?.stop();
@@ -204,8 +219,14 @@ export class EggScene extends Phaser.Scene {
       ease: 'Sine.easeInOut',
       onComplete: () => {
         if (this.eggSprite) this.eggSprite.setAngle(0);
+        this.eggTapBusy = false;
       },
     });
+  }
+
+  shutdownEgg() {
+    this.hitArea?.off('pointerup');
+    this.eggTapBusy = false;
   }
 
   showCrackFrame(frameIndex) {
@@ -232,6 +253,7 @@ export class EggScene extends Phaser.Scene {
     const endY = eggH * EGG_HATCH_CHAR_END_Y;
 
     this.hatchContainer.removeAll(true);
+    this.hatchContainer.setDepth(30);
 
     let bodyDown = null;
     let bodyUp = null;

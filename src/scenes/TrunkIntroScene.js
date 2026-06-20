@@ -24,28 +24,29 @@ import { hasTexture } from '../systems/AssetLoader.js';
 import {
   createTrunkStoryCard,
   createTrunkTapHint,
+  getTrunkTapHintY,
   preloadTrunkIntroIcons,
   setupTrunkIntroFallingFruits,
   cleanupTrunkIntroFallingFruits,
   TRUNK_STORY_CARD_Y_RATIO,
-  TRUNK_HINT_Y_RATIO,
   TRUNK_CLIMBER_START_Y_RATIO,
   TRUNK_CLIMBER_END_Y_RATIO,
 } from '../ui/trunkIntroUi.js';
 import {
   INTRO_TRUNK_KEY,
-  TRUNK_PLAY_WIDTH_RATIO,
   CLIMB_TEX,
   CLIMB_IDLE_TEX,
   CLIMB_ANIM,
-  CLIMB_FRAME_WIDTH,
-  INTRO_CLIMB_HEAD_SCALE_MUL,
-  INTRO_CLIMB_HEAD_BALL_TOP,
-  INTRO_CLIMB_HEAD_OFFSET_Y,
-  INTRO_CLIMB_HEAD_OFFSET_X,
-  INTRO_CLIMB_HEAD_OFFSET_Y_PX,
-  INTRO_CLIMB_HEAD_OFFSET_X_PX,
+  CLIMB_FRAME_HEIGHT,
+  CLIMB_BODY_TRUNK_RATIO,
   INTRO_CLIMB_SIZE_MUL,
+  INTRO_CLIMB_HEAD_SCALE_MUL,
+  CLIMB_HEAD_SCALE_MUL,
+  CLIMB_HEAD_BALL_TOP,
+  CLIMB_HEAD_OFFSET_Y,
+  CLIMB_HEAD_OFFSET_X,
+  CLIMB_HEAD_OFFSET_Y_PX,
+  CLIMB_HEAD_OFFSET_X_PX,
   INTRO_TRUNK_Y_OFFSET_RATIO,
   INTRO_TRUNK_Y_OFFSET_PX,
   INTRO_TRUNK_HEIGHT_MUL,
@@ -76,6 +77,7 @@ export class TrunkIntroScene extends Phaser.Scene {
     this.headSprite = null;
     this.climbScale = 1;
     this.pulseTween = null;
+    this.headGreetingTween = null;
     this.idleTexKey = CLIMB_IDLE_TEX;
     this.climbTexKey = CLIMB_TEX;
     this.trunkImage = null;
@@ -108,11 +110,9 @@ export class TrunkIntroScene extends Phaser.Scene {
 
     this.buildClimber(width, height, child);
     this.ensureCharacterHead(child);
+    this.startIdleGreeting();
 
-    const hintY = Math.min(
-      height * TRUNK_HINT_Y_RATIO,
-      this.climberContainer.y - (this.bodySprite?.displayHeight ?? 80) * 0.55,
-    );
+    const hintY = getTrunkTapHintY(this, this.climberContainer, this.bodySprite);
     this.hintText = createTrunkTapHint(this, width / 2, hintY);
 
     this.physics.world.drawDebug = false;
@@ -165,6 +165,7 @@ export class TrunkIntroScene extends Phaser.Scene {
   cleanupIntro() {
     stopEnvironmentClouds(this);
     cleanupTrunkIntroFallingFruits(this);
+    this.stopIdleGreeting();
     if (this._onClimbBodyFrame && this.bodySprite) {
       this.bodySprite.off('animationupdate', this._onClimbBodyFrame);
     }
@@ -198,15 +199,48 @@ export class TrunkIntroScene extends Phaser.Scene {
   getHeadCfg() {
     return {
       scaleMul: INTRO_CLIMB_HEAD_SCALE_MUL,
-      ballTopRatio: INTRO_CLIMB_HEAD_BALL_TOP,
-      offsetY: INTRO_CLIMB_HEAD_OFFSET_Y,
-      offsetX: INTRO_CLIMB_HEAD_OFFSET_X,
-      offsetYPx: INTRO_CLIMB_HEAD_OFFSET_Y_PX,
-      offsetXPx: INTRO_CLIMB_HEAD_OFFSET_X_PX,
+      ballTopRatio: CLIMB_HEAD_BALL_TOP,
+      offsetY: CLIMB_HEAD_OFFSET_Y,
+      offsetX: CLIMB_HEAD_OFFSET_X,
+      offsetYPx: CLIMB_HEAD_OFFSET_Y_PX,
+      offsetXPx: CLIMB_HEAD_OFFSET_X_PX,
       origin: { x: 0.5, y: 0.84 },
       idleFrame: 0,
       animate: true,
     };
+  }
+
+  stopIdleGreeting() {
+    this.pulseTween?.stop();
+    this.pulseTween = null;
+    this.headGreetingTween?.stop();
+    this.headGreetingTween = null;
+    this.climberContainer?.setScale(1);
+    this.headSprite?.setAngle(0);
+  }
+
+  startIdleGreeting() {
+    if (!this.climberContainer?.active || this.climbing) return;
+
+    this.pulseTween = this.tweens.add({
+      targets: this.climberContainer,
+      scale: 1.045,
+      duration: 950,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
+
+    if (this.headSprite?.active) {
+      this.headGreetingTween = this.tweens.add({
+        targets: this.headSprite,
+        angle: 7,
+        duration: 720,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      });
+    }
   }
 
   resolveIdleTexKey() {
@@ -359,7 +393,7 @@ export class TrunkIntroScene extends Phaser.Scene {
 
   buildClimber(width, height, child) {
     const startY = Math.round(height * TRUNK_CLIMBER_START_Y_RATIO);
-    this.climbScale = (width * TRUNK_PLAY_WIDTH_RATIO * INTRO_CLIMB_SIZE_MUL) / CLIMB_FRAME_WIDTH;
+    this.climbScale = (width * CLIMB_BODY_TRUNK_RATIO * INTRO_CLIMB_SIZE_MUL) / CLIMB_FRAME_HEIGHT;
 
     this.climberContainer = this.add.container(width / 2, startY).setDepth(25);
 
@@ -427,8 +461,7 @@ export class TrunkIntroScene extends Phaser.Scene {
     this.climbing = true;
     playSound(this, 'hut');
 
-    this.pulseTween?.stop();
-    this.climberContainer.setScale(1);
+    this.stopIdleGreeting();
     this.climberContainer.disableInteractive();
 
     const fadeTargets = [this.storyCard, this.hintText].filter(Boolean);

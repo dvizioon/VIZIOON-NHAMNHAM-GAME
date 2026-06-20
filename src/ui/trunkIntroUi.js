@@ -3,6 +3,7 @@ import { Theme } from '../config/theme.js';
 import { uiScale, responsiveWidth } from '../utils/responsive.js';
 import { Icon } from './iconify.js';
 import { PANEL_CORNER_RADIUS, PANEL_SHADOW_OFFSET } from './settingsUi.js';
+import { startStoryCardIconAnim } from './storyCardUi.js';
 import { getGrassTopY, getGroundY, DEPTH_TRUNK } from './createUI.js';
 import { FOOD_FRUTAS } from '../config/foodConfig.js';
 
@@ -144,22 +145,45 @@ export function createTrunkStoryCard(scene, x, y, { nome = 'Lagartinha', genero 
   leafIcon.setPosition(iconX + Math.round(14 * s), Math.round(20 * s));
 
   card.add([shadow, bg, treeIcon, leafIcon, title, line1, nameBadge, line2, line3]);
+  startStoryCardIconAnim(scene, treeIcon, leafIcon);
   return card;
+}
+
+export function getTrunkTapHintY(scene, climberContainer, bodySprite) {
+  const s = uiScale(scene);
+  const bodyH = bodySprite?.displayHeight ?? 80;
+  const originY = bodySprite?.originY ?? 0.92;
+  const clearance = Math.round(96 * s);
+  return climberContainer.y - bodyH * originY - clearance;
 }
 
 export function createTrunkTapHint(scene, x, y) {
   const s = uiScale(scene);
-  const hint = scene.add.text(x, y, 'Toque na lagartinha', {
+  const padX = Math.round(12 * s);
+  const padY = Math.round(6 * s);
+
+  const label = scene.add.text(0, 0, 'Toque na lagartinha', {
     fontFamily: Theme.fontFamily,
     fontSize: `${Math.max(14, Math.round(16 * s))}px`,
     color: '#1E6A30',
     fontStyle: 'bold',
-    backgroundColor: '#FFF8E7CC',
-    padding: { x: 12, y: 6 },
-  }).setOrigin(0.5).setDepth(28);
+    align: 'center',
+  }).setOrigin(0.5);
+
+  const bubbleW = label.width + padX * 2;
+  const bubbleH = label.height + padY * 2;
+  const radius = Math.round(bubbleH / 2);
+
+  const container = scene.add.container(x, y).setDepth(28);
+
+  const bg = scene.add.graphics();
+  bg.fillStyle(0xFFF8E7, 0.8);
+  bg.fillRoundedRect(-bubbleW / 2, -bubbleH / 2, bubbleW, bubbleH, radius);
+
+  container.add([bg, label]);
 
   scene.tweens.add({
-    targets: hint,
+    targets: container,
     y: y - Math.round(6 * s),
     duration: 700,
     yoyo: true,
@@ -167,7 +191,7 @@ export function createTrunkTapHint(scene, x, y) {
     ease: 'Sine.easeInOut',
   });
 
-  return hint;
+  return container;
 }
 
 const FRUIT_DEPTH = DEPTH_TRUNK + 2;

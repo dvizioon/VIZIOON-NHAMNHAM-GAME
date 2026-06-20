@@ -14,8 +14,6 @@ export const CLIMB_ANIM = 'char_default_climb';
 /** Dimensões de um frame em subindo.png / parada_subindo.png */
 export const CLIMB_FRAME_WIDTH = 702;
 export const CLIMB_FRAME_HEIGHT = 681;
-/** Intro do tronco — corpo menor na tela */
-export const INTRO_CLIMB_SIZE_MUL = 0.86;
 /** Tronco — ratio × altura da tela; use Y_OFFSET_PX p/ mexer 1px por vez */
 export const INTRO_TRUNK_Y_OFFSET_RATIO = -0.11;
 export const INTRO_TRUNK_Y_OFFSET_PX = 5;
@@ -26,18 +24,14 @@ export const INTRO_TRUNK_STACK_SEGMENTS = 1;
 export const INTRO_CLIMB_BODY_OFFSET_X = 0;
 /** Padding leve na caixa verde p/ dedo (ratio do tamanho do sprite) */
 export const INTRO_CLIMBER_TAP_PAD_RATIO = 0.06;
-/** Cabeça na intro — ratio × altura do corpo; use offset*Px p/ ajuste de 1px em 1px */
-export const INTRO_CLIMB_HEAD_SCALE_MUL = 0.78;
-export const INTRO_CLIMB_HEAD_BALL_TOP = 0.5;
-export const INTRO_CLIMB_HEAD_OFFSET_Y = -0.30;
-export const INTRO_CLIMB_HEAD_OFFSET_X = 0.04;
-/** Fininho: cada 1 ≈ 1 pixel na tela (sem o salto de ~35px do 0.01 no ratio) */
-export const INTRO_CLIMB_HEAD_OFFSET_Y_PX = -2;
-export const INTRO_CLIMB_HEAD_OFFSET_X_PX = -3;
 
 /** Corpo da lagarta no tronco ≈ tamanho da fruta (trunkW × ratio) */
 export const CLIMB_BODY_TRUNK_RATIO = 0.17;
-/** Cabeça da criança sobre subindo.png — alinhada na bolinha verde */
+/** Multiplicador extra só na tela árvore (intro) — gameplay usa ratio puro */
+export const INTRO_CLIMB_SIZE_MUL = 1.68;
+/** Cabeça na intro — menor que no gameplay para não dominar o corpo parado */
+export const INTRO_CLIMB_HEAD_SCALE_MUL = 0.9;
+/** Cabeça da criança sobre subindo.png — alinhada na bolinha verde (gameplay) */
 export const CLIMB_HEAD_SCALE_MUL = 1.58;
 export const CLIMB_HEAD_BALL_TOP = 0.29;
 export const CLIMB_HEAD_OFFSET_Y = -0.17;

@@ -444,6 +444,7 @@ export class GameScene extends Phaser.Scene {
       this.lagarta.alvoX = cx;
     }
     this.caterpillarApi?.setPosition(cx, this.getClimberY());
+    this.setupFruitPhysics();
     this.jogoAtivo = true;
     this.time.delayedCall(400, () => this.spawnFruitWave());
   }

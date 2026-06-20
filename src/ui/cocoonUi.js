@@ -3,6 +3,7 @@ import { Theme } from '../config/theme.js';
 import { uiScale, responsiveWidth } from '../utils/responsive.js';
 import { Icon } from './iconify.js';
 import { PANEL_CORNER_RADIUS, PANEL_SHADOW_OFFSET } from './settingsUi.js';
+import { startStoryCardIconAnim } from './storyCardUi.js';
 
 const COCOON_STORY_TEXT_COLOR = '#490808';
 
@@ -126,6 +127,7 @@ export function createCocoonStoryCard(scene, x, y, { nome = 'Lagartinha', genero
   leafIcon.setPosition(iconX + iconSize * 0.35, -cardH / 2 + padY + iconSize * 0.85);
 
   card.add([shadow, bg, butterflyIcon, leafIcon, title, line1, nameBadge, line3]);
+  startStoryCardIconAnim(scene, butterflyIcon, leafIcon);
   return card;
 }
 

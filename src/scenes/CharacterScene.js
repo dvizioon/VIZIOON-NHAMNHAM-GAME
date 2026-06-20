@@ -520,12 +520,12 @@ export class CharacterScene extends Phaser.Scene {
 
     const avatar = createCharacterFace(this, crianca, r, frameHint, { headHeightRatio: 2.32 });
 
-    const dividerY = r + Math.round(12 * s);
+    const dividerY = r + Math.round(18 * s);
     const divider = this.add.graphics();
     divider.lineStyle(2, 0x490808, 1);
     divider.lineBetween(-size * 0.38, dividerY, size * 0.38, dividerY);
 
-    const nameY = dividerY + Math.round(12 * s);
+    const nameY = dividerY + Math.round(8 * s);
     const name = this.add.text(0, nameY, crianca.nome, {
       fontFamily: Theme.fontFamily,
       fontSize: `${Math.max(16, Math.round(19 * s))}px`,

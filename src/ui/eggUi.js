@@ -3,6 +3,7 @@ import { Theme } from '../config/theme.js';
 import { uiScale, responsiveWidth } from '../utils/responsive.js';
 import { Icon } from './iconify.js';
 import { PANEL_CORNER_RADIUS, PANEL_SHADOW_OFFSET } from './settingsUi.js';
+import { startStoryCardIconAnim } from './storyCardUi.js';
 
 const EGG_STORY_TEXT_COLOR = '#490808';
 
@@ -106,7 +107,7 @@ export function createEggStoryCard(scene, x, y, { nome = 'Lagartinha', genero = 
     .setDisplaySize(Math.round(iconSize * 0.55), Math.round(iconSize * 0.55))
     .setAlpha(0.85);
 
-  const card = scene.add.container(x, y).setDepth(20);
+  const card = scene.add.container(x, y).setDepth(12);
 
   const shadow = scene.add.graphics();
   shadow.fillStyle(shadowColor, 1);
@@ -136,5 +137,6 @@ export function createEggStoryCard(scene, x, y, { nome = 'Lagartinha', genero = 
   leafIcon.setPosition(iconX + Math.round(14 * s), Math.round(20 * s));
 
   card.add([shadow, bg, eggIcon, leafIcon, title, line1, nameBadge, line2, line3]);
+  startStoryCardIconAnim(scene, eggIcon, leafIcon);
   return card;
 }
