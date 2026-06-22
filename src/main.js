@@ -20,7 +20,7 @@ function untrackAllListeners() {
     try {
       target.removeEventListener(type, handler, options);
     } catch {
-      /* ignore */
+      console.error(`Error removing listener: ${type} on ${target}`);
     }
   }
 }
