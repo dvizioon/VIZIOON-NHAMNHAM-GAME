@@ -42,29 +42,168 @@
         position: fixed;
         inset: 0;
         z-index: 9999;
+        overflow: hidden;
+        background:
+          radial-gradient(circle at 50% 14%, rgba(255, 255, 255, 0.58) 0%, transparent 48%),
+          linear-gradient(180deg, #E8F9FF 0%, #BDE9F7 100%);
+      }
+      #mobile-only[hidden] { display: none !important; }
+      .mobile-gate-scene {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        padding: clamp(20px, 6vh, 48px) 24px 130px;
+      }
+      .mobile-gate-deco {
+        position: absolute;
+        pointer-events: none;
+        user-select: none;
+      }
+      .mobile-gate-deco--leaves-left {
+        width: min(34vw, 130px);
+        left: -4%;
+        top: 8%;
+        opacity: 0.92;
+        animation: gate-leaves-sway 4.2s ease-in-out infinite;
+      }
+      .mobile-gate-deco--leaves-right {
+        width: min(30vw, 118px);
+        right: -2%;
+        top: 14%;
+        opacity: 0.88;
+        animation: gate-leaves-sway-right 4.8s ease-in-out infinite;
+      }
+      .mobile-gate-deco--trunk {
+        width: min(92vw, 420px);
+        left: 50%;
+        bottom: 0;
+        transform: translateX(-50%);
+        opacity: 0.95;
+        z-index: 0;
+      }
+      .mobile-gate-card {
+        position: relative;
+        z-index: 2;
+        margin-top: clamp(0px, 2vh, 16px);
+        width: min(100%, 360px);
+        padding: 22px 22px 24px;
+        text-align: center;
+        background: #FFF8E7;
+        border: 5px solid #4E9A2E;
+        border-radius: 28px;
+        box-shadow: 0 10px 0 rgba(78, 154, 46, 0.18);
+        color: #3B3024;
+      }
+      .mobile-gate-logo {
+        width: min(68vw, 210px);
+        height: auto;
+        margin: 0 auto 10px;
+        display: block;
+        animation: gate-logo-float 3.2s ease-in-out infinite;
+      }
+      .mobile-gate-hero {
+        position: relative;
+        width: min(58vw, 210px);
+        aspect-ratio: 1;
+        margin: 0 auto 14px;
+      }
+      .mobile-gate-ring {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        animation: gate-ring-spin 3.6s linear infinite;
+      }
+      .mobile-gate-head {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 46%;
+        height: auto;
+        transform: translate(-50%, -50%);
+        animation: gate-head-bounce 1.1s ease-in-out infinite;
+      }
+      .mobile-gate-icons {
+        display: flex;
+        align-items: stretch;
+        justify-content: center;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+      .mobile-gate-icon {
+        flex: 1;
+        max-width: 118px;
         display: flex;
         flex-direction: column;
         align-items: center;
-        justify-content: center;
-        gap: 16px;
-        padding: 32px;
-        text-align: center;
-        background: linear-gradient(180deg, #E8F9FF 0%, #BDE9F7 100%);
-        color: #3B3024;
-        font-size: clamp(18px, 5vw, 24px);
-        font-weight: 700;
+        gap: 8px;
+        padding: 12px 8px 10px;
+        background: #FFF8E7;
+        border: 3px solid #4E9A2E;
+        border-radius: 18px;
+        box-shadow: 0 3px 0 rgba(107, 66, 38, 0.12);
       }
-      #mobile-only[hidden] { display: none !important; }
-      #mobile-only span { font-size: 56px; }
+      .mobile-gate-icon svg {
+        width: 34px;
+        height: 34px;
+        display: block;
+      }
+      .mobile-gate-icon--rotate svg {
+        animation: gate-phone-tilt 2.4s ease-in-out infinite;
+      }
+      .mobile-gate-icon span {
+        font-size: 13px;
+        font-weight: 700;
+        color: #1E6A30;
+        line-height: 1.1;
+      }
+      .mobile-gate-title {
+        font-size: clamp(20px, 5.2vw, 26px);
+        font-weight: 700;
+        color: #4E9A2E;
+        line-height: 1.25;
+        margin-bottom: 10px;
+      }
+      .mobile-gate-sub {
+        font-size: clamp(15px, 4vw, 18px);
+        font-weight: 600;
+        color: #6B4226;
+        line-height: 1.35;
+      }
+      @keyframes gate-logo-float {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-6px); }
+      }
+      @keyframes gate-ring-spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+      @keyframes gate-head-bounce {
+        0%, 100% { transform: translate(-50%, -50%) scale(1); }
+        50% { transform: translate(-50%, calc(-50% - 8px)) scale(1.04); }
+      }
+      @keyframes gate-leaves-sway {
+        0%, 100% { transform: rotate(-4deg); }
+        50% { transform: rotate(5deg); }
+      }
+      @keyframes gate-leaves-sway-right {
+        0%, 100% { transform: scaleX(-1) rotate(-4deg); }
+        50% { transform: scaleX(-1) rotate(5deg); }
+      }
+      @keyframes gate-phone-tilt {
+        0%, 100% { transform: rotate(0deg); }
+        35% { transform: rotate(-14deg); }
+        70% { transform: rotate(12deg); }
+      }
     </style>
   </head>
   <body>
     <div id="page-back" aria-hidden="true"></div>
-    <div id="mobile-only" hidden>
-      <span>📱</span>
-      <p>Nhoc Nhoc! só funciona no celular em pé.</p>
-      <p style="font-size:0.85em;font-weight:600;opacity:0.85">Abra no telefone ou gire a tela.</p>
-    </div>
+    <div id="mobile-only" hidden aria-live="polite"></div>
     <div id="game-container"></div>
     <script type="module" src="/src/main.js"></script>
   </body>
