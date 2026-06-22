@@ -9,7 +9,7 @@ import {
 } from '../services/gameApi.js';
 import { GameState } from '../utils/GameState.js';
 import { defaultSettings, SceneKeys } from '../config/constants.js';
-import { GUEST_PLAYER_NAME } from '../ui/playerNameUi.js';
+import { GUEST_PLAYER_NAME, OFFLINE_PLAYER_NAME, OFFLINE_PLAY_TOKEN } from '../ui/playerNameUi.js';
 import {
   cacheAccountProfile,
   clearCachedAccountProfile,
@@ -32,6 +32,16 @@ function configEquals(a, b) {
 
 function normalizeGuestSession(session) {
   if (!session?.isGuest) return session;
+
+  if (session.isOfflinePlay || session.sessionToken === OFFLINE_PLAY_TOKEN) {
+    return {
+      ...session,
+      isOfflinePlay: true,
+      displayName: OFFLINE_PLAYER_NAME,
+      offlineGuestCode: session.offlineGuestCode ?? loadOrCreateOfflineGuestCode(),
+      sessionToken: OFFLINE_PLAY_TOKEN,
+    };
+  }
 
   const guestRawName = session.guestRawName
     ?? (String(session.displayName ?? '').match(/^guest/i) ? session.displayName : null);
@@ -121,15 +131,23 @@ export async function bootstrapPlayerSession(scene, { name, age }) {
   }
 }
 
-/** Visitante — UUID no backend */
+/** Visitante — tenta API; se falhar, cai no modo visitante local */
 export async function bootstrapGuestSession(scene) {
-  if (!GameApi.isEnabled()) {
-    const offline = { isGuest: true, displayName: GUEST_PLAYER_NAME, sessionToken: 'offline-guest' };
+  const applyOfflineGuest = () => {
+    const offline = {
+      isGuest: true,
+      displayName: GUEST_PLAYER_NAME,
+      sessionToken: 'offline-guest',
+    };
     GameState.setPlayerSession(scene, offline);
     storeGuestSessionToken('offline-guest');
     const localSettings = loadLocalSettings();
     if (localSettings) GameState.setSettings(scene, localSettings);
     return offline;
+  };
+
+  if (!GameApi.isEnabled()) {
+    return applyOfflineGuest();
   }
 
   try {
@@ -138,13 +156,32 @@ export async function bootstrapGuestSession(scene) {
     return session;
   } catch (err) {
     console.warn('[GameApi] visitante indisponível — modo offline', err.message);
-    const offline = { isGuest: true, displayName: GUEST_PLAYER_NAME, sessionToken: 'offline-guest' };
-    GameState.setPlayerSession(scene, offline);
-    storeGuestSessionToken('offline-guest');
-    const localSettings = loadLocalSettings();
-    if (localSettings) GameState.setSettings(scene, localSettings);
-    return offline;
+    return applyOfflineGuest();
   }
+}
+
+/** Jogar offline — sem internet; progresso só no localStorage deste aparelho */
+export function bootstrapOfflinePlaySession(scene) {
+  const offline = normalizeGuestSession({
+    isGuest: true,
+    isOfflinePlay: true,
+    displayName: OFFLINE_PLAYER_NAME,
+    sessionToken: OFFLINE_PLAY_TOKEN,
+    offlineGuestCode: loadOrCreateOfflineGuestCode(),
+  });
+
+  GameState.setPlayerSession(scene, offline);
+  storeGuestSessionToken(OFFLINE_PLAY_TOKEN);
+  clearStoredSessionToken();
+
+  const localSettings = loadLocalSettings();
+  if (localSettings) {
+    GameState.setSettings(scene, localSettings);
+  } else {
+    GameState.setSettings(scene, { ...defaultSettings });
+  }
+  applyMusicVolume(scene);
+  return offline;
 }
 
 /** Login com usuário cadastrado */
@@ -207,6 +244,19 @@ export async function restoreGuestSession(scene) {
 
   const token = loadGuestSessionToken();
   if (!token) return null;
+
+  if (token === OFFLINE_PLAY_TOKEN) {
+    const offline = normalizeGuestSession({
+      isGuest: true,
+      isOfflinePlay: true,
+      displayName: OFFLINE_PLAYER_NAME,
+      sessionToken: OFFLINE_PLAY_TOKEN,
+    });
+    GameState.setPlayerSession(scene, offline);
+    const localSettings = loadLocalSettings();
+    if (localSettings) GameState.setSettings(scene, localSettings);
+    return offline;
+  }
 
   if (token === 'offline-guest') {
     const offline = { isGuest: true, displayName: GUEST_PLAYER_NAME, sessionToken: 'offline-guest' };

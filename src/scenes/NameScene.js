@@ -29,6 +29,7 @@ import {
 import { bootstrapPlayerSession } from '../services/playerSession.js';
 import { isValidPlayerUsername } from '../utils/username.js';
 import { beginSceneRun, isStaleRun, gotoScene } from '../utils/sceneRun.js';
+import { ensureOnlineTermsAccepted } from '../ui/termsAcceptModal.js';
 
 const REGISTER_FROG_DEPTH = 12;
 
@@ -110,6 +111,7 @@ export class RegisterScene extends Phaser.Scene {
       const nome = nameField.getValue();
       if (!isValidPlayerUsername(nome)) return;
       playSound(this, 'clique');
+      if (!(await ensureOnlineTermsAccepted(this, { mode: 'register' }))) return;
       GameState.setParentName(this, nome);
       GameState.setPlayerAge(this, ageSlider.getValue());
       await bootstrapPlayerSession(this, {

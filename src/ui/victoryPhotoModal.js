@@ -81,6 +81,19 @@ function createActionButton(scene, x, y, label, iconDef, {
   return container;
 }
 
+function applyGraphicsMask(scene, gameObjects, graphics) {
+  if (scene.renderer?.type === Phaser.WEBGL) {
+    gameObjects.forEach((obj) => {
+      obj.enableFilters();
+      obj.filters.internal.addMask(graphics);
+    });
+    return;
+  }
+
+  const mask = graphics.createGeometryMask();
+  gameObjects.forEach((obj) => obj.setMask(mask));
+}
+
 function drawCheckerBg(gfx, size, cell = 14) {
   gfx.clear();
   const cols = Math.ceil(size / cell);
@@ -261,7 +274,6 @@ async function buildVictoryPhotoModal(scene, {
   const clipGfx = scene.add.graphics();
   clipGfx.fillStyle(0xffffff, 1);
   clipGfx.fillRoundedRect(-boardInner / 2, -boardInner / 2, boardInner, boardInner, cornerR);
-  const clipMask = clipGfx.createGeometryMask();
   clipGfx.setVisible(false);
 
   const frameBg = scene.add.graphics();
@@ -282,8 +294,7 @@ async function buildVictoryPhotoModal(scene, {
     .setDisplaySize(boardInner * snapScale, boardInner * snapScale)
     .setOrigin(0.5);
 
-  checker.setMask(clipMask);
-  snap.setMask(clipMask);
+  applyGraphicsMask(scene, [checker, snap], clipGfx);
 
   frame.add([checker, snap, frameBg, clipGfx]);
   panel.add(frame);

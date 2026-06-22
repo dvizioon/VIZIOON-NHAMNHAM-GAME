@@ -15,6 +15,7 @@ export const RegistryKeys = {
   PLAYER_SESSION: 'playerSession',
   ACTIVE_PERSON_ID: 'activePersonId',
   RUN_STATS: 'runStats',
+  SERVER_PING: 'serverPing',
 };
 
 export const SceneKeys = {

@@ -6,7 +6,7 @@ import { Icon } from './iconify.js';
 
 export const UI_GAME_HEALTH_KEY = 'ui_game_health';
 export const UI_GAME_SCORE_KEY = 'ui_game_score';
-export const GAME_SCORE_MAX = 100;
+export const GAME_SCORE_MAX = 50;
 
 /** Health.svg — viewBox 229×54 */
 const HEALTH_SVG = { w: 229, h: 54 };
@@ -278,7 +278,7 @@ export function updateGameHudHealth(hud, vidas, maxVidas = hud.maxVidas) {
 }
 
 export function updateGameHudScore(hud, score, maxScore = GAME_SCORE_MAX) {
-  const cap = GAME_SCORE_MAX;
+  const cap = maxScore ?? hud.maxScore ?? GAME_SCORE_MAX;
   const ratio = Phaser.Math.Clamp(score / cap, 0, 1);
   const fillMaxH = hud.tubeFillMaxH ?? hud.tubeLocalH;
   const fillBottom = hud.tubeFillBottom ?? hud.tubeLocalBottom;

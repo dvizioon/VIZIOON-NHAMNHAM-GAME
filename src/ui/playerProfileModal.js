@@ -8,7 +8,7 @@ import { GameState } from '../utils/GameState.js';
 import { logoutPlayerSession } from '../services/playerSession.js';
 import { SceneKeys } from '../config/constants.js';
 import { hasTexture } from '../systems/AssetLoader.js';
-import { GUEST_PLAYER_NAME, UI_USER_JOGADOR_KEY } from './playerNameUi.js';
+import { GUEST_PLAYER_NAME, OFFLINE_PLAYER_NAME, UI_USER_JOGADOR_KEY } from './playerNameUi.js';
 import { formatGuestChipCode } from '../utils/guestCode.js';
 import { gotoScene } from '../utils/sceneRun.js';
 
@@ -343,11 +343,6 @@ export async function openGuestProfileModal(scene, { onClose, onLogout, onConnec
   const btnGap = Math.max(14, Math.round(16 * s));
   const btnTopGap = Math.max(64, Math.round(72 * s));
   const btnH = 52;
-  const hintLinesH = bodySize * 3.6 + 16;
-  const panelH = Math.min(
-    Math.round(height * 0.58),
-    topPad + Math.max(22, Math.round(28 * s)) + 14 + hintLinesH + btnTopGap + btnH + btnGap + btnH + bottomPad,
-  );
 
   let closed = false;
   let closeBtn = null;
@@ -362,12 +357,20 @@ export async function openGuestProfileModal(scene, { onClose, onLogout, onConnec
     onClose?.();
   }
 
-  const guestCode = formatGuestChipCode(
-    GameState.getPlayerSession(scene) ?? { isGuest: true },
-  ) ?? 'visitante';
+  const session = GameState.getPlayerSession(scene) ?? { isGuest: true };
+  const offlinePlay = GameState.isOfflinePlay(scene);
+
+  const guestCode = formatGuestChipCode(session) ?? 'visitante';
+  const hintLinesH = offlinePlay ? bodySize * 2.2 + 12 : bodySize * 2.6 + 12;
+  const btnCount = offlinePlay ? 1 : 2;
+  const panelH = Math.min(
+    Math.round(height * 0.52),
+    topPad + Math.max(22, Math.round(28 * s)) + 14 + hintLinesH + btnTopGap
+      + btnH + (btnCount > 1 ? btnGap + btnH : 0) + bottomPad,
+  );
 
   const { root, panel, overlay, cx, cy, y: startY } = createProfileModalShell(scene, {
-    titleText: GUEST_PLAYER_NAME,
+    titleText: offlinePlay ? OFFLINE_PLAYER_NAME : GUEST_PLAYER_NAME,
     panelH,
     panelW,
     topPad,
@@ -376,16 +379,23 @@ export async function openGuestProfileModal(scene, { onClose, onLogout, onConnec
 
   let y = startY;
 
+  const textPad = panelW - 48;
+
+  const guestHintText = offlinePlay
+    ? 'Modo offline.\nBoa diversão!'
+    : `Código: ${guestCode}\nVisitante ativo.`;
+
   const hint = scene.add.text(
     0,
     y,
-    `Código: ${guestCode}\n\nVocê está jogando como visitante.\nConecte uma conta para salvar progresso.`,
+    guestHintText,
     {
       fontFamily: Theme.fontFamily,
       fontSize: `${bodySize}px`,
       color: '#6B4226',
       align: 'center',
       lineSpacing: 5,
+      wordWrap: { width: textPad, useAdvancedWrap: true },
     },
   ).setOrigin(0.5, 0);
   panel.add(hint);
@@ -395,20 +405,23 @@ export async function openGuestProfileModal(scene, { onClose, onLogout, onConnec
   const connectY = hint.y + hint.height + btnTopGap;
   const logoutY = connectY + btnH + btnGap;
 
-  const connectBtn = createModalIconButton(scene, 0, connectY, 'Conectar', CONNECT_ICON, {
-    color: Theme.botaoVerde,
-    darkColor: Theme.folhaEscura,
-    width: btnW,
-    fontSize: btnFont,
-    onClick: () => {
-      close(false);
-      onConnect?.();
-      gotoScene(scene, SceneKeys.LOGIN);
-    },
-  });
-  panel.add(connectBtn);
+  if (!offlinePlay) {
+    const connectBtn = createModalIconButton(scene, 0, connectY, 'Conectar', CONNECT_ICON, {
+      color: Theme.botaoVerde,
+      darkColor: Theme.folhaEscura,
+      width: btnW,
+      fontSize: btnFont,
+      onClick: () => {
+        close(false);
+        onConnect?.();
+        gotoScene(scene, SceneKeys.LOGIN);
+      },
+    });
+    panel.add(connectBtn);
+  }
 
-  const logoutBtn = createModalIconButton(scene, 0, logoutY, 'Sair', LOGOUT_ICON, {
+  const logoutBtnY = offlinePlay ? connectY : logoutY;
+  const logoutBtn = createModalIconButton(scene, 0, logoutBtnY, 'Sair', LOGOUT_ICON, {
     color: BTN_RED,
     darkColor: BTN_RED_DARK,
     width: btnW,

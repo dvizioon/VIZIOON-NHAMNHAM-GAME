@@ -31,6 +31,30 @@ export const GameApi = {
     return import.meta.env.VITE_GAME_API !== 'false';
   },
 
+  /** Mede latência até /health — funciona mesmo com API desligada (modo offline). */
+  async ping({ timeoutMs = 5000 } = {}) {
+    const start = performance.now();
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(`${API_BASE}/health`, {
+        method: 'GET',
+        signal: controller.signal,
+        cache: 'no-store',
+      });
+      const ms = Math.round(performance.now() - start);
+      if (!res.ok) {
+        return { ok: false, ms, error: `HTTP ${res.status}` };
+      }
+      return { ok: true, ms };
+    } catch (err) {
+      const ms = Math.round(performance.now() - start);
+      return { ok: false, ms, error: err?.message ?? 'offline' };
+    } finally {
+      clearTimeout(timer);
+    }
+  },
+
   async createSession({ name, age }) {
     const json = await request('/api/v1/game/session', {
       method: 'POST',

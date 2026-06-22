@@ -46,6 +46,7 @@ const ALERT_VARIANTS = {
 };
 
 let activeAlert = null;
+let openingAlert = false;
 
 function resolveVariant(type = 'info') {
   return ALERT_VARIANTS[type] ?? ALERT_VARIANTS.info;
@@ -106,13 +107,18 @@ export async function showThematicAlert(scene, message, {
   maxWidth = null,
   onClose,
   dismissOnOverlay = true,
+  overlayAlpha = 0.68,
 } = {}) {
   if (!scene?.add) return { close: () => {} };
+  if (openingAlert) return activeAlert ?? { close: () => {} };
 
-  activeAlert?.close?.();
+  openingAlert = true;
+  try {
+    activeAlert?.close?.();
 
-  const variant = resolveVariant(type);
-  await Icon.preload(scene, [variant.icon]);
+    const variant = resolveVariant(type);
+    await Icon.preload(scene, [variant.icon]);
+    if (!scene.sys?.isActive()) return { close: () => {} };
 
   const resolvedTitle = title === undefined ? variant.defaultTitle : title;
   const { width, height } = scene.scale;
@@ -174,7 +180,7 @@ export async function showThematicAlert(scene, message, {
   const cy = height * 0.46;
   const root = scene.add.container(0, 0).setDepth(depth);
 
-  const overlay = scene.add.rectangle(cx, height / 2, width, height, 0x061018, 0.68);
+  const overlay = scene.add.rectangle(cx, height / 2, width, height, 0x061018, overlayAlpha);
   overlay.setInteractive({ useHandCursor: false });
 
   const panel = scene.add.container(cx, cy);
@@ -266,7 +272,10 @@ export async function showThematicAlert(scene, message, {
     if (activeAlert === handle) activeAlert = null;
   });
 
-  return handle;
+    return handle;
+  } finally {
+    openingAlert = false;
+  }
 }
 
 export function showSuccessAlert(scene, message, options = {}) {

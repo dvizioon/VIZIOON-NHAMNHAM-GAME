@@ -83,6 +83,7 @@ import {
 import { ensureBgmPlaying } from '../systems/MusicManager.js';
 import { syncRunScore } from '../services/playerSession.js';
 import { getCountdownSoundKey } from '../config/characterUiConfig.js';
+import { createGamePingHud } from '../ui/gamePingHud.js';
 
 /**
  * tronco_game = background fixo
@@ -101,6 +102,7 @@ export class GameScene extends Phaser.Scene {
     this.pontos = 0;
     this.frutasComidas = 0;
     this.gameHud = null;
+    this.pingHud = null;
     this.jogoAtivo = false;
     this.comidas = [];
     this.particulas = [];
@@ -121,6 +123,8 @@ export class GameScene extends Phaser.Scene {
     this.avisoText = null;
     this.tutorialGroup = null;
     this.fruitSpawnTimer = null;
+    this.fruitGroup = null;
+    this.fruitFruitCollider = null;
     this._pendingFruitTimers = [];
     this._fruitFrameBag = [];
     this._lastFruitSpawnAt = 0;
@@ -139,6 +143,10 @@ export class GameScene extends Phaser.Scene {
     this._navLock = false;
     this._gameOverModal?.close?.();
     this._gameOverModal = null;
+    this.clearPendingFruitSpawns();
+    this.destroyFruitGroup();
+
+    this.events.once('shutdown', () => this.shutdown());
 
     this.config = GameState.getConfig(this);
     this.child = GameState.getChild(this);
@@ -146,7 +154,7 @@ export class GameScene extends Phaser.Scene {
     this.pontos = 0;
     this.frutasComidas = 0;
     this.maxVidas = this.config.maxVidas ?? 3;
-    this.scoreMax = GAME_SCORE_MAX;
+    this.scoreMax = this.config?.metaComida ?? GAME_SCORE_MAX;
     this.vidas = GameState.getLives(this) ?? this.maxVidas;
     this.gameOverActive = false;
     this.invulneravel = 0;
@@ -164,6 +172,7 @@ export class GameScene extends Phaser.Scene {
     this.buildClimber(width);
     this.playIntroReveal();
     this.buildGameHud();
+    this.buildPingHud();
     this.buildTutorial(width);
     this.buildAvisoPanel(width, height);
 
@@ -459,6 +468,12 @@ export class GameScene extends Phaser.Scene {
     this.pinHud(this.gameHud.container);
   }
 
+  buildPingHud() {
+    this.pingHud?.destroy();
+    this.pingHud = createGamePingHud(this);
+    this.pingHud?.start();
+  }
+
   buildClimber(width) {
     const bodySize = this.trunkW * CLIMB_BODY_TRUNK_RATIO;
     const climbScale = bodySize / CLIMB_FRAME_HEIGHT;
@@ -594,7 +609,29 @@ export class GameScene extends Phaser.Scene {
     return this.getFruitLandY() + 72;
   }
 
-  setupFruitPhysics() {
+  destroyFruitGroup() {
+    this.fruitFruitCollider?.destroy?.();
+    this.fruitFruitCollider = null;
+    try {
+      this.fruitGroup?.clear?.(true, true);
+      this.fruitGroup?.destroy?.(true);
+    } catch {
+      /* grupo já destruído ou inválido após restart da cena */
+    }
+    this.fruitGroup = null;
+  }
+
+  /** Recria o grupo se estiver ausente ou inválido (ex.: após restart / timer atrasado). */
+  ensureFruitGroup() {
+    if (!this.physics?.add || !this.scene?.isActive()) return null;
+
+    const group = this.fruitGroup;
+    if (group && typeof group.add === 'function' && group.children != null) {
+      return group;
+    }
+
+    this.destroyFruitGroup();
+
     const { width, height } = this.scale;
     const boundsTop = -height * 1.5;
     const boundsH = height * 2.8;
@@ -602,20 +639,23 @@ export class GameScene extends Phaser.Scene {
     this.physics.world.gravity.y = GAME_FRUIT_GRAVITY;
     this.physics.world.setBounds(0, boundsTop, width, boundsH);
 
-    if (!this.fruitGroup || typeof this.fruitGroup.add !== 'function') {
-      this.fruitFruitCollider?.destroy?.();
-      this.fruitGroup = this.physics.add.group({
-        collideWorldBounds: false,
-      });
+    this.fruitGroup = this.physics.add.group({
+      collideWorldBounds: false,
+    });
 
-      this.fruitFruitCollider = this.physics.add.collider(
-        this.fruitGroup,
-        this.fruitGroup,
-        this.onFruitFruitHit,
-        null,
-        this,
-      );
-    }
+    this.fruitFruitCollider = this.physics.add.collider(
+      this.fruitGroup,
+      this.fruitGroup,
+      this.onFruitFruitHit,
+      null,
+      this,
+    );
+
+    return this.fruitGroup;
+  }
+
+  setupFruitPhysics() {
+    this.ensureFruitGroup();
   }
 
   onFruitFruitHit(obj1, obj2) {
@@ -758,7 +798,7 @@ export class GameScene extends Phaser.Scene {
       point.y -= Math.round(i * yStep);
       usedPoints.push({ x: point.x, y: point.y });
       const timer = this.time.delayedCall(i * 900, () => {
-        if (!this.scene?.isActive() || !this.jogoAtivo || !this.fruitGroup) return;
+        if (!this.scene?.isActive() || !this.jogoAtivo) return;
         this.dropFruitAt(point);
       });
       this._pendingFruitTimers.push(timer);
@@ -771,8 +811,8 @@ export class GameScene extends Phaser.Scene {
   dropFruitAt(spawn) {
     if (!this.jogoAtivo || !this.scene?.isActive() || !this.textures.exists(FOOD_FRUTAS.key)) return;
 
-    this.setupFruitPhysics();
-    if (!this.fruitGroup?.add) return;
+    const fruitGroup = this.ensureFruitGroup();
+    if (!fruitGroup?.add) return;
 
     const { width } = this.scale;
     const frame = this.pickFruitFrame();
@@ -803,12 +843,13 @@ export class GameScene extends Phaser.Scene {
     sprite.body.setCircle(radius, inset, inset);
     this.applyFruitLaunchVelocity(sprite, tier, { ...spawn, x: spawnX });
 
-    if (!this.fruitGroup?.add) {
+    try {
+      fruitGroup.add(sprite);
+    } catch {
       sprite.destroy();
+      this.destroyFruitGroup();
       return;
     }
-
-    this.fruitGroup.add(sprite);
 
     const entry = {
       x: spawnX,
@@ -1041,7 +1082,7 @@ export class GameScene extends Phaser.Scene {
     this.dismissTutorial();
     const mult = c.multiplier ?? pickFruitMultiplier();
     this.frutasComidas += 1;
-    this.pontos = Math.min(this.pontos + mult, GAME_SCORE_MAX);
+    this.pontos = Math.min(this.pontos + mult, this.scoreMax);
     GameState.setPoints(this, this.pontos);
     if (c.frame != null) {
       GameState.recordFruitEat(this, c.frame);
@@ -1092,7 +1133,7 @@ export class GameScene extends Phaser.Scene {
 
     this.time.delayedCall(FRUIT_SPAWN_COOLDOWN_MS, () => this.spawnFallingFruit());
 
-    if (this.pontos >= GAME_SCORE_MAX) {
+    if (this.pontos >= this.scoreMax) {
       this.jogoAtivo = false;
       this.stopFruitSpawning();
       GameState.finishRun(this);
@@ -1594,15 +1635,15 @@ export class GameScene extends Phaser.Scene {
       }
     });
     this.comidas = [];
-    this.fruitGroup?.clear(true, true);
-    this.fruitFruitCollider = null;
-    this.fruitGroup = null;
+    this.destroyFruitGroup();
     if (this.physics?.world) this.physics.world.gravity.y = 0;
     this.caterpillarApi?.destroy?.();
     this.caterpillarApi = null;
     this.lagarta = null;
     this.gameHud?.container?.destroy?.();
     this.gameHud = null;
+    this.pingHud?.destroy();
+    this.pingHud = null;
     this.frogSprite?.destroy();
     this.frogSprite = null;
   }

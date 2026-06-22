@@ -42,6 +42,11 @@ export const GUEST_EXTERNAL_ICON = Icon.from('mynaui:external-link', {
   color: GUEST_LINK_COLOR,
 });
 
+export const OFFLINE_PLAY_ICON = Icon.from('solar:cloud-cross-linear', {
+  designSize: 24,
+  color: GUEST_LINK_COLOR,
+});
+
 export const LOGIN_ICONS = {
   home: Icon.from('mynaui:home', { designSize: 24, color: '#ffffff' }),
   add: Icon.from('solar:add-circle-broken', { designSize: 24, color: '#4E9A2E' }),
@@ -49,7 +54,7 @@ export const LOGIN_ICONS = {
 };
 
 export async function preloadLoginUiIcons(scene) {
-  await Icon.preload(scene, [...Object.values(LOGIN_ICONS), GUEST_EXTERNAL_ICON]);
+  await Icon.preload(scene, [...Object.values(LOGIN_ICONS), GUEST_EXTERNAL_ICON, OFFLINE_PLAY_ICON]);
 }
 
 /** Avatar login — Cabeça_Largata.svg */
@@ -234,29 +239,56 @@ export function createLoginInfoBox(scene, x, y, contentW) {
   const padY = Math.round(14 * scale);
   const fontSize = Math.max(14, Math.round(16 * scale));
   const lineGap = Math.round(6 * scale);
+  const iconPx = Math.round(fontSize * 1.12);
+  const iconGap = Math.round(5 * scale);
 
   const root = scene.add.container(x, y).setDepth(20);
 
-  const text = scene.add.text(0, 0, 'Para criar uma conta basta\nclicar no botão de (+)', {
+  const line1 = scene.add.text(0, 0, 'Para criar uma conta basta', {
     fontFamily: Theme.fontFamily,
     fontSize: `${fontSize}px`,
     color: INFO_TEXT_COLOR,
     align: 'center',
-    lineSpacing: lineGap,
-  }).setOrigin(0.5);
+  }).setOrigin(0.5, 0);
 
-  const boxH = text.height + padY * 2;
+  const line2Row = scene.add.container(0, 0);
+  const line2Text = scene.add.text(0, 0, 'clicar no botão', {
+    fontFamily: Theme.fontFamily,
+    fontSize: `${fontSize}px`,
+    color: INFO_TEXT_COLOR,
+  }).setOrigin(0, 0.5);
+  const addIcon = scene.add
+    .image(0, 0, LOGIN_ICONS.add.textureKey)
+    .setDisplaySize(iconPx, iconPx)
+    .setOrigin(0, 0.5);
+  line2Row.add([line2Text, addIcon]);
+
+  const rowW = line2Text.width + iconGap + iconPx;
+  addIcon.x = line2Text.width + iconGap;
+  line2Row.setSize(rowW, Math.max(line2Text.height, iconPx));
+
+  const contentH = line1.height + lineGap + line2Row.height;
+  const boxH = contentH + padY * 2;
+  line1.y = -contentH / 2;
+  line2Row.y = line1.y + line1.height + lineGap + line2Row.height / 2;
+  line2Row.x = -rowW / 2;
+
   const bg = scene.add.graphics();
   bg.fillStyle(0xFBF7E8, 1);
   bg.fillRoundedRect(-boxW / 2, -boxH / 2, boxW, boxH, Math.round(16 * scale));
   bg.lineStyle(2, 0xE8DCC8, 1);
   bg.strokeRoundedRect(-boxW / 2, -boxH / 2, boxW, boxH, Math.round(16 * scale));
 
-  root.add([bg, text]);
+  root.add([bg, line1, line2Row]);
   return root;
 }
 
-export function createGuestPlayLink(scene, x, y, { onClick } = {}) {
+export function createGuestPlayLink(scene, x, y, {
+  onClick,
+  label = 'Jogar como visitante',
+  showIcon = true,
+  icon = GUEST_EXTERNAL_ICON,
+} = {}) {
   const s = uiScale(scene);
   const fontSize = Math.max(16, Math.round(20 * s));
   const iconPx = Math.round(fontSize * 1.05);
@@ -264,30 +296,40 @@ export function createGuestPlayLink(scene, x, y, { onClick } = {}) {
 
   const root = scene.add.container(x, y).setDepth(200);
 
-  const label = scene.add.text(0, 0, 'Jogar como visitante', {
+  const text = scene.add.text(0, 0, label, {
     fontFamily: Theme.fontFamily,
     fontSize: `${fontSize}px`,
     color: GUEST_LINK_COLOR,
     fontStyle: 'bold',
   }).setOrigin(0, 0.5);
 
-  const arrow = scene.add
-    .image(label.width + gap, 0, GUEST_EXTERNAL_ICON.textureKey)
-    .setDisplaySize(iconPx, iconPx)
-    .setOrigin(0, 0.5);
+  root.add(text);
 
-  const totalW = label.width + gap + iconPx;
-  label.x = -totalW / 2;
-  arrow.x = label.x + label.width + gap;
+  let totalW = text.width;
+  let arrow = null;
+  if (showIcon) {
+    arrow = scene.add
+      .image(text.width + gap, 0, icon.textureKey)
+      .setDisplaySize(iconPx, iconPx)
+      .setOrigin(0, 0.5);
+    root.add(arrow);
+    totalW = text.width + gap + iconPx;
+  }
 
-  root.add([label, arrow]);
-  root.setSize(totalW, Math.max(label.height, iconPx) + 8);
+  text.x = -totalW / 2;
+  if (arrow) {
+    arrow.x = text.x + text.width + gap;
+  }
+
+  root.setSize(totalW, Math.max(text.height, showIcon ? iconPx : text.height) + 8);
   root.setInteractive({ useHandCursor: true });
 
   const setHover = (active) => {
     const color = active ? GUEST_LINK_HOVER : GUEST_LINK_COLOR;
-    label.setColor(color);
-    arrow.setTint(active ? 0x3B3024 : 0x6B4226);
+    text.setColor(color);
+    if (arrow?.setTint) {
+      arrow.setTint(active ? 0x3B3024 : 0x6B4226);
+    }
   };
 
   root.on('pointerover', () => setHover(true));
@@ -302,6 +344,15 @@ export function createGuestPlayLink(scene, x, y, { onClick } = {}) {
   return root;
 }
 
+export function createOfflinePlayLink(scene, x, y, { onClick } = {}) {
+  return createGuestPlayLink(scene, x, y, {
+    onClick,
+    label: 'Jogar offline',
+    showIcon: true,
+    icon: OFFLINE_PLAY_ICON,
+  });
+}
+
 export function computeLoginLayout(scene, logoH, grassTop) {
   const { width, height } = scene.scale;
   const s = uiScale(scene);
@@ -311,35 +362,45 @@ export function computeLoginLayout(scene, logoH, grassTop) {
   const labelGap = Math.round(12 * s);
   const blockH = fieldH + labelGap + labelSize;
   const contentW = Math.min(width * 0.86, 420);
-  const infoBoxH = Math.max(72, Math.round(88 * s));
 
   const topPad = Math.max(8, height * 0.012);
   const logoGap = Math.max(12, height * 0.016);
-  const avatarGap = Math.max(14, height * 0.018);
-  const grassMargin = Math.max(10, height * 0.012);
-  const btnInfoGap = Math.max(36, height * 0.042);
-  const infoGuestGap = Math.max(16, height * 0.018);
-  const guestBtnGap = Math.max(40, height * 0.048);
+  const avatarGapAboveField = Math.max(22, height * 0.028);
+  const btnLinksGap = Math.max(40, height * 0.044);
+  const fieldInfoGap = Math.max(12, height * 0.014);
+  const grassMargin = Math.max(4, height * 0.005);
+  const linksGap = Math.max(8, height * 0.01);
+  const contentShiftDown = Math.max(14, height * 0.018);
+
+  const infoPadY = Math.round(14 * s);
+  const infoFontSize = Math.max(14, Math.round(16 * s));
+  const infoBoxH = infoFontSize * 2 + infoPadY * 2 + Math.round(6 * s);
+  const linkH = Math.max(24, Math.round(28 * s));
+  const linksBlockH = linkH * 2 + linksGap;
 
   const logoY = topPad + logoH / 2;
   const logoBottom = logoY + logoH / 2;
   const contentTop = logoBottom + logoGap;
 
   const btnYFromGrass = grassTop - grassMargin - btnMetrics.btnH / 2;
-  const btnY = Math.max(btnYFromGrass, height * 0.772);
+  const btnY = Math.max(btnYFromGrass, height * 0.808);
+  const btnTop = btnY - btnMetrics.btnH / 2;
 
-  const guestY = btnY - btnMetrics.btnH / 2 - guestBtnGap;
-  const infoY = guestY - infoGuestGap - infoBoxH / 2;
-  const fieldY = infoY - btnInfoGap - blockH / 2;
+  const linksCenterY = btnTop - btnLinksGap - linksBlockH / 2 + contentShiftDown * 0.35;
+  const guestY = linksCenterY - linksBlockH / 2 + linkH / 2;
+  const offlineY = guestY + linkH / 2 + linksGap + linkH / 2;
+
+  const infoY = linksCenterY - linksBlockH / 2 - fieldInfoGap - infoBoxH / 2;
+  const fieldY = infoY - infoBoxH / 2 - fieldInfoGap - blockH / 2 + contentShiftDown;
 
   const fieldTop = fieldY - blockH / 2;
-  const avatarSpaceH = Math.max(64, fieldTop - avatarGap - contentTop);
+  const avatarSpaceH = Math.max(64, fieldTop - avatarGapAboveField - contentTop);
   let avatarSize = Math.max(118, Math.min(width * 0.44, height * 0.2, avatarSpaceH * 0.96));
   let avatarY = contentTop + avatarSpaceH / 2;
 
-  if (avatarY + avatarSize / 2 > fieldTop - avatarGap) {
-    avatarSize = Math.max(100, (fieldTop - avatarGap - contentTop) * 0.96);
-    avatarY = contentTop + (fieldTop - avatarGap - contentTop) / 2;
+  if (avatarY + avatarSize / 2 > fieldTop - avatarGapAboveField) {
+    avatarSize = Math.max(100, (fieldTop - avatarGapAboveField - contentTop) * 0.96);
+    avatarY = contentTop + (fieldTop - avatarGapAboveField - contentTop) / 2;
   }
 
   return {
@@ -350,6 +411,7 @@ export function computeLoginLayout(scene, logoH, grassTop) {
     fieldY,
     infoY,
     guestY,
+    offlineY,
     btnY,
     btnMetrics,
   };

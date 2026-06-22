@@ -4,6 +4,7 @@ const SETTINGS_KEY = 'nhamnham_settings';
 const PROFILE_KEY = 'nhamnham_profile_cache';
 const LAST_RUN_KEY = 'nhamnham_last_run';
 const RELEASE_PROMPT_KEY = 'nhamnham_release_prompt';
+const TERMS_ACCEPT_KEY = 'nhamnham_terms_online_v1';
 
 function normalizeSettings(raw) {
   if (!raw || typeof raw !== 'object') return null;
@@ -115,6 +116,23 @@ export function saveDismissedReleaseVersion(version) {
   if (!version) return;
   try {
     localStorage.setItem(RELEASE_PROMPT_KEY, String(version));
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Aceite do combinado online — login, visitante e cadastro */
+export function hasAcceptedOnlineTerms() {
+  try {
+    return localStorage.getItem(TERMS_ACCEPT_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function saveOnlineTermsAccepted() {
+  try {
+    localStorage.setItem(TERMS_ACCEPT_KEY, '1');
   } catch {
     /* ignore */
   }

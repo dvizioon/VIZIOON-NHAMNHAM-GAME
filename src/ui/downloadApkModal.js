@@ -80,9 +80,13 @@ function createActionButton(scene, x, y, label, iconDef, {
   container.add([bg, icon, text]);
   container.setSize(width, btnH);
   container.setInteractive({ useHandCursor: true });
+  let clickLocked = false;
   container.on('pointerdown', () => draw(true));
   container.on('pointerup', () => {
     draw(false);
+    if (clickLocked) return;
+    clickLocked = true;
+    scene.time.delayedCall(420, () => { clickLocked = false; });
     onClick?.();
   });
   container.on('pointerout', () => draw(false));
@@ -134,9 +138,13 @@ function createPlatformSymbol(scene, x, y, size, iconDef, label, onClick) {
   container.add([bg, icon, text]);
   container.setSize(cardW, cardH);
   container.setInteractive({ useHandCursor: true });
+  let clickLocked = false;
   container.on('pointerdown', () => draw(true));
   container.on('pointerup', () => {
     draw(false);
+    if (clickLocked) return;
+    clickLocked = true;
+    scene.time.delayedCall(420, () => { clickLocked = false; });
     onClick?.();
   });
   container.on('pointerout', () => draw(false));
@@ -363,10 +371,14 @@ export async function openDownloadApkModal(scene, { onClose } = {}) {
         openExternalUrl(APP_IOS_URL);
         return;
       }
-      showWarningAlert(
+      void showWarningAlert(
         scene,
         'O app para iOS ainda não está disponível.\nFique de olho nas novidades!',
-        { title: 'Em breve no iOS' },
+        {
+          title: 'Em breve no iOS',
+          depth: MODAL_DEPTH + 10,
+          overlayAlpha: 0.24,
+        },
       );
     },
   );
@@ -479,8 +491,9 @@ export async function openDownloadApkModal(scene, { onClose } = {}) {
   });
 
   fetchLatestReleaseInfo().then((latest) => {
-    if (!latest) return;
+    if (!latest || activeModal !== handle || !versionText.scene) return;
     latestRelease = latest;
+    versionText.setText(`Versão ${formatAppVersion(latest.version)}`);
   }).catch(() => {});
 
   return handle;

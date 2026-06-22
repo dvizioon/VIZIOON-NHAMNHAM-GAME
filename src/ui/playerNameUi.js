@@ -26,6 +26,8 @@ export const PLAYER_AGE_MIN = 3;
 export const PLAYER_AGE_MAX = 99;
 export const PLAYER_AGE_DEFAULT = 6;
 export const GUEST_PLAYER_NAME = 'Visitante';
+export const OFFLINE_PLAYER_NAME = 'Offline';
+export const OFFLINE_PLAY_TOKEN = 'offline-local';
 
 const LABEL_COLOR = '#4E9A2E';
 const FIELD_GREEN = Theme.modoVerde;

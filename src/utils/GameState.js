@@ -1,5 +1,5 @@
 import { RegistryKeys, defaultSettings, SceneKeys } from '../config/constants.js';
-import { GUEST_PLAYER_NAME } from '../ui/playerNameUi.js';
+import { GUEST_PLAYER_NAME, OFFLINE_PLAYER_NAME } from '../ui/playerNameUi.js';
 import { formatGuestChipCode } from '../utils/guestCode.js';
 import { CORES } from '../config/theme.js';
 import { loadGuestSessionToken } from '../services/gameApi.js';
@@ -164,7 +164,12 @@ export const GameState = {
 
   isGuestOnline(scene) {
     const session = this.getPlayerSession(scene);
-    return Boolean(session?.isGuest);
+    return Boolean(session?.isGuest && !session?.isOfflinePlay);
+  },
+
+  isOfflinePlay(scene) {
+    const session = this.getPlayerSession(scene);
+    return Boolean(session?.isOfflinePlay);
   },
 
   isOnlineConnected(scene) {
@@ -187,6 +192,7 @@ export const GameState = {
     }
     if (this.hasActiveGuestSession(scene)) {
       const session = this.getPlayerSession(scene) ?? { isGuest: true };
+      if (session.isOfflinePlay) return OFFLINE_PLAYER_NAME;
       return formatGuestChipCode(session) ?? GUEST_PLAYER_NAME;
     }
     return null;
@@ -197,6 +203,9 @@ export const GameState = {
     if (this.isOnlineConnected(scene)) {
       return this.getPlayerSession(scene)?.displayName ?? null;
     }
+    if (this.isOfflinePlay(scene)) {
+      return OFFLINE_PLAYER_NAME;
+    }
     if (this.hasActiveGuestSession(scene) || this.isGuestOnline(scene)) {
       return GUEST_PLAYER_NAME;
     }
@@ -205,6 +214,14 @@ export const GameState = {
 
   canAppearInRanking(scene) {
     return this.isOnlineConnected(scene);
+  },
+
+  getServerPing(scene) {
+    return scene.registry.get(RegistryKeys.SERVER_PING) ?? null;
+  },
+
+  setServerPing(scene, ping) {
+    scene.registry.set(RegistryKeys.SERVER_PING, ping);
   },
 };
 

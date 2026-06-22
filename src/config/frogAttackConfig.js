@@ -22,7 +22,7 @@ export const FROG_ATTACK_FRAME_MS = [42, 38, 52];
 /** Tempos do sapo no jogo */
 export const GAME_SAPO_SOUND_FALLBACK_MS = 1500;
 /** Pausa com sapo visível antes de atacar (ms) */
-export const GAME_SAPO_AVISO_MS = 1000;
+export const GAME_SAPO_AVISO_MS = 500;
 /** @deprecated use GAME_SAPO_AVISO_MS */
 export const GAME_SAPO_AVISO_FRAMES = 60;
 export const GAME_SAPO_VOLTANDO_FRAMES = 8;

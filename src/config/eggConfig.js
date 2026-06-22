@@ -19,8 +19,8 @@ export const EGG_OPEN_FRAME_COUNT = 3;
 export const EGG_OPEN_FRAME_W = 718;
 export const EGG_OPEN_FRAME_H = 603;
 
-/** 3 toques no ovo — 2 frames quebrando + 3º nasce */
-export const EGG_CLICKS_TO_HATCH = 3;
+/** 4 toques — 3 frames quebrando + 4º nasce */
+export const EGG_CLICKS_TO_HATCH = 4;
 export const EGG_WOBBLE_FRAME_RATE = 8;
 export const EGG_STORY_CARD_Y_RATIO = 0.20;
 

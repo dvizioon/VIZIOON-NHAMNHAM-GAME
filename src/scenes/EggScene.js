@@ -50,7 +50,7 @@ import {
 } from '../config/eggConfig.js';
 import { beginSceneRun, isStaleRun, gotoScene } from '../utils/sceneRun.js';
 
-/** Tela do ovo — folhas à direita, ovo balançando; 3 toques para nascer */
+/** Tela do ovo — folhas à direita, ovo balançando; 4 toques (3 frames + nascer) */
 export class EggScene extends Phaser.Scene {
   constructor() {
     super(SceneKeys.EGG);
@@ -79,7 +79,10 @@ export class EggScene extends Phaser.Scene {
     if (isStaleRun(this, run)) return;
 
     const rules = this.registry.get(RegistryKeys.GAME_CONFIG);
-    this.clicksToHatch = Math.max(2, Number(rules?.cliquesOvo ?? EGG_CLICKS_TO_HATCH));
+    this.clicksToHatch = Math.max(
+      EGG_CRACK_FRAME_COUNT + 1,
+      Number(rules?.cliquesOvo ?? EGG_CLICKS_TO_HATCH),
+    );
 
     createEggStoryCard(this, width / 2, height * EGG_STORY_CARD_Y_RATIO, {
       nome: child?.nome ?? 'Lagartinha',

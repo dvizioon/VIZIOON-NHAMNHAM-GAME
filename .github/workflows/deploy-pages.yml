@@ -51,6 +51,7 @@ jobs:
         env:
           VITE_BASE_PATH: /${{ github.event.repository.name }}/
           VITE_DEBUG: 'false'
+          VITE_GAME_API: 'false'
           VITE_GAME_API_URL: https://apinhocnhoc.clickupbot.com
           VITE_APP_VERSION: ${{ steps.app_version.outputs.value }}
 

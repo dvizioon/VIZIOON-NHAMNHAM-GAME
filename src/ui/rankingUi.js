@@ -8,6 +8,7 @@ import { GameState } from '../utils/GameState.js';
 import { GameApi } from '../services/gameApi.js';
 import { GUEST_PLAYER_NAME, UI_USER_JOGADOR_KEY } from './playerNameUi.js';
 import { openRunRecapModal } from './runRecapUi.js';
+import { GAME_SCORE_MAX } from './gameUi.js';
 import { PANEL_CORNER_RADIUS, PANEL_SHADOW_OFFSET } from './settingsUi.js';
 import { showWarningAlert } from './thematicAlert.js';
 
@@ -542,7 +543,7 @@ export async function openRankingModal(scene, { onClose } = {}) {
 
     if (!entries?.length) {
       scroll.content.add(
-        scene.add.text(listW / 2, listH / 2, 'Ninguém no pódio ainda.\nComplete 100 pontos com uma conta!', {
+        scene.add.text(listW / 2, listH / 2, `Ninguém no pódio ainda.\nComplete ${GAME_SCORE_MAX} pontos com uma conta!`, {
           fontFamily: Theme.fontFamily,
           fontSize: `${bodySize}px`,
           color: '#6B4226',

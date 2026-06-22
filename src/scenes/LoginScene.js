@@ -22,15 +22,18 @@ import {
   createLoginUsernameField,
   createLoginInfoBox,
   createGuestPlayLink,
+  createOfflinePlayLink,
   computeLoginLayout,
   createLoginNavButtons,
 } from '../ui/loginUi.js';
 import {
   bootstrapGuestSession,
+  bootstrapOfflinePlaySession,
   loginPlayerSession,
 } from '../services/playerSession.js';
 import { isValidPlayerUsername } from '../utils/username.js';
 import { beginSceneRun, isStaleRun, gotoScene } from '../utils/sceneRun.js';
+import { ensureOnlineTermsAccepted } from '../ui/termsAcceptModal.js';
 
 const LOGIN_FROG_DEPTH = 12;
 
@@ -98,6 +101,7 @@ export class LoginScene extends Phaser.Scene {
       const username = usernameField.getValue();
       if (!isValidPlayerUsername(username)) return;
       playSound(this, 'clique');
+      if (!(await ensureOnlineTermsAccepted(this, { mode: 'login' }))) return;
       const ok = await loginPlayerSession(this, username);
       if (ok) {
         goCharacter();
@@ -116,7 +120,18 @@ export class LoginScene extends Phaser.Scene {
       onClick: async () => {
         usernameField.blur();
         playSound(this, 'clique');
+        if (!(await ensureOnlineTermsAccepted(this, { mode: 'guest' }))) return;
         await bootstrapGuestSession(this);
+        goCharacter();
+      },
+    });
+
+    createOfflinePlayLink(this, width / 2, layout.offlineY, {
+      onClick: async () => {
+        usernameField.blur();
+        playSound(this, 'clique');
+        if (!(await ensureOnlineTermsAccepted(this, { mode: 'offline' }))) return;
+        bootstrapOfflinePlaySession(this);
         goCharacter();
       },
     });
